@@ -13,6 +13,7 @@ export const calculations = pgTable("calculations", {
   batteryCapacity: integer("battery_capacity").notNull(), // kWh
   savingsKwh: integer("savings_kwh").notNull(),
   co2Reduction: integer("co2_reduction").notNull(), // kg CO2
+  carbonFootprint: integer("carbon_footprint").default(0), // mg CO2 for calculation run
   renewableMix: jsonb("renewable_mix").$type<{solar: number, wind: number}>(), // % mix
   createdAt: timestamp("created_at").defaultNow(),
 });

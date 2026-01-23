@@ -24,6 +24,7 @@ export const api = {
         200: z.object({
           savingsKwh: z.number(),
           co2Reduction: z.number(),
+          carbonFootprint: z.number(),
           recommendation: z.string(),
           breakdown: z.object({
             solar: z.number(),
