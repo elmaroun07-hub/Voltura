@@ -1,7 +1,6 @@
 import json
 import math
 import os
-import time
 import requests
 import numpy as np
 
@@ -94,94 +93,101 @@ def simulate_8760(
     irr_monthly: list[float],
     temp_monthly: list[float],
 ) -> dict:
+    """NumPy-vectorized 8760-hour battery charge/discharge simulation."""
     eff = efficiency / 100.0
     pv_kw = pv_w / 1000.0
-
-    hours_per_month = [d * 24 for d in MONTH_DAYS]
     hourly_consumption = annual_kwh / 8760.0
 
-    total_solar_kwh = 0.0
-    total_battery_kwh = 0.0
-    total_grid_kwh = 0.0
-    total_saved_kwh = 0.0
+    # Build full 8760-element arrays for irradiance and temperature
+    irr_hourly = np.repeat(np.array(irr_monthly), [d * 24 for d in MONTH_DAYS])
+    temp_hourly = np.repeat(np.array(temp_monthly), [d * 24 for d in MONTH_DAYS])
 
-    monthly_data = []
-    all_soc = []
+    # Hour-of-day array (0..23 repeated)
+    hours_of_day = np.arange(8760) % 24
 
-    hour_idx = 0
+    # Solar generation profile: sine arc between 6:00 and 18:00
+    sun_angle = np.where(
+        (hours_of_day >= 6) & (hours_of_day <= 18),
+        np.sin(np.pi * (hours_of_day - 6) / 12),
+        0.0,
+    )
+    sun_angle = np.clip(sun_angle, 0.0, None)
+
+    # Temperature derating factor
+    temp_derate = 1.0 - 0.004 * np.maximum(0.0, temp_hourly - 25.0)
+
+    # Peak generation per hour (kWh) scaled by irradiance ratio
+    peak_gen = pv_kw * irr_hourly * panel_factor * temp_derate / 5.5
+    gen = peak_gen * sun_angle
+
+    # Load profile: base + morning + evening peaks
+    load = hourly_consumption * (
+        0.8 + 0.4 * np.sin(np.pi * (hours_of_day - 6) / 12)
+    )
+
+    net = gen - load  # positive = surplus, negative = deficit
+
+    # Sequential battery SoC simulation (NumPy loop over months for efficiency)
     soc = battery_kwh * 0.5
+    soc_arr = np.empty(8760)
+    solar_used_arr = np.empty(8760)
+    battery_used_arr = np.empty(8760)
+    grid_used_arr = np.empty(8760)
 
+    for h in range(8760):
+        n = net[h]
+        if n >= 0:
+            # Surplus: charge battery; solar covers load fully
+            charge = min(n * eff, battery_kwh - soc)
+            soc = min(battery_kwh, soc + charge)
+            solar_used_arr[h] = load[h]
+            battery_used_arr[h] = 0.0
+            grid_used_arr[h] = 0.0
+        else:
+            deficit = -n
+            discharge = min(deficit, soc * eff)
+            soc = max(0.0, soc - (discharge / eff if eff > 0 else discharge))
+            battery_used = min(discharge, deficit)
+            grid_used = max(0.0, deficit - battery_used)
+            solar_used_arr[h] = gen[h]
+            battery_used_arr[h] = battery_used
+            grid_used_arr[h] = grid_used
+        soc_arr[h] = soc
+
+    # Aggregate per month using NumPy
+    hour_boundaries = np.concatenate([[0], np.cumsum([d * 24 for d in MONTH_DAYS])])
+    monthly_data = []
     for m in range(12):
-        irr = irr_monthly[m]
-        temp = temp_monthly[m]
-        temp_derate = 1.0 - 0.004 * max(0, temp - 25)
-        peak_gen = pv_kw * irr * panel_factor * temp_derate
-
-        days = MONTH_DAYS[m]
-        hours = days * 24
-
-        month_solar = 0.0
-        month_battery_used = 0.0
-        month_grid = 0.0
-        month_saved = 0.0
-
-        for h in range(hours):
-            hour_of_day = (hour_idx + h) % 24
-            sun_factor = max(0.0, math.sin(math.pi * (hour_of_day - 6) / 12)) if 6 <= hour_of_day <= 18 else 0.0
-            gen = peak_gen * sun_factor * (irr / 5.5)
-
-            load = hourly_consumption * (0.8 + 0.4 * math.sin(math.pi * (hour_of_day - 6) / 12))
-
-            net = gen - load
-            if net >= 0:
-                charge = min(net * eff, battery_kwh - soc)
-                soc = min(battery_kwh, soc + charge)
-                solar_used = load
-                month_solar += solar_used
-                month_saved += solar_used
-            else:
-                deficit = -net
-                discharge = min(deficit, soc * eff)
-                soc = max(0.0, soc - discharge / eff if eff > 0 else soc - discharge)
-                battery_used = min(discharge, deficit)
-                grid_used = max(0.0, deficit - battery_used)
-                month_solar += gen
-                month_battery_used += battery_used
-                month_grid += grid_used
-                month_saved += gen + battery_used
-
-            all_soc.append(soc)
-
-        hour_idx += hours
-        total_solar_kwh += month_solar
-        total_battery_kwh += month_battery_used
-        total_grid_kwh += month_grid
-        total_saved_kwh += month_saved
-
+        s, e = int(hour_boundaries[m]), int(hour_boundaries[m + 1])
         monthly_data.append({
             "month": MONTH_NAMES[m],
-            "solar_kwh": round(month_solar, 1),
-            "battery_kwh": round(month_battery_used, 1),
-            "grid_kwh": round(month_grid, 1),
-            "saved_kwh": round(month_saved, 1),
+            "solar_kwh": round(float(solar_used_arr[s:e].sum()), 1),
+            "battery_kwh": round(float(battery_used_arr[s:e].sum()), 1),
+            "grid_kwh": round(float(grid_used_arr[s:e].sum()), 1),
+            "saved_kwh": round(float((solar_used_arr[s:e] + battery_used_arr[s:e]).sum()), 1),
         })
 
-    total_consumed = annual_kwh
-    solar_pct = round(100 * total_solar_kwh / max(1, total_consumed), 1)
-    battery_pct = round(100 * total_battery_kwh / max(1, total_consumed), 1)
-    grid_pct = round(max(0, 100 - solar_pct - battery_pct), 1)
+    total_solar = float(solar_used_arr.sum())
+    total_battery = float(battery_used_arr.sum())
+    total_grid = float(grid_used_arr.sum())
+    total_saved = float((solar_used_arr + battery_used_arr).sum())
+    total_consumed = max(1.0, annual_kwh)
+
+    solar_pct = round(100 * total_solar / total_consumed, 1)
+    battery_pct = round(100 * total_battery / total_consumed, 1)
+    grid_pct = round(max(0.0, 100 - solar_pct - battery_pct), 1)
 
     return {
         "monthly_data": monthly_data,
-        "total_solar_kwh": round(total_solar_kwh, 1),
-        "total_battery_kwh": round(total_battery_kwh, 1),
-        "total_grid_kwh": round(total_grid_kwh, 1),
-        "total_saved_kwh": round(total_saved_kwh, 1),
+        "total_solar_kwh": round(total_solar, 1),
+        "total_battery_kwh": round(total_battery, 1),
+        "total_grid_kwh": round(total_grid, 1),
+        "total_saved_kwh": round(total_saved, 1),
         "solar_pct": solar_pct,
         "battery_pct": battery_pct,
         "grid_pct": grid_pct,
-        "min_soc": round(min(all_soc), 3),
-        "max_soc": round(max(all_soc), 3),
+        "min_soc": round(float(soc_arr.min()), 3),
+        "max_soc": round(float(soc_arr.max()), 3),
     }
 
 
@@ -210,9 +216,11 @@ def compute_payback_years(annual_savings_eur: float, installation_cost_eur: floa
         return 99.0
     cumulative = 0.0
     for y in range(1, 26):
-        cumulative += annual_savings_eur * ((1 + inflation) ** (y - 1))
-        if cumulative >= installation_cost_eur:
-            return round(y - 1 + (installation_cost_eur - (cumulative - annual_savings_eur * ((1 + inflation) ** (y - 1)))) / (annual_savings_eur * ((1 + inflation) ** (y - 1))), 1)
+        year_savings = annual_savings_eur * ((1 + inflation) ** (y - 1))
+        if cumulative + year_savings >= installation_cost_eur:
+            frac = (installation_cost_eur - cumulative) / year_savings
+            return round(y - 1 + frac, 1)
+        cumulative += year_savings
     return 99.0
 
 

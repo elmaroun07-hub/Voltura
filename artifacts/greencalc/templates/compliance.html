@@ -32,7 +32,7 @@
     </div>
     <div class="compliance-section">
       <h3>Output</h3>
-      <p>Predicted energy consumption in kWh for the given hour. Clipped to [0.05, 3.0] kWh range.</p>
+      <p>Predicted energy consumption in kWh for the given hour.</p>
     </div>
     <div class="compliance-section">
       <h3>Limitations &amp; Risks</h3>
@@ -45,10 +45,12 @@
     </div>
   </div>
 
-  <!-- Feature Importance -->
+  <!-- Global Feature Importance -->
   <div class="card compliance-section">
-    <div class="card-title">📊 Feature Importance (Random Forest)</div>
-    <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 1rem;">How much each feature influences the model's predictions on average (Gini importance).</p>
+    <div class="card-title">📊 Global Feature Importance (Random Forest — Gini)</div>
+    <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 1rem;">
+      How much each feature contributes to the model's predictions on average across all training samples.
+    </p>
     {% for name, imp in feature_importance.items() %}
     <div class="shap-bar">
       <div class="shap-bar-label">{{ name }}</div>
@@ -59,6 +61,42 @@
     </div>
     {% endfor %}
   </div>
+
+  <!-- SHAP explanation for last prediction -->
+  {% if last_calc %}
+  <div class="card compliance-section">
+    <div class="card-title">🔍 SHAP Explanation — Last Prediction</div>
+    <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.75rem;">
+      Explanation of the ML prediction for the most recent calculation:
+      <strong>{{ last_calc.location }}</strong> ({{ last_calc.created_at.strftime('%Y-%m-%d %H:%M') }}).
+      Predicted consumption at peak hour: <strong>{{ last_prediction }} kWh</strong>.
+    </p>
+    <p style="font-size: 0.82rem; color: #9ca3af; margin-bottom: 1rem;">
+      SHAP values show how much each feature pushed the prediction above (green) or below (red) the baseline.
+    </p>
+    {% if last_shap %}
+    {% for name, val in last_shap.items() %}
+    <div class="shap-bar">
+      <div class="shap-bar-label">{{ name }}</div>
+      <div class="shap-bar-track">
+        <div class="shap-bar-fill" style="width: {{ ([([val|abs, 0.0001]|max) / max_shap * 100, 100]|min)|round }}%; background: {{ '#10b981' if val >= 0 else '#ef4444' }};"></div>
+      </div>
+      <div class="shap-bar-val" style="color: {{ '#059669' if val >= 0 else '#dc2626' }};">
+        {{ '%+.4f'|format(val) }}
+      </div>
+    </div>
+    {% endfor %}
+    <p style="font-size: 0.78rem; color: #9ca3af; margin-top: 0.5rem;">
+      API endpoint: <code>GET /shap-values?month=6&amp;hour=12&amp;irradiance=5.0&amp;temperature=15.0</code>
+    </p>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="card-title">🔍 SHAP Explanation</div>
+    <p style="color: #6b7280;">No calculations yet. <a href="{{ url_for('calculator.form') }}">Run a calculation</a> to see a live SHAP explanation here.</p>
+  </div>
+  {% endif %}
 
   <!-- Transparency -->
   <div class="card compliance-section">
@@ -77,7 +115,7 @@
     </div>
     <div class="compliance-section">
       <h3>Accuracy &amp; Reliability</h3>
-      <p>The 8760-hour simulation uses physically grounded equations. The ML consumption model is supplementary and explicitly labeled as a prediction. Results should be validated against actual system specifications and local installer quotes.</p>
+      <p>The 8760-hour simulation uses NumPy-vectorized physically grounded equations. The ML consumption model is supplementary and explicitly labeled as a prediction. Results should be validated against actual system specifications and local installer quotes.</p>
     </div>
   </div>
 
@@ -88,14 +126,15 @@
       In accordance with Article 13 of the EU AI Act, users have the right to understand how the AI system arrived at its outputs. GreenCalc provides:
     </p>
     <ul style="margin-left: 1.5rem; color: #4b5563; font-size: 0.9rem;">
-      <li>SHAP (SHapley Additive exPlanations) values for every ML prediction</li>
-      <li>Full monthly energy simulation breakdown</li>
-      <li>Transparent formula disclosure: ROI uses 1.5% annual inflation over 25 years</li>
+      <li>SHAP values for every ML prediction (see section above and the <a href="{{ url_for('predictions.shap_values') }}">SHAP API endpoint</a>)</li>
+      <li>Full monthly energy simulation breakdown on every results page</li>
+      <li>Transparent formula: ROI uses 1.5% annual inflation over 25 years</li>
       <li>Carbon intensity data source: country-specific grid mix (JSON, openly auditable)</li>
-      <li>Source code is inspectable and all computation is deterministic given the same inputs</li>
+      <li>NumPy-vectorized simulation code is deterministic for identical inputs</li>
     </ul>
-    <div style="margin-top: 1rem;">
+    <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
       <a href="{{ url_for('predictions.predict') }}" class="btn btn-outline">Try AI Prediction with SHAP</a>
+      <a href="{{ url_for('predictions.shap_values') }}" class="btn btn-outline">SHAP JSON API</a>
     </div>
   </div>
 </div>
