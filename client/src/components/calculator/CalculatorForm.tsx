@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Sun, Battery, MapPin, Zap, Euro, Gauge } from "lucide-react";
+import { Loader2, Sun, Battery, MapPin, Zap, Euro, Gauge, TrendingUp } from "lucide-react";
 
 interface CalculatorFormProps {
   onSubmit: (data: CalculationInput) => void;
@@ -27,8 +27,13 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
       batteryEfficiency: 0.9,
       panelOrientation: "south",
       roofAngle: 30,
+      installationCostEur: null,
     },
   });
+
+  const pvWattage = form.watch("pvWattage");
+  const batteryCapacity = form.watch("batteryCapacity");
+  const estimatedCost = Math.round((pvWattage / 1000) * 900 + batteryCapacity * 500 + 1200);
 
   return (
     <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
@@ -209,6 +214,32 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="installationCostEur"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-blue-500" /> Installation Cost (€)
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      data-testid="input-installation-cost"
+                      type="number"
+                      step="100"
+                      min="0"
+                      className="h-11 bg-white/50"
+                      placeholder={`Auto-estimate: €${estimatedCost.toLocaleString()}`}
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>Leave blank to auto-estimate (panels + battery + install)</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <Button
               data-testid="button-calculate"

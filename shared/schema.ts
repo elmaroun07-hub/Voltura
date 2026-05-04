@@ -87,6 +87,7 @@ export const calculationInputSchema = z.object({
   batteryEfficiency: z.number().min(0.5).max(1.0).default(0.9),
   panelOrientation: z.enum(["north", "south", "east", "west"]).default("south"),
   roofAngle: z.number().min(0).max(90).default(30),
+  installationCostEur: z.number().min(0).max(200000).optional().nullable(),
 });
 
 export type Calculation = typeof calculations.$inferSelect;

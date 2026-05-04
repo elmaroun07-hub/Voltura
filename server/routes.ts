@@ -256,9 +256,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").stroke();
       y += 12;
 
+      // Re-compute payback for PDF (simple estimate from stored data)
+      const annualSav = calc.annualSavingsEur ?? 0;
+      const instCost = (calc.pvWattage / 1000) * 900 + calc.batteryCapacity * 500 + 1200;
+      const pdfPayback = annualSav > 0 ? (instCost / annualSav).toFixed(1) : "N/A";
+      const pdfLifetimeSav = annualSav > 0 ? Math.round(annualSav * 25 * 1.2) : 0; // rough with inflation
+
       const resultRows = [
         ["Annual Energy Saved", `${(calc.savingsKwh ?? 0).toLocaleString()} kWh`, "#10b981"],
-        ["Annual Cost Savings", `€${(calc.annualSavingsEur ?? 0).toFixed(0)}`, "#10b981"],
+        ["Annual Cost Savings", `€${annualSav.toFixed(0)}`, "#10b981"],
+        ["Estimated Payback Period", `${pdfPayback} years`, "#2563eb"],
+        ["Est. 25-Year Net Gain", `€${pdfLifetimeSav.toLocaleString()}`, "#2563eb"],
         ["CO₂ Emissions Reduced", `${(calc.co2Reduction ?? 0).toLocaleString()} kg`, "#059669"],
         ["Trees Equivalent", `${Math.round((calc.co2Reduction ?? 0) / 20)} trees/year`, "#059669"],
         ["Computation Carbon Footprint", `${calc.carbonFootprint ?? 0} mg CO₂`, "#6b7280"],
@@ -385,6 +393,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const cpuPowerW = 50;
       const carbonMg = Math.max(1, Math.round((durationMs / 1000 / 3600) * cpuPowerW * (carbonIntensity * 1000)));
 
+      // ROI curve: auto-estimate installation cost if not provided
+      // Solar panels ~€900/kWp + battery ~€500/kWh + inverter/install €1,200 fixed
+      const estimatedCost = Math.round(
+        (input.pvWattage / 1000) * 900 +
+        input.batteryCapacity * 500 +
+        1200
+      );
+      const installationCostEur = (input.installationCostEur != null && input.installationCostEur > 0)
+        ? input.installationCostEur
+        : estimatedCost;
+
+      // 1.5% annual electricity price inflation
+      const INFLATION = 0.015;
+      const YEARS = 25;
+      const roiCurve: { year: number; cumulativeSavings: number; netPosition: number }[] = [];
+      let cumulative = 0;
+      let paybackYears = YEARS; // default if never paid back within 25y
+      for (let y = 0; y <= YEARS; y++) {
+        roiCurve.push({
+          year: y,
+          cumulativeSavings: parseFloat(cumulative.toFixed(0)),
+          netPosition: parseFloat((cumulative - installationCostEur).toFixed(0)),
+        });
+        // next year savings with inflation
+        const yearSavings = annualSavingsEur * Math.pow(1 + INFLATION, y);
+        if (cumulative < installationCostEur && cumulative + yearSavings >= installationCostEur) {
+          const fraction = (installationCostEur - cumulative) / yearSavings;
+          paybackYears = parseFloat((y + fraction).toFixed(1));
+        }
+        cumulative += yearSavings;
+      }
+
       const result = {
         savingsKwh: Math.round(totalSavingsKwh),
         co2Reduction: Math.round(annualCo2Reduction),
@@ -400,6 +440,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           grid: gridPct,
         },
         monthlyData,
+        installationCostEur,
+        paybackYears,
+        roiCurve,
       };
 
       await storage.createCalculation({

@@ -46,6 +46,13 @@ export const api = {
             battery: z.number(),
           }),
           monthlyData: z.array(monthlyEntrySchema),
+          installationCostEur: z.number(),
+          paybackYears: z.number(),
+          roiCurve: z.array(z.object({
+            year: z.number(),
+            cumulativeSavings: z.number(),
+            netPosition: z.number(),
+          })),
         }),
         400: errorSchemas.validation,
       },

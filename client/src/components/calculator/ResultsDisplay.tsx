@@ -2,12 +2,13 @@ import { motion } from "framer-motion";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  LineChart, Line, ReferenceLine, Area, AreaChart,
 } from "recharts";
 import { type CalculationResponse } from "@shared/routes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Leaf, TrendingUp, Sun, Download, Zap, Euro, Satellite, AlertTriangle } from "lucide-react";
+import { Leaf, TrendingUp, Sun, Download, Zap, Euro, Satellite, AlertTriangle, CalendarCheck } from "lucide-react";
 
 interface ResultsDisplayProps {
   results: CalculationResponse | null;
@@ -158,6 +159,69 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* ROI Curve */}
+      {results.roiCurve && results.roiCurve.length > 0 && (
+        <Card className="p-5 shadow-md border-border/50">
+          <CardHeader className="p-0 pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">25-Year ROI Curve</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+                  <CalendarCheck className="w-3.5 h-3.5 text-blue-600" />
+                  <span data-testid="text-payback-years" className="text-xs font-bold text-blue-700">
+                    Payback: {results.paybackYears < 25 ? `${results.paybackYears}y` : ">25y"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-3 py-1">
+                  <Euro className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="text-xs font-medium text-slate-600">
+                    Cost: €{results.installationCostEur.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Cumulative savings vs installation cost (+1.5%/yr inflation)</p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={results.roiCurve} margin={{ top: 8, right: 4, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="roiGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="year" tick={{ fontSize: 10 }} label={{ value: "Year", position: "insideBottom", offset: -2, fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: 12 }}
+                    formatter={(val: number, name: string) => [`€${val.toLocaleString()}`, name === "cumulativeSavings" ? "Cumulative Savings" : "Net Position"]}
+                    labelFormatter={(l) => `Year ${l}`}
+                  />
+                  <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: "Break-even", fill: "#ef4444", fontSize: 10, position: "insideTopLeft" }} />
+                  <ReferenceLine y={-results.installationCostEur} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} />
+                  <Area
+                    type="monotone"
+                    dataKey="netPosition"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    fill="url(#roiGradient)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: "#10b981" }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-500 rounded" /> Net position (savings − cost)</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-red-400 rounded" style={{ borderStyle: "dashed" }} /> Break-even (€0)</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recommendation + PDF button */}
       <Card className="p-5 bg-emerald-50 border-emerald-200">
