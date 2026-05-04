@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Calculator{% endblock %}
+
+{% block content %}
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>Running 8760-hour simulation…</p>
+  <p style="font-size: 0.85rem; opacity: 0.7;">Fetching NASA data, training ML model, computing ROI…</p>
+</div>
+
+<div class="container-sm" style="padding-top: 2.5rem;">
+  <h1 class="page-title" style="margin-bottom: 0.25rem;">Solar Energy Calculator</h1>
+  <p style="color: #6b7280; margin-bottom: 2rem;">Enter your details below. All fields have sensible defaults for Berlin.</p>
+
+  {% if error %}
+  <div class="alert alert-error">⚠️ {{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('calculator.calculate') }}" onsubmit="document.getElementById('loadingOverlay').classList.add('active')">
+    <div class="card">
+      <div class="card-title">📍 Location & Consumption</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="location">Location (city, country)</label>
+          <input type="text" id="location" name="location" value="Berlin, Germany" required>
+          <span class="help-text">Used for geocoding and NASA POWER irradiance data</span>
+        </div>
+        <div class="form-group">
+          <label for="annual_kwh">Annual Energy Usage (kWh)</label>
+          <input type="number" id="annual_kwh" name="annual_kwh" value="5000" min="100" max="100000" step="100" required>
+          <span class="help-text">Average EU household: 3500–5500 kWh/year</span>
+        </div>
+        <div class="form-group">
+          <label for="tariff">Electricity Tariff (€/kWh)</label>
+          <input type="number" id="tariff" name="tariff" value="0.30" min="0.05" max="2.00" step="0.01" required>
+          <span class="help-text">Check your electricity bill</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">☀️ Solar System</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="pv_w">PV System Size (W)</label>
+          <input type="number" id="pv_w" name="pv_w" value="4000" min="500" max="100000" step="100" required>
+          <span class="help-text">4000W = 4 kWp (typical home system)</span>
+        </div>
+        <div class="form-group">
+          <label for="battery_kwh">Battery Capacity (kWh)</label>
+          <input type="number" id="battery_kwh" name="battery_kwh" value="10" min="0" max="200" step="0.5" required>
+          <span class="help-text">Set to 0 if no battery storage</span>
+        </div>
+        <div class="form-group">
+          <label for="efficiency">Battery Round-trip Efficiency (%)</label>
+          <input type="number" id="efficiency" name="efficiency" value="90" min="50" max="100" step="1" required>
+          <span class="help-text">Lithium: ~90–95%, Lead-acid: ~75–85%</span>
+        </div>
+        <div class="form-group">
+          <label for="tilt">Panel Tilt Angle (°)</label>
+          <input type="number" id="tilt" name="tilt" value="35" min="0" max="90" step="1" required>
+          <span class="help-text">Optimal: ~latitude of location</span>
+        </div>
+        <div class="form-group">
+          <label for="orientation">Panel Orientation</label>
+          <select id="orientation" name="orientation">
+            <option value="south" selected>South (optimal)</option>
+            <option value="south-east">South-East</option>
+            <option value="south-west">South-West</option>
+            <option value="east">East</option>
+            <option value="west">West</option>
+            <option value="north">North</option>
+            <option value="north-east">North-East</option>
+            <option value="north-west">North-West</option>
+          </select>
+          <span class="help-text">South-facing maximizes yield in northern hemisphere</span>
+        </div>
+        <div class="form-group">
+          <label for="installation_cost">Installation Cost (€) — optional</label>
+          <input type="number" id="installation_cost" name="installation_cost" placeholder="Leave blank to auto-estimate" min="0" max="1000000" step="100">
+          <span class="help-text">Leave blank to use €900/kWp + €500/kWh + €1,200 fixed estimate</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 1rem;">
+      <button type="submit" class="btn btn-primary btn-lg">
+        ⚡ Calculate Solar Savings
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

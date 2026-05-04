@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}AI Compliance{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="padding-top: 2rem;">
+  <h1 class="page-title" style="margin-bottom: 0.25rem;">🏛️ EU AI Act Compliance</h1>
+  <p style="color: #6b7280; margin-bottom: 2rem;">Transparency documentation for the GreenCalc AI system in accordance with the EU AI Act (Regulation 2024/1689).</p>
+
+  <!-- Model Card -->
+  <div class="card compliance-section">
+    <div class="card-title">📋 Model Card</div>
+    <div class="compliance-section">
+      <h3>Model Type</h3>
+      <p>RandomForestRegressor (scikit-learn) — a supervised ensemble learning method using 50 decision trees with max depth 10.</p>
+    </div>
+    <div class="compliance-section">
+      <h3>Purpose</h3>
+      <p>Predicts hourly household energy consumption (kWh) based on temporal and environmental features. Used to contextualize energy saving estimates within the GreenCalc solar calculator.</p>
+    </div>
+    <div class="compliance-section">
+      <h3>Training Data</h3>
+      <p>Synthetic dataset of 8,760 hourly records generated using physical energy consumption models. Features are based on established energy usage patterns from residential buildings in temperate climates. <strong>No personally identifiable information (PII) is used.</strong></p>
+    </div>
+    <div class="compliance-section">
+      <h3>Input Features</h3>
+      <ul style="margin-left: 1.5rem; color: #4b5563; font-size: 0.9rem; margin-top: 0.25rem;">
+        <li><strong>month</strong> (1–12): Month of the year</li>
+        <li><strong>hour</strong> (0–23): Hour of the day</li>
+        <li><strong>irradiance</strong> (kWh/m²/day): Solar irradiance from NASA POWER</li>
+        <li><strong>temperature</strong> (°C): Ambient temperature from NASA POWER</li>
+      </ul>
+    </div>
+    <div class="compliance-section">
+      <h3>Output</h3>
+      <p>Predicted energy consumption in kWh for the given hour. Clipped to [0.05, 3.0] kWh range.</p>
+    </div>
+    <div class="compliance-section">
+      <h3>Limitations &amp; Risks</h3>
+      <ul style="margin-left: 1.5rem; color: #4b5563; font-size: 0.9rem; margin-top: 0.25rem;">
+        <li>Trained on synthetic data — predictions may differ from real-world consumption</li>
+        <li>Does not account for household size, appliance mix, or occupant behavior</li>
+        <li>Performance may degrade for locations with very different climate profiles</li>
+        <li>Not intended as the primary basis for financial decisions</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Feature Importance -->
+  <div class="card compliance-section">
+    <div class="card-title">📊 Feature Importance (Random Forest)</div>
+    <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 1rem;">How much each feature influences the model's predictions on average (Gini importance).</p>
+    {% for name, imp in feature_importance.items() %}
+    <div class="shap-bar">
+      <div class="shap-bar-label">{{ name }}</div>
+      <div class="shap-bar-track">
+        <div class="shap-bar-fill" style="width: {{ (imp / max_imp * 100)|round }}%"></div>
+      </div>
+      <div class="shap-bar-val">{{ "%.3f"|format(imp) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Transparency -->
+  <div class="card compliance-section">
+    <div class="card-title">🔍 Transparency Statement</div>
+    <div class="compliance-section">
+      <h3>Classification</h3>
+      <p>GreenCalc is classified as a <strong>limited-risk AI system</strong> under the EU AI Act. It provides energy calculations and predictions to assist users in making informed decisions about solar energy investments.</p>
+    </div>
+    <div class="compliance-section">
+      <h3>Human Oversight</h3>
+      <p>All predictions are advisory. The system does not make autonomous decisions. Users retain full control over any financial or installation decisions.</p>
+    </div>
+    <div class="compliance-section">
+      <h3>Data Processing</h3>
+      <p>User inputs (location, energy usage, system specifications) are processed locally and stored in a local SQLite database. No personal data is shared with third parties. Location data is geocoded via Nominatim (OpenStreetMap) and used only to query the NASA POWER API.</p>
+    </div>
+    <div class="compliance-section">
+      <h3>Accuracy &amp; Reliability</h3>
+      <p>The 8760-hour simulation uses physically grounded equations. The ML consumption model is supplementary and explicitly labeled as a prediction. Results should be validated against actual system specifications and local installer quotes.</p>
+    </div>
+  </div>
+
+  <!-- Right to Explanation -->
+  <div class="card">
+    <div class="card-title">⚖️ Right to Explanation</div>
+    <p style="font-size: 0.9rem; color: #4b5563; margin-bottom: 1rem;">
+      In accordance with Article 13 of the EU AI Act, users have the right to understand how the AI system arrived at its outputs. GreenCalc provides:
+    </p>
+    <ul style="margin-left: 1.5rem; color: #4b5563; font-size: 0.9rem;">
+      <li>SHAP (SHapley Additive exPlanations) values for every ML prediction</li>
+      <li>Full monthly energy simulation breakdown</li>
+      <li>Transparent formula disclosure: ROI uses 1.5% annual inflation over 25 years</li>
+      <li>Carbon intensity data source: country-specific grid mix (JSON, openly auditable)</li>
+      <li>Source code is inspectable and all computation is deterministic given the same inputs</li>
+    </ul>
+    <div style="margin-top: 1rem;">
+      <a href="{{ url_for('predictions.predict') }}" class="btn btn-outline">Try AI Prediction with SHAP</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

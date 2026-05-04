@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}GreenCalc{% endblock %} — Solar Savings Calculator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('calculator.index') }}" class="nav-brand">
+      ⚡ GreenCalc
+    </a>
+    <ul class="nav-links">
+      <li><a href="{{ url_for('calculator.form') }}">Calculator</a></li>
+      <li><a href="{{ url_for('predictions.dashboard') }}">Dashboard</a></li>
+      <li><a href="{{ url_for('predictions.predict') }}">AI Predict</a></li>
+      <li><a href="{{ url_for('compliance.compliance') }}">AI Compliance</a></li>
+    </ul>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <footer>
+    <p>⚡ <span>GreenCalc</span> — AI-Powered Green Energy Calculator &nbsp;|&nbsp; EU AI Act Compliant &nbsp;|&nbsp; Powered by NASA POWER API</p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

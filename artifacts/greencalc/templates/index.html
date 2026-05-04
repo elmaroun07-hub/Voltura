@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>Calculate Your <span>Solar Savings</span></h1>
+  <p>AI-powered green energy analysis using real NASA irradiance data, 8760-hour simulation, and machine learning predictions.</p>
+  <a href="{{ url_for('calculator.form') }}" class="btn btn-primary btn-lg">
+    ⚡ Start Your Calculation
+  </a>
+  <div class="hero-features">
+    <div class="hero-feature">
+      <div class="icon">🛰️</div>
+      <strong>NASA POWER Data</strong><br>
+      <span>Real solar irradiance</span>
+    </div>
+    <div class="hero-feature">
+      <div class="icon">🔋</div>
+      <strong>8760h Simulation</strong><br>
+      <span>Hour-by-hour accuracy</span>
+    </div>
+    <div class="hero-feature">
+      <div class="icon">🤖</div>
+      <strong>ML Predictions</strong><br>
+      <span>RandomForest + SHAP</span>
+    </div>
+    <div class="hero-feature">
+      <div class="icon">📊</div>
+      <strong>25-Year ROI</strong><br>
+      <span>Full financial analysis</span>
+    </div>
+    <div class="hero-feature">
+      <div class="icon">📋</div>
+      <strong>EU AI Act</strong><br>
+      <span>Fully compliant</span>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="margin-top: 3rem;">
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+    <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">☀️</div>
+      <h3 style="color: #10b981; margin-bottom: 0.5rem;">Accurate Solar Modeling</h3>
+      <p style="color: #6b7280; font-size: 0.9rem;">Real monthly irradiance and temperature data from NASA POWER API, adjusted for your panel tilt and orientation.</p>
+    </div>
+    <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💰</div>
+      <h3 style="color: #10b981; margin-bottom: 0.5rem;">Financial ROI Analysis</h3>
+      <p style="color: #6b7280; font-size: 0.9rem;">25-year net position curve with 1.5% annual inflation adjustment, payback period, and installation cost estimation.</p>
+    </div>
+    <div class="card" style="text-align: center; border-top: 4px solid #10b981;">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌍</div>
+      <h3 style="color: #10b981; margin-bottom: 0.5rem;">CO₂ Impact Tracking</h3>
+      <p style="color: #6b7280; font-size: 0.9rem;">Country-specific grid carbon intensity data for 35+ countries. Track your annual CO₂ reduction in kg.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

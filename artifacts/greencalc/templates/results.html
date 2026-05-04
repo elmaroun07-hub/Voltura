@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Results{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 2rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <h1 class="page-title">Your Solar Results</h1>
+      <p style="color: #6b7280;">📍 {{ calc.location }} &nbsp;|&nbsp; {{ calc.pv_w|int }} W PV &nbsp;|&nbsp; {{ calc.battery_kwh }} kWh battery</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <a href="{{ url_for('export.export_pdf', calc_id=calc.id) }}" class="btn btn-outline">
+        📄 Download PDF
+      </a>
+      <a href="{{ url_for('calculator.form') }}" class="btn btn-primary">
+        🔄 New Calculation
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon">⚡</div>
+      <div class="kpi-value">{{ "{:,.0f}".format(calc.annual_saved_kwh) }}</div>
+      <div class="kpi-label">kWh Saved / Year</div>
+      <div class="kpi-sub">from {{ "{:,.0f}".format(calc.annual_kwh) }} kWh consumed</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-value">€{{ "{:,.0f}".format(calc.annual_savings_eur) }}</div>
+      <div class="kpi-label">Savings / Year</div>
+      <div class="kpi-sub">at €{{ "%.3f"|format(calc.tariff) }}/kWh</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🌿</div>
+      <div class="kpi-value">{{ "{:,.0f}".format(calc.co2_kg) }}</div>
+      <div class="kpi-label">kg CO₂ Reduced</div>
+      <div class="kpi-sub">per year</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">📅</div>
+      <div class="kpi-value">{{ calc.payback_years }}</div>
+      <div class="kpi-label">Year Payback</div>
+      <div class="kpi-sub">25yr net: €{{ "{:,.0f}".format(calc.net_25yr) }}</div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1 -->
+  <div class="charts-grid">
+    <div class="card">
+      <div class="card-title">📊 Monthly Energy Breakdown</div>
+      <div class="chart-container">
+        <canvas id="monthlyChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔵 Energy Mix</div>
+      <div class="chart-container">
+        <canvas id="energyDonut"></canvas>
+      </div>
+      <div style="text-align: center; margin-top: 0.5rem; font-size: 0.85rem; color: #6b7280;">
+        Solar <strong>{{ calc.solar_pct }}%</strong> &nbsp;|&nbsp;
+        Battery <strong>{{ calc.battery_pct }}%</strong> &nbsp;|&nbsp;
+        Grid <strong>{{ calc.grid_pct }}%</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROI Chart -->
+  <div class="card">
+    <div class="card-title">📈 25-Year ROI Curve</div>
+    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+      <span class="badge badge-green">💶 Installation: €{{ "{:,.0f}".format(calc.installation_cost) }}</span>
+      <span class="badge badge-green">⏳ Payback: {{ calc.payback_years }} years</span>
+      <span class="badge badge-green">📈 25yr Net: €{{ "{:,.0f}".format(calc.net_25yr) }}</span>
+    </div>
+    <div class="chart-container" style="height: 300px;">
+      <canvas id="roiChart"></canvas>
+    </div>
+  </div>
+
+  <!-- ML + SHAP -->
+  <div class="charts-grid">
+    <div class="card">
+      <div class="card-title">🤖 ML Feature Importance (SHAP)</div>
+      <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 1rem;">
+        SHAP values showing which features most influence the ML consumption prediction.
+        Predicted consumption at peak hour: <strong>{{ ml_pred }} kWh</strong>
+      </p>
+      <div class="chart-container" style="height: 200px;">
+        <canvas id="shapChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🌱 Computation Carbon</div>
+      <div class="codecarbon-badge" style="margin-bottom: 1rem;">
+        🌱 This calculation emitted <strong>{{ "%.4f"|format(calc.computation_co2_mg) }} mg CO₂</strong>
+      </div>
+      <p style="font-size: 0.85rem; color: #6b7280;">Tracked via CodeCarbon. Equivalent to running a laptop for {{ "%.4f"|format(calc.computation_co2_mg * 0.001) }} seconds.</p>
+      <hr style="margin: 1rem 0; border-color: #e5e7eb;">
+      <div class="card-title" style="margin-bottom: 0.5rem;">📋 System Details</div>
+      <table>
+        <tr><td style="color: #6b7280; font-size: 0.85rem;">Tilt / Orientation</td><td style="font-size: 0.85rem;"><strong>{{ calc.tilt }}° / {{ calc.orientation.title() }}</strong></td></tr>
+        <tr><td style="color: #6b7280; font-size: 0.85rem;">Battery Efficiency</td><td style="font-size: 0.85rem;"><strong>{{ calc.efficiency }}%</strong></td></tr>
+        <tr><td style="color: #6b7280; font-size: 0.85rem;">Calculated on</td><td style="font-size: 0.85rem;"><strong>{{ calc.created_at.strftime('%Y-%m-%d %H:%M') }}</strong></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Monthly Table -->
+  <div class="card">
+    <div class="card-title">📅 Monthly Breakdown</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Solar (kWh)</th>
+            <th>Battery (kWh)</th>
+            <th>Grid (kWh)</th>
+            <th>Saved (kWh)</th>
+            <th>Savings (€)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in monthly_data %}
+          <tr>
+            <td><strong>{{ row.month }}</strong></td>
+            <td>{{ row.solar_kwh }}</td>
+            <td>{{ row.battery_kwh }}</td>
+            <td>{{ row.grid_kwh }}</td>
+            <td>{{ row.saved_kwh }}</td>
+            <td>€{{ "%.2f"|format(row.saved_kwh * calc.tariff) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='charts.js') }}"></script>
+<script>
+  initMonthlyChart({{ monthly_data_json | safe }});
+  initRoiChart({{ roi_curve_json | safe }});
+  initShapChart({{ shap_vals_json | safe }});
+  initEnergyDonut({{ calc.solar_pct }}, {{ calc.battery_pct }}, {{ calc.grid_pct }});
+</script>
+{% endblock %}
