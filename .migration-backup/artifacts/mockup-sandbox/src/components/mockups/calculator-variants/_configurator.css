@@ -1,0 +1,36 @@
+/* Custom Configurator styles */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Adjusting slider styling to fit dark mode better */
+[data-radix-slider-track] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  height: 6px !important;
+}
+
+[data-radix-slider-range] {
+  background-color: #10b981 !important; /* emerald-500 */
+}
+
+[data-radix-slider-thumb] {
+  border-color: #10b981 !important;
+  background-color: #020817 !important;
+  border-width: 2px !important;
+  width: 20px !important;
+  height: 20px !important;
+}
