@@ -14,6 +14,16 @@ export const errorSchemas = {
   }),
 };
 
+const monthlyEntrySchema = z.object({
+  month: z.number(),
+  name: z.string(),
+  generationKwh: z.number(),
+  consumptionKwh: z.number(),
+  savingsKwh: z.number(),
+  gridImportKwh: z.number(),
+  co2Kg: z.number(),
+});
+
 export const api = {
   calculations: {
     create: {
@@ -24,13 +34,18 @@ export const api = {
         200: z.object({
           savingsKwh: z.number(),
           co2Reduction: z.number(),
+          annualSavingsEur: z.number(),
           carbonFootprint: z.number(),
+          carbonIntensity: z.number(),
+          avgIrradiance: z.number(),
+          irradianceSource: z.string(),
           recommendation: z.string(),
           breakdown: z.object({
             solar: z.number(),
             grid: z.number(),
-            battery: z.number()
-          })
+            battery: z.number(),
+          }),
+          monthlyData: z.array(monthlyEntrySchema),
         }),
         400: errorSchemas.validation,
       },
@@ -46,18 +61,18 @@ export const api = {
       method: 'POST' as const,
       path: '/api/optimize',
       input: z.object({
-        energyPattern: z.array(z.number()), // 24h usage pattern
-        location: z.string()
+        energyPattern: z.array(z.number()),
+        location: z.string(),
       }),
       responses: {
         200: z.object({
           optimalPv: z.number(),
           optimalBattery: z.number(),
           roiYears: z.number(),
-          explanation: z.string()
-        })
-      }
-    }
+          explanation: z.string(),
+        }),
+      },
+    },
   },
 };
 
@@ -75,3 +90,4 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
 
 export type CalculationResponse = z.infer<typeof api.calculations.create.responses[200]>;
 export type HistoryResponse = z.infer<typeof api.calculations.history.responses[200]>;
+export type CalculationInput = z.infer<typeof calculationInputSchema>;

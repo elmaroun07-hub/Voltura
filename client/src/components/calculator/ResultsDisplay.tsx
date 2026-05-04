@@ -1,113 +1,185 @@
 import { motion } from "framer-motion";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from "recharts";
 import { type CalculationResponse } from "@shared/routes";
-import { Card } from "@/components/ui/card";
-import { Leaf, DollarSign, TrendingUp, Sun } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Leaf, TrendingUp, Sun, Download, Zap, Euro, Satellite, AlertTriangle } from "lucide-react";
 
 interface ResultsDisplayProps {
   results: CalculationResponse | null;
+  calcId?: number | null;
 }
 
-const COLORS = ['#10b981', '#fbbf24', '#e2e8f0']; // Green (Solar), Yellow (Battery), Gray (Grid)
+const PIE_COLORS = ["#10b981", "#f59e0b", "#e2e8f0"];
 
-export function ResultsDisplay({ results }: ResultsDisplayProps) {
+export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
   if (!results) {
     return (
-      <Card className="h-full flex flex-col items-center justify-center p-12 text-center text-muted-foreground bg-muted/20 border-dashed">
+      <Card className="h-full flex flex-col items-center justify-center p-12 text-center text-muted-foreground bg-muted/20 border-dashed min-h-[400px]">
         <Sun className="w-16 h-16 mb-4 text-muted-foreground/30" />
         <h3 className="text-xl font-medium mb-2">No Data Yet</h3>
-        <p>Enter your system details to see your potential savings.</p>
+        <p>Enter your system details and click <strong>Calculate Savings</strong> to see your annual solar model.</p>
       </Card>
     );
   }
 
-  const mixData = [
-    { name: 'Direct Solar', value: results.breakdown.solar },
-    { name: 'From Battery', value: results.breakdown.battery },
-    { name: 'Grid Import', value: results.breakdown.grid },
+  const pieData = [
+    { name: "Direct Solar", value: results.breakdown.solar },
+    { name: "From Battery", value: results.breakdown.battery },
+    { name: "Grid Import", value: results.breakdown.grid },
   ];
 
+  const barData = results.monthlyData.map((m) => ({
+    name: m.name,
+    Generation: m.generationKwh,
+    Savings: m.savingsKwh,
+    "Grid Import": m.gridImportKwh,
+  }));
+
+  const trees = Math.round(results.co2Reduction / 20);
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Annual Savings Card */}
-        <Card className="p-6 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-none shadow-xl">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-8 duration-700">
+
+      {/* Top KPI cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="p-5 bg-gradient-to-br from-primary to-emerald-500 text-white border-none shadow-xl">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-primary-foreground/80 font-medium mb-1">Annual Savings</p>
-              <h2 className="text-4xl font-display font-bold">{results.savingsKwh.toLocaleString()} kWh</h2>
+              <p className="text-white/75 text-xs font-medium mb-0.5">Annual Savings</p>
+              <h2 data-testid="text-savings-kwh" className="text-3xl font-bold">{results.savingsKwh.toLocaleString()} kWh</h2>
             </div>
-            <div className="bg-white/20 p-3 rounded-full">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
+            <div className="bg-white/20 p-2.5 rounded-full"><TrendingUp className="w-5 h-5" /></div>
           </div>
-          <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-2xl font-bold opacity-90">Est. ${Math.round(results.savingsKwh * 0.15).toLocaleString()}</span>
-            <span className="text-sm opacity-75">saved per year</span>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span data-testid="text-savings-eur" className="text-2xl font-bold">€{results.annualSavingsEur.toFixed(0)}</span>
+            <span className="text-xs opacity-75">saved per year</span>
           </div>
         </Card>
 
-        {/* CO2 Reduction Card */}
-        <Card className="p-6 bg-white border-primary/20 shadow-lg">
+        <Card className="p-5 border-emerald-200 shadow-md">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-muted-foreground font-medium mb-1">CO₂ Reduction</p>
-              <h2 className="text-4xl font-display font-bold text-foreground">{results.co2Reduction.toLocaleString()} kg</h2>
+              <p className="text-muted-foreground text-xs font-medium mb-0.5">CO₂ Reduction</p>
+              <h2 data-testid="text-co2-reduction" className="text-3xl font-bold text-foreground">{results.co2Reduction.toLocaleString()} kg</h2>
             </div>
-            <div className="bg-green-100 p-3 rounded-full">
-              <Leaf className="w-6 h-6 text-green-600" />
-            </div>
+            <div className="bg-green-100 p-2.5 rounded-full"><Leaf className="w-5 h-5 text-green-600" /></div>
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Equivalent to planting <span className="font-bold text-green-600">{Math.round(results.co2Reduction / 20)} trees</span> annually.
+          <p className="mt-3 text-xs text-muted-foreground">
+            ≈ <span className="font-bold text-green-600">{trees} trees</span> planted annually
+            <span className="ml-2 text-[10px]">@ {(results.carbonIntensity * 1000).toFixed(0)} g/kWh</span>
           </p>
         </Card>
       </div>
 
-      {/* Energy Mix Chart */}
-      <Card className="p-6 shadow-md border-border/50">
-        <h3 className="font-display font-semibold text-lg mb-6">Estimated Energy Mix</h3>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={mixData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
-                stroke="none"
-              >
-                {mixData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                formatter={(val: number) => `${val}%`}
-              />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" />
-            </PieChart>
-          </ResponsiveContainer>
+      {/* Secondary metrics */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="p-4 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <Satellite className="w-3.5 h-3.5" /> Irradiance Source
+          </div>
+          <p data-testid="text-irradiance-source" className="font-semibold text-sm leading-tight">{results.irradianceSource}</p>
+          <p className="text-xs text-muted-foreground">{results.avgIrradiance} kWh/m²/day avg</p>
+        </Card>
+        <Card className="p-4 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <Euro className="w-3.5 h-3.5" /> Tariff Used
+          </div>
+          <p className="font-semibold text-sm">€{(results.annualSavingsEur / Math.max(results.savingsKwh, 1)).toFixed(3)}/kWh</p>
+          <p className="text-xs text-muted-foreground">→ €{results.annualSavingsEur.toFixed(0)} total</p>
+        </Card>
+        <Card className="p-4 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <Zap className="w-3.5 h-3.5" /> Computation CO₂
+          </div>
+          <p data-testid="text-carbon-footprint" className="font-semibold text-sm">{results.carbonFootprint} mg</p>
+          <p className="text-xs text-muted-foreground">8760h sim + NASA fetch</p>
+        </Card>
+      </div>
+
+      {/* Monthly generation bar chart */}
+      <Card className="p-5 shadow-md border-border/50">
+        <CardHeader className="p-0 pb-4">
+          <CardTitle className="text-base font-semibold">Monthly Generation vs Consumption</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: 12 }}
+                  formatter={(val: number) => `${val.toFixed(0)} kWh`}
+                />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Generation" fill="#10b981" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Savings" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Grid Import" fill="#e5e7eb" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Energy mix donut */}
+      <Card className="p-5 shadow-md border-border/50">
+        <CardHeader className="p-0 pb-4">
+          <CardTitle className="text-base font-semibold">Annual Energy Mix</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%" cy="50%"
+                  innerRadius={55} outerRadius={90}
+                  paddingAngle={4}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {pieData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                  formatter={(val: number) => `${val}%`}
+                />
+                <Legend verticalAlign="bottom" height={32} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recommendation + PDF button */}
+      <Card className="p-5 bg-emerald-50 border-emerald-200">
+        <div className="flex gap-3">
+          <Sun className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <h4 className="font-bold text-emerald-800 mb-1">Recommendation</h4>
+            <p data-testid="text-recommendation" className="text-sm text-emerald-700 leading-relaxed">{results.recommendation}</p>
+          </div>
         </div>
       </Card>
 
-      {/* AI Recommendation */}
-      <Card className="p-6 bg-accent/10 border-accent/20">
-        <div className="flex gap-4">
-          <div className="mt-1">
-            <Sun className="w-5 h-5 text-accent-foreground" />
-          </div>
-          <div>
-            <h4 className="font-bold text-accent-foreground mb-1">Recommendation</h4>
-            <p className="text-sm text-accent-foreground/80 leading-relaxed">
-              {results.recommendation}
-            </p>
-          </div>
-        </div>
-      </Card>
+      {calcId && (
+        <Button
+          data-testid="button-download-pdf"
+          variant="outline"
+          className="w-full border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+          onClick={() => window.open(`/api/calculate/${calcId}/pdf`, "_blank")}
+        >
+          <Download className="mr-2 w-4 h-4" /> Download Full PDF Report
+        </Button>
+      )}
     </div>
   );
 }
