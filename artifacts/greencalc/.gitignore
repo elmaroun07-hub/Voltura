@@ -1,0 +1,7 @@
+instance/
+*.db
+models/rf_model.pkl
+__pycache__/
+*.pyc
+*.pyo
+.env

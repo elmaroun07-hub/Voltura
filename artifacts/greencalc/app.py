@@ -31,13 +31,14 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+    from models.ml_model import ml_model
+    ml_model.ensure_ready()
+
     return app
 
 
 app = create_app()
 
 if __name__ == "__main__":
-    from models.ml_model import ml_model
-    ml_model.ensure_ready()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
