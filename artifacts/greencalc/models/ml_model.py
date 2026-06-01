@@ -3,7 +3,10 @@ import joblib
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "rf_model.pkl")
+# Model artifact stored under models/artifacts/ (committed path, not /tmp)
+_ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "artifacts")
+os.makedirs(_ARTIFACTS_DIR, exist_ok=True)
+MODEL_PATH = os.path.join(_ARTIFACTS_DIR, "rf_model.pkl")
 
 FEATURE_NAMES = ["month", "hour", "irradiance", "temperature"]
 
@@ -41,11 +44,13 @@ class GreenMLModel:
 
     def train(self):
         X, y = _generate_synthetic_data()
-        self.model = RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42, n_jobs=-1)
+        self.model = RandomForestRegressor(
+            n_estimators=50, max_depth=10, random_state=42, n_jobs=-1
+        )
         self.model.fit(X, y)
         joblib.dump(self.model, MODEL_PATH)
 
-    def load(self):
+    def load(self) -> bool:
         if os.path.exists(MODEL_PATH):
             self.model = joblib.load(MODEL_PATH)
             return True

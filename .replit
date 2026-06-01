@@ -29,8 +29,8 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd artifacts/greencalc && PORT=8000 python app.py"
-waitForPort = 8000
+args = "cd artifacts/greencalc && gunicorn -w 2 -b 0.0.0.0:5000 app:app"
+waitForPort = 5000
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -39,6 +39,10 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
 
 [[ports]]
 localPort = 8000
@@ -51,6 +55,10 @@ externalPort = 8080
 [[ports]]
 localPort = 22919
 externalPort = 3000
+
+[[ports]]
+localPort = 23636
+externalPort = 3001
 
 [nix]
 channel = "stable-25_05"
