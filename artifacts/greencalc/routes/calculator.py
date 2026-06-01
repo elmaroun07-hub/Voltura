@@ -9,6 +9,7 @@ from models.energy_model import (
     validate_inputs, make_input_hash,
 )
 from models.ml_model import ml_model
+from models.carbon_tracker import track_calculation
 
 calculator_bp = Blueprint("calculator", __name__)
 
@@ -46,7 +47,7 @@ def form():
 @calculator_bp.route("/calculate", methods=["POST"])
 def calculate():
     from extensions import db
-    from models.db_models import Calculation
+    from models.db_models import Calculation, CalculationEmissions
 
     # ── Parse inputs ────────────────────────────────────────────────────────
     location = request.form.get("location", "").strip() or "Berlin, Germany"
@@ -74,13 +75,13 @@ def calculate():
     tariff_input  = _parse_float(tariff_raw, None) if tariff_raw else None
     install_raw   = request.form.get("installation_cost", "").strip()
 
-    # ── Geocode if no explicit coordinates ──────────────────────────────────
     if lat is None or lon is None:
         lat, lon = geocode(location)
 
-    # ── Country + tariff fallback ───────────────────────────────────────────
     country_iso = country_from_latlon(lat, lon)
-    tariff = tariff_input if tariff_input is not None else TARIFF_BY_COUNTRY.get(country_iso, TARIFF_BY_COUNTRY["DEFAULT"])
+    tariff = tariff_input if tariff_input is not None else TARIFF_BY_COUNTRY.get(
+        country_iso, TARIFF_BY_COUNTRY["DEFAULT"]
+    )
 
     # ── Validate ────────────────────────────────────────────────────────────
     validation_data = {
@@ -98,7 +99,7 @@ def calculate():
 
     effective_wind_kw = wind_kw if wind_kw is not None else 0.0
 
-    # ── NASA POWER (session-cached by lat/lon) ──────────────────────────────
+    # ── NASA POWER (session-cached) ──────────────────────────────────────────
     nasa_key = f"nasa_{lat:.3f}_{lon:.3f}"
     cached = session.get(nasa_key)
     if cached:
@@ -112,7 +113,6 @@ def calculate():
     temp_monthly = nasa["temperature"]
     nasa_source  = nasa.get("source", "nasa")
 
-    # ── Input hash + session id ──────────────────────────────────────────────
     hash_data = {
         "lat": round(lat, 3), "lon": round(lon, 3),
         "pv_w": pv_w, "wind_kw": effective_wind_kw,
@@ -123,12 +123,13 @@ def calculate():
     input_hash = make_input_hash(hash_data)
     sid = _session_id()
 
-    # ── Block 3 engine ──────────────────────────────────────────────────────
     carbon_intensity_g = detect_carbon_intensity(lat, lon)
-    panel_factor = panel_efficiency_factor(tilt, orientation)
+    panel_efficiency_factor(tilt, orientation)  # still called for compat
 
-    t0 = time.time()
-    result = calculate_energy(
+    # ── Block 5: Track ONLY the calculation engine call ──────────────────────
+    t_start = time.time()
+    result, emissions_kg = track_calculation(
+        calculate_energy,
         irr_monthly=irr_monthly,
         pv_w=pv_w,
         battery_kwh=battery_kwh,
@@ -140,38 +141,25 @@ def calculate():
         wind_kw=effective_wind_kw,
         carbon_intensity_g_per_kwh=carbon_intensity_g,
     )
-    compute_time_s = time.time() - t0
+    duration_s = time.time() - t_start
+    # emissions_kg from CodeCarbon; compute_co2_mg for template display
+    computation_co2_mg = round(emissions_kg * 1e6, 4)  # kg → mg
 
-    roi_curve = result["roi_curve"]
+    roi_curve    = result["roi_curve"]
     monthly_data = result["monthly_data"]
 
-    # Installation cost: spec formula (pv/1000*1200) used for NPV;
-    # user override or estimate used for display/storage
     install_cost_display = (
-        float(install_raw)
-        if install_raw
-        else result["installation_cost_eur"]
+        float(install_raw) if install_raw else result["installation_cost_eur"]
     )
 
-    # ── ML prediction + SHAP ────────────────────────────────────────────────
+    # ── ML prediction + SHAP (NOT tracked — only engine is in scope) ─────────
     mid_month, mid_hour = 6, 12
     mid_irr  = irr_monthly[mid_month - 1]
     mid_temp = temp_monthly[mid_month - 1]
     ml_pred   = ml_model.predict(mid_month, mid_hour, mid_irr, mid_temp)
     shap_vals = ml_model.explain(mid_month, mid_hour, mid_irr, mid_temp)
 
-    # ── CodeCarbon ──────────────────────────────────────────────────────────
-    try:
-        from codecarbon import EmissionsTracker
-        tracker = EmissionsTracker(log_level="error", save_to_file=False)
-        tracker.start()
-        time.sleep(0.01)
-        emissions = tracker.stop()
-        computation_co2_mg = round((emissions or 0) * 1e9, 4)
-    except Exception:
-        computation_co2_mg = round(compute_time_s * 0.4, 4)
-
-    # ── Persist ─────────────────────────────────────────────────────────────
+    # ── Persist Calculation ──────────────────────────────────────────────────
     calc = Calculation(
         calc_uuid=str(uuid_mod.uuid4()),
         session_id=sid,
@@ -192,7 +180,6 @@ def calculate():
         roof_area=roof_area,
         num_occupants=num_occupants,
         installation_cost=install_cost_display,
-        # Block 3 spec fields
         solar_kwh=result["solar_kwh"],
         wind_kwh=result["wind_kwh"],
         energy_covered=result["energy_covered"],
@@ -202,7 +189,6 @@ def calculate():
         npv_savings=result["npv_savings"],
         installation_cost_eur=result["installation_cost_eur"],
         cumulative_savings_json=json.dumps(result["cumulative_savings"]),
-        # Template compat
         annual_saved_kwh=result["total_saved_kwh"],
         annual_savings_eur=result["annual_savings_eur"],
         co2_kg=result["co2_kg"],
@@ -217,7 +203,24 @@ def calculate():
         nasa_source=nasa_source,
     )
     db.session.add(calc)
+    db.session.flush()  # get calc.id before emissions insert
+
+    # ── Block 5: Persist CalculationEmissions ───────────────────────────────
+    # energy_consumed_kwh: ~10W CPU for duration_s
+    energy_kwh = duration_s * 10.0 / 3_600_000.0
+    emission_row = CalculationEmissions(
+        calculation_id=calc.id,
+        emissions_kg=emissions_kg,
+        duration_seconds=round(duration_s, 3),
+        energy_consumed_kwh=round(energy_kwh, 9),
+        country_iso=country_iso,   # from bounding-box lookup, not stored coords
+    )
+    db.session.add(emission_row)
     db.session.commit()
+
+    # Badge values for template
+    emissions_g  = round(emissions_kg * 1000, 6)           # grams
+    car_km       = round(emissions_kg / 0.00021, 4)        # km driven in petrol car
 
     return render_template(
         "results.html",
@@ -238,4 +241,8 @@ def calculate():
         roi_curve_json=json.dumps(roi_curve),
         shap_vals_json=json.dumps(shap_vals),
         calculation_id=calc.id,
+        # Block 5 emissions badge
+        emissions_g=emissions_g,
+        car_km=car_km,
+        emissions_kg=emissions_kg,
     )

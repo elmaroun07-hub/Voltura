@@ -1,7 +1,8 @@
 """
-Block 4: ML Optimization predictions endpoint + legacy predict page.
+Block 4+5: ML Optimization predictions endpoint + legacy predict page.
 """
 import logging
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify
 from models.ml_model import ml_model, pv_model, PV_FEATURE_NAMES
 from models.energy_model import (
@@ -9,38 +10,26 @@ from models.energy_model import (
     country_from_latlon, TARIFF_BY_COUNTRY,
     validate_inputs,
 )
+from models.carbon_tracker import track_calculation
 
 logger = logging.getLogger(__name__)
 
 predictions_bp = Blueprint("predictions", __name__)
 
-# ── Legacy HTML predict page (Block 1 compat) ────────────────────────────────
+
+# ── Legacy HTML predict page ─────────────────────────────────────────────────
 
 @predictions_bp.route("/predict", methods=["GET"])
 def predict():
     return render_template("predict.html", result=None, shap_vals=None)
 
 
-# ── POST /predict — Block 4 JSON API ─────────────────────────────────────────
+# ── POST /predict — Block 4 JSON API with Block 5 tracking ──────────────────
 
 @predictions_bp.route("/predict", methods=["POST"])
 def predict_api():
-    """
-    Input JSON (all Block 2 user inputs):
-      lat, lon, annual_kwh, pv_w, battery_kwh, battery_efficiency,
-      tariff, performance_ratio, renewable_type, wind_kw,
-      household_size (optional, default 3),
-      month (optional, default 6),
-      calculation_id (optional UUID from Block 3)
-
-    Output JSON (Block 4 spec):
-      calculation_id, recommended_pv_wattage, predicted_annual_savings_kwh,
-      predicted_cost_savings_eur, confidence_interval [lo, hi],
-      top_features, explanation, model_version, fallback_used, boundary_violation
-    """
     data = request.get_json(silent=True) or {}
 
-    # ── Parse inputs ─────────────────────────────────────────────────────────
     def _f(key, default): return float(data.get(key, default) or default)
     def _i(key, default): return int(data.get(key, default) or default)
 
@@ -60,7 +49,6 @@ def predict_api():
     if isinstance(renewable_type, str):
         renewable_type = [renewable_type]
 
-    # Tariff: user-supplied or country fallback
     tariff_raw = data.get("tariff")
     if tariff_raw is not None:
         tariff = float(tariff_raw)
@@ -68,7 +56,6 @@ def predict_api():
         iso = country_from_latlon(lat, lon)
         tariff = TARIFF_BY_COUNTRY.get(iso, TARIFF_BY_COUNTRY["DEFAULT"])
 
-    # ── Validate inputs (boundary_violation flag) ─────────────────────────────
     validation_data = {
         "lat": lat, "lon": lon,
         "annual_kwh": annual_kwh, "tariff": tariff,
@@ -80,21 +67,20 @@ def predict_api():
     errors, boundary_violation = validate_inputs(validation_data)
     fallback_used = False
 
-    # ── Irradiance for savings calculation ────────────────────────────────────
-    irr_monthly = fallback_irradiance(lat)
-
-    # Average irradiance for the requested month
+    irr_monthly    = fallback_irradiance(lat)
     avg_irradiance = irr_monthly[month - 1] if 1 <= month <= 12 else sum(irr_monthly) / 12
-    # Rough avg temperature from latitude
-    avg_temp = max(-10.0, 25.0 - (lat - 28) * 0.5)
+    avg_temp       = max(-10.0, 25.0 - (lat - 28) * 0.5)
 
-    # ── ML prediction or fallback ─────────────────────────────────────────────
+    # ── Block 5: Track ONLY the ML prediction call ───────────────────────────
     try:
         if boundary_violation:
             raise ValueError("boundary_violation — using physics fallback")
 
         pv_model.ensure_ready()
-        main_w, lower_w, upper_w = pv_model.predict_pv(
+
+        # Wrap only predict_pv — not the entire route
+        (main_w, lower_w, upper_w), _emissions = track_calculation(
+            pv_model.predict_pv,
             month=month,
             latitude=lat,
             irradiance=avg_irradiance,
@@ -102,7 +88,7 @@ def predict_api():
             household_size=household_size,
             consumption_kwh=annual_kwh,
         )
-        recommended_pv_w = main_w
+        recommended_pv_w    = main_w
         confidence_interval = [lower_w, upper_w]
 
         top_features, explanation = pv_model.explain_top3(
@@ -118,15 +104,14 @@ def predict_api():
             "lat=%.2f lon=%.2f annual_kwh=%.0f boundary_violation=%s",
             exc, lat, lon, annual_kwh, boundary_violation,
         )
-        fallback_used = True
-        # Physics fallback: use Block 3 engine optimal sizing estimate
-        recommended_pv_w = round((annual_kwh / 1200) * 1000, 0)
-        confidence_interval = [
+        fallback_used        = True
+        recommended_pv_w     = round((annual_kwh / 1200) * 1000, 0)
+        confidence_interval  = [
             round(recommended_pv_w * 0.80, 0),
             round(recommended_pv_w * 1.20, 0),
         ]
-        top_features = []
-        explanation = (
+        top_features  = []
+        explanation   = (
             "Physics-based fallback applied. "
             "Your inputs are outside our calibrated range."
         )
@@ -156,8 +141,8 @@ def predict_api():
         predicted_cost_savings_eur   = 0.0
 
     return jsonify({
-        "calculation_id":              calculation_id,
-        "recommended_pv_wattage":      int(round(recommended_pv_w)),
+        "calculation_id":               calculation_id,
+        "recommended_pv_wattage":       int(round(recommended_pv_w)),
         "predicted_annual_savings_kwh": round(predicted_annual_savings_kwh, 1),
         "predicted_cost_savings_eur":   round(predicted_cost_savings_eur, 2),
         "confidence_interval":          confidence_interval,
@@ -169,11 +154,10 @@ def predict_api():
     }), 200
 
 
-# ── GET /model-info — model metadata & metrics ────────────────────────────────
+# ── GET /model-info ───────────────────────────────────────────────────────────
 
 @predictions_bp.route("/model-info")
 def model_info():
-    """Returns PV model version, training seed, geographic scope, and metrics."""
     pv_model.ensure_ready()
     return jsonify({
         "model_version":    pv_model.model_version,
@@ -190,7 +174,62 @@ def model_info():
     })
 
 
-# ── SHAP values (legacy JSON endpoint) ───────────────────────────────────────
+# ── GET /dashboard/data — Block 5 JSON for Chart.js ─────────────────────────
+
+@predictions_bp.route("/dashboard/data")
+def dashboard_data():
+    """Returns emissions summary + daily breakdown for the last 30 days."""
+    from extensions import db
+    from models.db_models import CalculationEmissions
+    from sqlalchemy import func
+
+    # Total and average
+    agg = db.session.execute(
+        db.select(
+            func.count(CalculationEmissions.id).label("total_calcs"),
+            func.sum(CalculationEmissions.emissions_kg).label("total_kg"),
+            func.avg(CalculationEmissions.emissions_kg).label("avg_kg"),
+        )
+    ).one()
+
+    total_calcs     = agg.total_calcs or 0
+    total_kg        = float(agg.total_kg or 0.0)
+    avg_kg          = float(agg.avg_kg or 0.0)
+
+    # Daily breakdown — last 30 days
+    cutoff = datetime.utcnow() - timedelta(days=30)
+    rows = db.session.execute(
+        db.select(
+            func.date(CalculationEmissions.timestamp).label("day"),
+            func.sum(CalculationEmissions.emissions_kg).label("daily_kg"),
+            func.count(CalculationEmissions.id).label("count"),
+        )
+        .where(CalculationEmissions.timestamp >= cutoff)
+        .group_by(func.date(CalculationEmissions.timestamp))
+        .order_by(func.date(CalculationEmissions.timestamp))
+    ).all()
+
+    daily_emissions = [
+        {
+            "date":        str(row.day),
+            "emissions_g": round(float(row.daily_kg) * 1000, 6),
+            "count":       int(row.count),
+        }
+        for row in rows
+    ]
+
+    return jsonify({
+        "total_emissions_kg":  round(total_kg, 9),
+        "total_emissions_g":   round(total_kg * 1000, 6),
+        "avg_emissions_kg":    round(avg_kg, 9),
+        "avg_emissions_g":     round(avg_kg * 1000, 6),
+        "total_calculations":  total_calcs,
+        "daily_emissions":     daily_emissions,
+        "car_km_total":        round(total_kg / 0.00021, 4),
+    })
+
+
+# ── SHAP values (legacy JSON) ─────────────────────────────────────────────────
 
 @predictions_bp.route("/shap-values", methods=["GET", "POST"])
 def shap_values():
@@ -217,13 +256,37 @@ def shap_values():
         return jsonify({"error": str(e)}), 400
 
 
-# ── Dashboard ─────────────────────────────────────────────────────────────────
+# ── Dashboard (HTML) ─────────────────────────────────────────────────────────
 
 @predictions_bp.route("/dashboard")
 def dashboard():
     from extensions import db
-    from models.db_models import Calculation
+    from models.db_models import Calculation, CalculationEmissions
+    from sqlalchemy import func
+
     calcs = db.session.execute(
         db.select(Calculation).order_by(Calculation.created_at.desc()).limit(50)
     ).scalars().all()
-    return render_template("dashboard.html", calcs=calcs)
+
+    # Emissions summary for template KPIs
+    agg = db.session.execute(
+        db.select(
+            func.count(CalculationEmissions.id).label("n"),
+            func.sum(CalculationEmissions.emissions_kg).label("total_kg"),
+            func.avg(CalculationEmissions.emissions_kg).label("avg_kg"),
+        )
+    ).one()
+
+    total_emissions_g = round(float(agg.total_kg or 0) * 1000, 6)
+    avg_emissions_g   = round(float(agg.avg_kg or 0) * 1000, 6)
+    total_calcs       = agg.n or 0
+    car_km_total      = round(float(agg.total_kg or 0) / 0.00021, 4)
+
+    return render_template(
+        "dashboard.html",
+        calcs=calcs,
+        total_emissions_g=total_emissions_g,
+        avg_emissions_g=avg_emissions_g,
+        total_calcs=total_calcs,
+        car_km_total=car_km_total,
+    )

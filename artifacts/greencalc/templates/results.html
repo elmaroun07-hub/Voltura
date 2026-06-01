@@ -143,11 +143,15 @@
       </div>
     </div>
     <div class="card">
-      <div class="card-title">🌱 Computation Carbon</div>
-      <div class="codecarbon-badge" style="margin-bottom:1rem;">
-        🌱 This calculation emitted <strong>{{ "%.4f"|format(calc.computation_co2_mg) }} mg CO₂</strong>
+      <div class="card-title">🌱 Computation Carbon (CodeCarbon)</div>
+      <div class="codecarbon-badge" style="margin-bottom:0.75rem;">
+        🌱 This calculation emitted <strong>{{ "%.6f"|format(emissions_g) }} mg CO₂</strong>
       </div>
-      <p style="font-size:0.85rem; color:#6b7280;">Tracked via CodeCarbon — equivalent to running a laptop for {{ "%.4f"|format(calc.computation_co2_mg * 0.001) }} seconds.</p>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+        <span class="badge badge-green">🚗 {{ "%.4f"|format(car_km) }} car-metres equivalent</span>
+        <span class="badge badge-green">⚡ engine + ML tracked</span>
+      </div>
+      <p style="font-size:0.85rem; color:#6b7280;">Scope: calculation engine + ML prediction only (not full request lifecycle).</p>
       <hr style="margin:1rem 0; border-color:#e5e7eb;">
       <div class="card-title" style="margin-bottom:0.5rem;">📋 System Details</div>
       <table>

@@ -9,31 +9,31 @@ from config import SECRET_KEY, DATABASE_URL
 
 
 def _migrate_db(app):
-    """Add any new columns / tables to existing SQLite DBs without data loss."""
+    """Add any new columns to existing SQLite tables without data loss."""
     new_columns = [
         # Block 2
-        ("calculations", "country_iso",             "VARCHAR(3)"),
-        ("calculations", "renewable_type",           "VARCHAR(50)"),
-        ("calculations", "wind_kw",                  "FLOAT DEFAULT 0.0"),
-        ("calculations", "performance_ratio",        "FLOAT DEFAULT 0.75"),
-        ("calculations", "roof_area",                "FLOAT"),
-        ("calculations", "num_occupants",            "INTEGER"),
-        ("calculations", "wind_pct",                 "FLOAT DEFAULT 0.0"),
-        ("calculations", "boundary_violation",       "BOOLEAN DEFAULT 0"),
-        ("calculations", "nasa_source",              "VARCHAR(20) DEFAULT 'nasa'"),
+        ("calculations", "country_iso",            "VARCHAR(3)"),
+        ("calculations", "renewable_type",          "VARCHAR(50)"),
+        ("calculations", "wind_kw",                 "FLOAT DEFAULT 0.0"),
+        ("calculations", "performance_ratio",       "FLOAT DEFAULT 0.75"),
+        ("calculations", "roof_area",               "FLOAT"),
+        ("calculations", "num_occupants",           "INTEGER"),
+        ("calculations", "wind_pct",                "FLOAT DEFAULT 0.0"),
+        ("calculations", "boundary_violation",      "BOOLEAN DEFAULT 0"),
+        ("calculations", "nasa_source",             "VARCHAR(20) DEFAULT 'nasa'"),
         # Block 3
-        ("calculations", "calc_uuid",                "VARCHAR(36)"),
-        ("calculations", "session_id",               "VARCHAR(64)"),
-        ("calculations", "input_hash",               "VARCHAR(16)"),
-        ("calculations", "solar_kwh",                "FLOAT"),
-        ("calculations", "wind_kwh",                 "FLOAT DEFAULT 0.0"),
-        ("calculations", "energy_covered",           "FLOAT"),
-        ("calculations", "cost_savings_eur",         "FLOAT"),
-        ("calculations", "co2_reduced_tonnes",       "FLOAT"),
-        ("calculations", "payback_year",             "INTEGER"),
-        ("calculations", "npv_savings",              "FLOAT"),
-        ("calculations", "installation_cost_eur",    "FLOAT"),
-        ("calculations", "cumulative_savings_json",  "TEXT"),
+        ("calculations", "calc_uuid",               "VARCHAR(36)"),
+        ("calculations", "session_id",              "VARCHAR(64)"),
+        ("calculations", "input_hash",              "VARCHAR(16)"),
+        ("calculations", "solar_kwh",               "FLOAT"),
+        ("calculations", "wind_kwh",                "FLOAT DEFAULT 0.0"),
+        ("calculations", "energy_covered",          "FLOAT"),
+        ("calculations", "cost_savings_eur",        "FLOAT"),
+        ("calculations", "co2_reduced_tonnes",      "FLOAT"),
+        ("calculations", "payback_year",            "INTEGER"),
+        ("calculations", "npv_savings",             "FLOAT"),
+        ("calculations", "installation_cost_eur",   "FLOAT"),
+        ("calculations", "cumulative_savings_json", "TEXT"),
     ]
     with app.app_context():
         engine = db.engine
@@ -46,7 +46,7 @@ def _migrate_db(app):
                     ))
                     conn.commit()
                 except Exception:
-                    pass  # column already exists — safe to ignore
+                    pass  # already exists — safe to skip
 
 
 def create_app():
@@ -57,7 +57,7 @@ def create_app():
 
     db.init_app(app)
 
-    from models.db_models import Calculation, ModelMetrics  # noqa: F401
+    from models.db_models import Calculation, CalculationEmissions, ModelMetrics  # noqa: F401
 
     from routes.calculator import calculator_bp
     from routes.predictions import predictions_bp
@@ -70,7 +70,7 @@ def create_app():
     app.register_blueprint(export_bp)
 
     with app.app_context():
-        db.create_all()
+        db.create_all()  # creates calculation_emissions if not present
 
     _migrate_db(app)
 

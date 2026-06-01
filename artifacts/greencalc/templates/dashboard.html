@@ -1,15 +1,60 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container" style="padding-top: 2rem;">
-  <div class="dashboard-header">
+  <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
     <h1 class="page-title">📊 Calculations Dashboard</h1>
     <a href="{{ url_for('calculator.form') }}" class="btn btn-primary">⚡ New Calculation</a>
   </div>
 
+  <!-- Block 5: Emissions KPI row -->
+  <div class="kpi-grid" style="margin-bottom:1.5rem;">
+    <div class="kpi-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
+      <div class="kpi-icon">🌱</div>
+      <div class="kpi-value">{{ "%.4f"|format(total_emissions_g) }}</div>
+      <div class="kpi-label">mg CO₂ Total</div>
+      <div class="kpi-sub">all calculations combined</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">📈</div>
+      <div class="kpi-value">{{ "%.4f"|format(avg_emissions_g) }}</div>
+      <div class="kpi-label">mg CO₂ / Calculation</div>
+      <div class="kpi-sub">average per run</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🚗</div>
+      <div class="kpi-value">{{ "%.4f"|format(car_km_total) }}</div>
+      <div class="kpi-label">Car-km Equivalent</div>
+      <div class="kpi-sub">@ 0.21 gCO₂/km petrol</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🔢</div>
+      <div class="kpi-value">{{ total_calcs }}</div>
+      <div class="kpi-label">Calculations Tracked</div>
+      <div class="kpi-sub">with emissions data</div>
+    </div>
+  </div>
+
+  <!-- Block 5: Daily emissions bar chart -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title">🌿 Daily Emissions — Last 30 Days</div>
+    <div class="chart-container" style="height:220px;">
+      <canvas id="emissionsChart"></canvas>
+    </div>
+    <p style="font-size:0.78rem; color:#9ca3af; margin-top:0.5rem; text-align:center;">
+      Tracked via CodeCarbon — wrapping calculation engine + ML prediction calls only.
+    </p>
+  </div>
+
+  <!-- Calculations table -->
   {% if calcs %}
   <div class="card">
+    <div class="card-title">📋 Recent Calculations</div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -20,8 +65,9 @@
             <th>Battery (kWh)</th>
             <th>Saved (kWh/yr)</th>
             <th>Savings (€/yr)</th>
-            <th>CO₂ (kg/yr)</th>
+            <th>CO₂ Reduced</th>
             <th>Payback</th>
+            <th>🌱 Compute CO₂</th>
             <th>Date</th>
             <th>Actions</th>
           </tr>
@@ -30,22 +76,33 @@
           {% for c in calcs %}
           <tr>
             <td>{{ c.id }}</td>
-            <td><strong>{{ c.location }}</strong></td>
+            <td><strong>{{ c.location }}</strong>
+              {% if c.boundary_violation %}<span title="boundary violation" style="color:#f59e0b;"> ⚠️</span>{% endif %}
+            </td>
             <td>{{ c.pv_w|int }}</td>
             <td>{{ c.battery_kwh }}</td>
             <td>{{ "{:,.0f}".format(c.annual_saved_kwh) }}</td>
             <td>€{{ "{:,.0f}".format(c.annual_savings_eur) }}</td>
-            <td>{{ "{:,.0f}".format(c.co2_kg) }}</td>
+            <td>{{ "{:,.1f}".format(c.co2_kg) }} kg/yr</td>
             <td>
               {% if c.payback_years < 99 %}
-                <span class="badge badge-green">{{ c.payback_years }} yrs</span>
+                <span class="badge badge-green">{{ c.payback_years|int }} yrs</span>
               {% else %}
                 <span class="badge badge-gray">N/A</span>
               {% endif %}
             </td>
+            <td>
+              {% if c.emissions %}
+                <span class="badge badge-green" title="{{ c.emissions.emissions_kg }} kg CO₂">
+                  {{ "%.4f"|format(c.emissions.emissions_kg * 1000) }} mg
+                </span>
+              {% else %}
+                <span class="badge badge-gray">—</span>
+              {% endif %}
+            </td>
             <td>{{ c.created_at.strftime('%Y-%m-%d') }}</td>
             <td>
-              <a href="{{ url_for('export.export_pdf', calc_id=c.id) }}" class="btn btn-outline" style="padding: 4px 10px; font-size: 0.8rem;">📄 PDF</a>
+              <a href="{{ url_for('export.export_pdf', calc_id=c.id) }}" class="btn btn-outline" style="padding:4px 10px; font-size:0.8rem;">📄 PDF</a>
             </td>
           </tr>
           {% endfor %}
@@ -54,11 +111,63 @@
     </div>
   </div>
   {% else %}
-  <div class="card" style="text-align: center; padding: 3rem;">
-    <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
-    <h3 style="color: #6b7280; margin-bottom: 1rem;">No calculations yet</h3>
+  <div class="card" style="text-align:center; padding:3rem;">
+    <div style="font-size:3rem; margin-bottom:1rem;">📭</div>
+    <h3 style="color:#6b7280; margin-bottom:1rem;">No calculations yet</h3>
     <a href="{{ url_for('calculator.form') }}" class="btn btn-primary">Run your first calculation</a>
   </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async () => {
+  try {
+    const resp = await fetch("{{ url_for('predictions.dashboard_data') }}");
+    const data = await resp.json();
+    const daily = data.daily_emissions || [];
+
+    const labels = daily.map(d => d.date);
+    const values = daily.map(d => d.emissions_g);
+
+    const ctx = document.getElementById("emissionsChart").getContext("2d");
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels.length ? labels : ["No data yet"],
+        datasets: [{
+          label: "Daily Emissions (mg CO₂)",
+          data: values.length ? values : [0],
+          backgroundColor: "rgba(16,185,129,0.55)",
+          borderColor: "#10b981",
+          borderWidth: 1,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.y.toFixed(6)} mg CO₂ — ${daily[ctx.dataIndex]?.count || 0} calc(s)`,
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "mg CO₂" },
+          },
+        },
+      },
+    });
+  } catch (e) {
+    console.warn("Dashboard chart load failed:", e);
+  }
+})();
+</script>
 {% endblock %}

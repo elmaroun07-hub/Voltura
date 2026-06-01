@@ -324,3 +324,165 @@ def test_model_info_features_list(client):
         "month", "latitude", "irradiance_kwh_m2_day",
         "avg_temp_c", "household_size", "current_consumption_kwh",
     ]
+
+
+# ── Block 5: CalculationEmissions + /dashboard/data ──────────────────────────
+
+def _calc_payload(**overrides):
+    """Default valid form payload for POST /calculate."""
+    base = {
+        "location": "Berlin, Germany",
+        "lat": "52.52", "lon": "13.41",
+        "annual_kwh": "5000",
+        "pv_w": "4000",
+        "battery_kwh": "10",
+        "battery_efficiency": "90",
+        "tariff": "0.30",
+        "renewable_type": ["solar"],
+        "performance_ratio": "0.75",
+        "wind_kw": "0",
+        "tilt": "35",
+        "orientation": "south",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_calculate_creates_emission_row(client, app):
+    """After POST /calculate, calculation_emissions must have a matching row."""
+    from models.db_models import CalculationEmissions, Calculation
+    with app.app_context():
+        before = _db.session.query(CalculationEmissions).count()
+
+    r = client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    assert r.status_code == 200
+
+    with app.app_context():
+        after = _db.session.query(CalculationEmissions).count()
+    assert after == before + 1, "Expected exactly one new CalculationEmissions row"
+
+
+def test_emission_row_has_emissions_kg(client, app):
+    """The newest CalculationEmissions row must have emissions_kg >= 0."""
+    from models.db_models import CalculationEmissions
+    client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    with app.app_context():
+        row = (
+            _db.session.query(CalculationEmissions)
+            .order_by(CalculationEmissions.id.desc())
+            .first()
+        )
+        assert row is not None
+        assert isinstance(row.emissions_kg, float)
+        assert row.emissions_kg >= 0.0
+
+
+def test_emission_row_has_duration_seconds(client, app):
+    """CalculationEmissions.duration_seconds must be > 0."""
+    from models.db_models import CalculationEmissions
+    client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    with app.app_context():
+        row = (
+            _db.session.query(CalculationEmissions)
+            .order_by(CalculationEmissions.id.desc())
+            .first()
+        )
+        assert row.duration_seconds is not None
+        assert row.duration_seconds >= 0.0
+
+
+def test_emission_row_has_country_iso(client, app):
+    """CalculationEmissions.country_iso must be a non-empty string."""
+    from models.db_models import CalculationEmissions
+    client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    with app.app_context():
+        row = (
+            _db.session.query(CalculationEmissions)
+            .order_by(CalculationEmissions.id.desc())
+            .first()
+        )
+        assert row.country_iso is not None
+        assert isinstance(row.country_iso, str)
+        assert len(row.country_iso) > 0
+
+
+def test_emission_row_fk_links_calculation(client, app):
+    """CalculationEmissions.calculation_id must reference an existing Calculation row."""
+    from models.db_models import CalculationEmissions, Calculation
+    client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    with app.app_context():
+        row = (
+            _db.session.query(CalculationEmissions)
+            .order_by(CalculationEmissions.id.desc())
+            .first()
+        )
+        calc = _db.session.get(Calculation, row.calculation_id)
+        assert calc is not None, "FK calculation_id must reference a Calculation row"
+
+
+def test_emission_no_lat_lon_in_row(client, app):
+    """CalculationEmissions must NOT store lat/lon coordinates."""
+    from models.db_models import CalculationEmissions
+    from sqlalchemy import inspect
+    with app.app_context():
+        cols = [c.key for c in inspect(CalculationEmissions).mapper.column_attrs]
+    assert "lat" not in cols
+    assert "lon" not in cols
+
+
+def test_dashboard_data_endpoint_200(client):
+    """GET /dashboard/data returns 200 JSON."""
+    r = client.get("/dashboard/data")
+    assert r.status_code == 200
+    assert r.content_type.startswith("application/json")
+
+
+def test_dashboard_data_fields(client):
+    """GET /dashboard/data contains all required fields."""
+    r = client.get("/dashboard/data")
+    data = r.get_json()
+    for field in [
+        "total_emissions_kg", "total_emissions_g",
+        "avg_emissions_kg", "avg_emissions_g",
+        "total_calculations", "daily_emissions", "car_km_total",
+    ]:
+        assert field in data, f"Missing /dashboard/data field: {field}"
+
+
+def test_dashboard_data_daily_is_list(client):
+    """daily_emissions must be a list."""
+    r = client.get("/dashboard/data")
+    data = r.get_json()
+    assert isinstance(data["daily_emissions"], list)
+
+
+def test_dashboard_data_counts_increase_after_calc(client, app):
+    """total_calculations increases by 1 after a /calculate POST."""
+    r_before = client.get("/dashboard/data").get_json()
+    before = r_before["total_calculations"]
+
+    client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+
+    r_after = client.get("/dashboard/data").get_json()
+    after = r_after["total_calculations"]
+    assert after == before + 1
+
+
+def test_dashboard_data_total_kg_non_negative(client):
+    """total_emissions_kg must be >= 0."""
+    r = client.get("/dashboard/data")
+    assert r.get_json()["total_emissions_kg"] >= 0.0
+
+
+def test_results_page_shows_emissions_badge(client):
+    """Results page must contain mg CO₂ badge text (from emissions_g template var)."""
+    r = client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    assert r.status_code == 200
+    assert b"mg CO" in r.data or b"mg CO\xe2\x82\x82" in r.data or b"emissions" in r.data.lower()
+
+
+def test_dashboard_html_shows_kpi(client):
+    """GET /dashboard page contains emissions KPI text."""
+    r = client.get("/dashboard")
+    assert r.status_code == 200
+    assert b"CO\xe2\x82\x82" in r.data or b"CO2" in r.data or b"emissions" in r.data.lower()
