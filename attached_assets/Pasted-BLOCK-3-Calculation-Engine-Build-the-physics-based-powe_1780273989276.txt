@@ -1,0 +1,57 @@
+BLOCK 3 — Calculation Engine
+Build the physics-based power balance model.
+All computation must use NumPy vectorized operations.
+No Python for-loops over arrays.
+
+Solar energy generation (annual):
+irradiance_array = np.array([jan, feb, ..., dec])  # kWh/m²/day
+irradiance_array = np.maximum(irradiance_array, 0)  # zero-guard
+days_per_month = np.array([31,28,31,30,31,30,31,31,30,31,30,31])
+E_solar_monthly = PV_wattage * irradiance_array * days_per_month
+* performance_ratio / 1000  # kWh per month
+E_solar_annual = np.sum(E_solar_monthly)
+Battery dispatch model (monthly):
+consumption_monthly = (annual_consumption / 12) * np.ones(12)
+excess = np.maximum(E_solar_monthly - consumption_monthly, 0)
+deficit = np.maximum(consumption_monthly - E_solar_monthly, 0)
+battery_stored = np.minimum(
+np.cumsum(excess) * (battery_efficiency / 100),
+battery_capacity
+)
+self_consumption_rate = np.sum(E_solar_monthly - excess) / E_solar_annual
+grid_export_kwh = np.sum(excess) - np.sum(battery_stored)
+Wind energy generation (if wind or hybrid selected):
+CF = np.where(latitude < 35, 0.20,
+np.where(latitude <= 50, 0.25, 0.30))
+E_wind_annual = wind_turbine_kw * CF * 8760  # kWh/year
+Annual savings:
+total_renewable_kwh = E_solar_annual + E_wind_annual (if applicable)
+energy_covered = min(total_renewable_kwh, annual_consumption)
+cost_savings_eur = energy_covered * tariff_rate
+co2_reduced_tonnes = energy_covered * grid_carbon_intensity / 1000
+25-year ROI projection:
+installation_cost_eur = (PV_wattage / 1000) * 1200  # €1,200 per kWp
+inflation_rate = 0.02
+discount_rate = 0.05
+years = np.arange(1, 26)
+annual_savings_inflated = cost_savings_eur * (1 + inflation_rate) ** years
+npv_savings = np.sum(annual_savings_inflated / (1 + discount_rate) ** years)
+cumulative_savings = np.cumsum(annual_savings_inflated)
+payback_year = np.argmax(cumulative_savings >= installation_cost_eur) + 1
+Return:
+
+cumulative_savings: np.array of 25 values (for ROI chart)
+payback_year: int
+npv_savings: float (€)
+installation_cost_eur: float
+
+
+
+Store full result dict in SQLite table: calculations
+Fields: id (UUID), session_id, timestamp, input_hash,
+solar_kwh, wind_kwh, energy_covered, cost_savings_eur,
+co2_reduced_tonnes, payback_year, npv_savings,
+installation_cost_eur, cumulative_savings_json (JSON array)
+Return calculation_id to frontend — needed for PDF export in Block 7.
+Stop here. Test with known inputs and verify output values are
+physically reasonable before moving to Block 4.

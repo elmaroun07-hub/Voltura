@@ -7,12 +7,20 @@
 
 {% block content %}
 <div class="container" style="padding-top: 2rem;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+
+  <!-- Header -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
     <div>
-      <h1 class="page-title">Your Solar Results</h1>
-      <p style="color: #6b7280;">📍 {{ calc.location }} &nbsp;|&nbsp; {{ calc.pv_w|int }} W PV &nbsp;|&nbsp; {{ calc.battery_kwh }} kWh battery</p>
+      <h1 class="page-title">⚡ Your Energy Results</h1>
+      <p style="color:#6b7280;">
+        📍 {{ calc.location }} &nbsp;|&nbsp;
+        {{ calc.renewable_type or 'solar' }} &nbsp;|&nbsp;
+        {{ calc.pv_w|int }} W PV
+        {% if calc.wind_kw and calc.wind_kw > 0 %} + {{ calc.wind_kw }} kW wind{% endif %}
+        &nbsp;|&nbsp; {{ calc.battery_kwh }} kWh battery
+      </p>
     </div>
-    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
       <a href="{{ url_for('export.export_pdf', calc_id=calc.id) }}" class="btn btn-outline">
         📄 Download PDF
       </a>
@@ -22,12 +30,26 @@
     </div>
   </div>
 
+  <!-- Warnings -->
+  {% if boundary_violation %}
+  <div class="alert" style="background:#fef9c3; border:1px solid #fde047; color:#713f12; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem;">
+    ⚠️ <strong>ML boundary notice:</strong> Some inputs fall outside the model's training distribution.
+    The AI prediction is still shown for reference but may be less accurate.
+  </div>
+  {% endif %}
+  {% if nasa_source == 'fallback' %}
+  <div class="alert" style="background:#fff7ed; border:1px solid #fb923c; color:#7c2d12; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem;">
+    🛰️ <strong>Irradiance fallback:</strong> NASA POWER API was unavailable. Results use a latitude-band estimate
+    ({{ "{:.1f}".format(calc.lat or 0) }}°) — accuracy may be lower than usual.
+  </div>
+  {% endif %}
+
   <!-- KPI Cards -->
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-icon">⚡</div>
       <div class="kpi-value">{{ "{:,.0f}".format(calc.annual_saved_kwh) }}</div>
-      <div class="kpi-label">kWh Saved / Year</div>
+      <div class="kpi-label">kWh Covered / Year</div>
       <div class="kpi-sub">from {{ "{:,.0f}".format(calc.annual_kwh) }} kWh consumed</div>
     </div>
     <div class="kpi-card">
@@ -38,15 +60,33 @@
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">🌿</div>
-      <div class="kpi-value">{{ "{:,.0f}".format(calc.co2_kg) }}</div>
+      <div class="kpi-value">{{ "{:,.1f}".format(calc.co2_kg) }}</div>
       <div class="kpi-label">kg CO₂ Reduced</div>
-      <div class="kpi-sub">per year</div>
+      <div class="kpi-sub">{{ "%.4f"|format(calc.co2_reduced_tonnes or calc.co2_kg / 1000) }} tonnes/year</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">📅</div>
-      <div class="kpi-value">{{ calc.payback_years }}</div>
+      <div class="kpi-value">{{ payback_year }}</div>
       <div class="kpi-label">Year Payback</div>
       <div class="kpi-sub">25yr net: €{{ "{:,.0f}".format(calc.net_25yr) }}</div>
+    </div>
+    <div class="kpi-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
+      <div class="kpi-icon">📈</div>
+      <div class="kpi-value">€{{ "{:,.0f}".format(npv_savings) }}</div>
+      <div class="kpi-label">25yr NPV Savings</div>
+      <div class="kpi-sub">5% discount rate · 2% inflation</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🔆</div>
+      <div class="kpi-value">{{ "{:,.0f}".format(calc.solar_kwh or calc.annual_saved_kwh) }}</div>
+      <div class="kpi-label">Solar Generated (kWh)</div>
+      <div class="kpi-sub">
+        {%- if calc.wind_kwh and calc.wind_kwh > 0 -%}
+        + {{ "{:,.0f}".format(calc.wind_kwh) }} kWh wind
+        {%- else -%}
+        self-consumption {{ "{:.0%}".format(self_consumption_rate) }}
+        {%- endif -%}
+      </div>
     </div>
   </div>
 
@@ -63,51 +103,62 @@
       <div class="chart-container">
         <canvas id="energyDonut"></canvas>
       </div>
-      <div style="text-align: center; margin-top: 0.5rem; font-size: 0.85rem; color: #6b7280;">
-        Solar <strong>{{ calc.solar_pct }}%</strong> &nbsp;|&nbsp;
-        Battery <strong>{{ calc.battery_pct }}%</strong> &nbsp;|&nbsp;
-        Grid <strong>{{ calc.grid_pct }}%</strong>
+      <div style="text-align:center; margin-top:0.5rem; font-size:0.85rem; color:#6b7280;">
+        Solar <strong>{{ calc.solar_pct }}%</strong>
+        {% if calc.wind_pct and calc.wind_pct > 0 %}&nbsp;|&nbsp; Wind <strong>{{ calc.wind_pct }}%</strong>{% endif %}
+        &nbsp;|&nbsp; Battery <strong>{{ calc.battery_pct }}%</strong>
+        &nbsp;|&nbsp; Grid <strong>{{ calc.grid_pct }}%</strong>
       </div>
     </div>
   </div>
 
   <!-- ROI Chart -->
   <div class="card">
-    <div class="card-title">📈 25-Year ROI Curve</div>
-    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
-      <span class="badge badge-green">💶 Installation: €{{ "{:,.0f}".format(calc.installation_cost) }}</span>
-      <span class="badge badge-green">⏳ Payback: {{ calc.payback_years }} years</span>
-      <span class="badge badge-green">📈 25yr Net: €{{ "{:,.0f}".format(calc.net_25yr) }}</span>
+    <div class="card-title">📈 25-Year ROI Curve (NPV model)</div>
+    <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+      <span class="badge badge-green">💶 Install: €{{ "{:,.0f}".format(calc.installation_cost_eur or calc.installation_cost) }}</span>
+      <span class="badge badge-green">⏳ Payback: Year {{ payback_year }}</span>
+      <span class="badge badge-green">📈 NPV: €{{ "{:,.0f}".format(npv_savings) }}</span>
+      <span class="badge badge-green">25yr Net: €{{ "{:,.0f}".format(calc.net_25yr) }}</span>
     </div>
-    <div class="chart-container" style="height: 300px;">
+    <div class="chart-container" style="height:300px;">
       <canvas id="roiChart"></canvas>
     </div>
+    <p style="font-size:0.78rem; color:#9ca3af; margin-top:0.5rem; text-align:center;">
+      Discount rate 5% · Tariff inflation 2% · Installation: ({{ calc.pv_w|int }} W ÷ 1000) × €1,200/kWp
+    </p>
   </div>
 
   <!-- ML + SHAP -->
   <div class="charts-grid">
     <div class="card">
       <div class="card-title">🤖 ML Feature Importance (SHAP)</div>
-      <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 1rem;">
-        SHAP values showing which features most influence the ML consumption prediction.
-        Predicted consumption at peak hour: <strong>{{ ml_pred }} kWh</strong>
+      <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+        SHAP values for the ML consumption prediction.
+        Peak-hour predicted consumption: <strong>{{ ml_pred }} kWh</strong>
+        {% if boundary_violation %}<span style="color:#b45309;"> ⚠️ boundary violation</span>{% endif %}
       </p>
-      <div class="chart-container" style="height: 200px;">
+      <div class="chart-container" style="height:200px;">
         <canvas id="shapChart"></canvas>
       </div>
     </div>
     <div class="card">
       <div class="card-title">🌱 Computation Carbon</div>
-      <div class="codecarbon-badge" style="margin-bottom: 1rem;">
+      <div class="codecarbon-badge" style="margin-bottom:1rem;">
         🌱 This calculation emitted <strong>{{ "%.4f"|format(calc.computation_co2_mg) }} mg CO₂</strong>
       </div>
-      <p style="font-size: 0.85rem; color: #6b7280;">Tracked via CodeCarbon. Equivalent to running a laptop for {{ "%.4f"|format(calc.computation_co2_mg * 0.001) }} seconds.</p>
-      <hr style="margin: 1rem 0; border-color: #e5e7eb;">
-      <div class="card-title" style="margin-bottom: 0.5rem;">📋 System Details</div>
+      <p style="font-size:0.85rem; color:#6b7280;">Tracked via CodeCarbon — equivalent to running a laptop for {{ "%.4f"|format(calc.computation_co2_mg * 0.001) }} seconds.</p>
+      <hr style="margin:1rem 0; border-color:#e5e7eb;">
+      <div class="card-title" style="margin-bottom:0.5rem;">📋 System Details</div>
       <table>
-        <tr><td style="color: #6b7280; font-size: 0.85rem;">Tilt / Orientation</td><td style="font-size: 0.85rem;"><strong>{{ calc.tilt }}° / {{ calc.orientation.title() }}</strong></td></tr>
-        <tr><td style="color: #6b7280; font-size: 0.85rem;">Battery Efficiency</td><td style="font-size: 0.85rem;"><strong>{{ calc.efficiency }}%</strong></td></tr>
-        <tr><td style="color: #6b7280; font-size: 0.85rem;">Calculated on</td><td style="font-size: 0.85rem;"><strong>{{ calc.created_at.strftime('%Y-%m-%d %H:%M') }}</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Tilt / Orientation</td><td style="font-size:0.85rem;"><strong>{{ calc.tilt }}° / {{ calc.orientation.title() }}</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Performance Ratio</td><td style="font-size:0.85rem;"><strong>{{ calc.performance_ratio }}</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Battery Efficiency</td><td style="font-size:0.85rem;"><strong>{{ calc.efficiency }}%</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Grid Export</td><td style="font-size:0.85rem;"><strong>{{ grid_export_kwh }} kWh/yr</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Country / ISO</td><td style="font-size:0.85rem;"><strong>{{ country_iso }}</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">NASA Source</td><td style="font-size:0.85rem;"><strong>{{ nasa_source }}</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Calculation ID</td><td style="font-size:0.85rem;"><strong>#{{ calculation_id }}</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Calculated on</td><td style="font-size:0.85rem;"><strong>{{ calc.created_at.strftime('%Y-%m-%d %H:%M') }}</strong></td></tr>
       </table>
     </div>
   </div>
@@ -139,6 +190,16 @@
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+          <tr style="font-weight:bold; background:#f0fdf4;">
+            <td>Total</td>
+            <td>{{ "{:,.1f}".format(monthly_data | sum(attribute='solar_kwh')) }}</td>
+            <td>{{ "{:,.1f}".format(monthly_data | sum(attribute='battery_kwh')) }}</td>
+            <td>{{ "{:,.1f}".format(monthly_data | sum(attribute='grid_kwh')) }}</td>
+            <td>{{ "{:,.1f}".format(monthly_data | sum(attribute='saved_kwh')) }}</td>
+            <td>€{{ "{:,.2f}".format(calc.annual_savings_eur) }}</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   </div>

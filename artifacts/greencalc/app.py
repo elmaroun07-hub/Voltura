@@ -11,15 +11,29 @@ from config import SECRET_KEY, DATABASE_URL
 def _migrate_db(app):
     """Add any new columns to existing SQLite tables without losing data."""
     new_columns = [
-        ("country_iso",       "VARCHAR(3)"),
-        ("renewable_type",    "VARCHAR(50)"),
-        ("wind_kw",           "FLOAT DEFAULT 0.0"),
-        ("performance_ratio", "FLOAT DEFAULT 0.75"),
-        ("roof_area",         "FLOAT"),
-        ("num_occupants",     "INTEGER"),
-        ("wind_pct",          "FLOAT DEFAULT 0.0"),
-        ("boundary_violation","BOOLEAN DEFAULT 0"),
-        ("nasa_source",       "VARCHAR(20) DEFAULT 'nasa'"),
+        # Block 2 additions
+        ("country_iso",              "VARCHAR(3)"),
+        ("renewable_type",           "VARCHAR(50)"),
+        ("wind_kw",                  "FLOAT DEFAULT 0.0"),
+        ("performance_ratio",        "FLOAT DEFAULT 0.75"),
+        ("roof_area",                "FLOAT"),
+        ("num_occupants",            "INTEGER"),
+        ("wind_pct",                 "FLOAT DEFAULT 0.0"),
+        ("boundary_violation",       "BOOLEAN DEFAULT 0"),
+        ("nasa_source",              "VARCHAR(20) DEFAULT 'nasa'"),
+        # Block 3 additions
+        ("calc_uuid",                "VARCHAR(36)"),
+        ("session_id",               "VARCHAR(64)"),
+        ("input_hash",               "VARCHAR(16)"),
+        ("solar_kwh",                "FLOAT"),
+        ("wind_kwh",                 "FLOAT DEFAULT 0.0"),
+        ("energy_covered",           "FLOAT"),
+        ("cost_savings_eur",         "FLOAT"),
+        ("co2_reduced_tonnes",       "FLOAT"),
+        ("payback_year",             "INTEGER"),
+        ("npv_savings",              "FLOAT"),
+        ("installation_cost_eur",    "FLOAT"),
+        ("cumulative_savings_json",  "TEXT"),
     ]
     with app.app_context():
         engine = db.engine
@@ -27,10 +41,12 @@ def _migrate_db(app):
             from sqlalchemy import text
             for col_name, col_type in new_columns:
                 try:
-                    conn.execute(text(f"ALTER TABLE calculations ADD COLUMN {col_name} {col_type}"))
+                    conn.execute(text(
+                        f"ALTER TABLE calculations ADD COLUMN {col_name} {col_type}"
+                    ))
                     conn.commit()
                 except Exception:
-                    pass  # Column already exists — safe to ignore
+                    pass  # column already exists — safe to ignore
 
 
 def create_app():
@@ -41,7 +57,7 @@ def create_app():
 
     db.init_app(app)
 
-    from models.db_models import Calculation  # noqa: F401 — register model before create_all
+    from models.db_models import Calculation  # noqa: F401
 
     from routes.calculator import calculator_bp
     from routes.predictions import predictions_bp
