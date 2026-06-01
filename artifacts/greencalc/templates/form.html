@@ -1,66 +1,173 @@
 {% extends "base.html" %}
 {% block title %}Calculator{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  #map { height: 280px; border-radius: 8px; border: 1px solid #d1fae5; margin-bottom: 0.75rem; }
+  .wind-field { display: none; }
+  .coord-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .renewable-checks { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
+  .renewable-checks label { display: flex; align-items: center; gap: 0.4rem; font-weight: 500; cursor: pointer; }
+  .renewable-checks input[type=checkbox] { width: 16px; height: 16px; accent-color: #10b981; }
+  .field-error { border-color: #ef4444 !important; }
+  .error-hint { color: #ef4444; font-size: 0.78rem; margin-top: 0.2rem; display: none; }
+  .nasa-badge { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem;
+    padding: 2px 8px; border-radius: 99px; background: #d1fae5; color: #065f46;
+    margin-left: 0.5rem; font-weight: 500; }
+  .section-note { font-size: 0.8rem; color: #9ca3af; margin-bottom: 0.5rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <p>Running 8760-hour simulation…</p>
-  <p style="font-size: 0.85rem; opacity: 0.7;">Fetching NASA data, training ML model, computing ROI…</p>
+  <p style="font-size: 0.85rem; opacity: 0.7;">Fetching NASA data · Training ML model · Computing ROI…</p>
 </div>
 
 <div class="container-sm" style="padding-top: 2.5rem;">
-  <h1 class="page-title" style="margin-bottom: 0.25rem;">Solar Energy Calculator</h1>
-  <p style="color: #6b7280; margin-bottom: 2rem;">Enter your details below. All fields have sensible defaults for Berlin.</p>
+  <h1 class="page-title" style="margin-bottom: 0.25rem;">⚡ Energy Savings Calculator</h1>
+  <p style="color: #6b7280; margin-bottom: 2rem;">
+    All fields have sensible defaults. Click the map to set your location or type it below.
+  </p>
 
-  {% if error %}
-  <div class="alert alert-error">⚠️ {{ error }}</div>
-  {% endif %}
+  <div id="globalError" class="alert alert-error" style="display:none;"></div>
 
-  <form method="POST" action="{{ url_for('calculator.calculate') }}" onsubmit="document.getElementById('loadingOverlay').classList.add('active')">
+  <form id="calcForm" method="POST" action="{{ url_for('calculator.calculate') }}">
+
+    <!-- ── LOCATION ──────────────────────────────────────────────────────── -->
     <div class="card">
-      <div class="card-title">📍 Location & Consumption</div>
-      <div class="form-grid">
-        <div class="form-group full">
-          <label for="location">Location (city, country)</label>
-          <input type="text" id="location" name="location" value="Berlin, Germany" required>
-          <span class="help-text">Used for geocoding and NASA POWER irradiance data</span>
+      <div class="card-title">
+        📍 Location
+        <span id="nasaBadge" class="nasa-badge" style="display:none;">🛰 NASA data loaded</span>
+      </div>
+      <p class="section-note">Click the map to place your marker, or type a city name and press Enter / "Find".</p>
+
+      <div id="map"></div>
+
+      <div class="form-group full" style="margin-bottom: 0.6rem;">
+        <label for="location">City / Country</label>
+        <div style="display:flex; gap:0.5rem;">
+          <input type="text" id="location" name="location" value="Berlin, Germany"
+                 placeholder="e.g. Madrid, Spain" style="flex:1;">
+          <button type="button" id="btnFind" class="btn btn-outline" style="white-space:nowrap;">🔍 Find</button>
+        </div>
+        <span class="help-text">Used to fetch NASA POWER solar irradiance data</span>
+      </div>
+
+      <div class="coord-row">
+        <div class="form-group">
+          <label for="lat">Latitude</label>
+          <input type="number" id="lat" name="lat" value="52.52"
+                 step="0.0001" min="-90" max="90" required>
+          <span class="error-hint" id="lat-err"></span>
         </div>
         <div class="form-group">
-          <label for="annual_kwh">Annual Energy Usage (kWh)</label>
-          <input type="number" id="annual_kwh" name="annual_kwh" value="5000" min="100" max="100000" step="100" required>
-          <span class="help-text">Average EU household: 3500–5500 kWh/year</span>
-        </div>
-        <div class="form-group">
-          <label for="tariff">Electricity Tariff (€/kWh)</label>
-          <input type="number" id="tariff" name="tariff" value="0.30" min="0.05" max="2.00" step="0.01" required>
-          <span class="help-text">Check your electricity bill</span>
+          <label for="lon">Longitude</label>
+          <input type="number" id="lon" name="lon" value="13.405"
+                 step="0.0001" min="-180" max="180" required>
+          <span class="error-hint" id="lon-err"></span>
         </div>
       </div>
     </div>
 
+    <!-- ── CONSUMPTION ───────────────────────────────────────────────────── -->
     <div class="card">
-      <div class="card-title">☀️ Solar System</div>
+      <div class="card-title">🏠 Consumption</div>
       <div class="form-grid">
         <div class="form-group">
-          <label for="pv_w">PV System Size (W)</label>
-          <input type="number" id="pv_w" name="pv_w" value="4000" min="500" max="100000" step="100" required>
-          <span class="help-text">4000W = 4 kWp (typical home system)</span>
+          <label for="annual_kwh">Annual Energy Usage (kWh/year)</label>
+          <input type="number" id="annual_kwh" name="annual_kwh"
+                 value="5000" min="500" max="50000" step="100" required>
+          <span class="help-text">EU average: 3,500–5,500 kWh/year</span>
+          <span class="error-hint" id="annual_kwh-err"></span>
         </div>
+        <div class="form-group">
+          <label for="num_occupants">Number of Occupants</label>
+          <input type="number" id="num_occupants" name="num_occupants"
+                 value="3" min="1" max="20" step="1">
+          <span class="help-text">Used for context (optional)</span>
+        </div>
+        <div class="form-group">
+          <label for="tariff">Electricity Tariff (€/kWh) <span style="font-weight:400; color:#9ca3af;">— optional</span></label>
+          <input type="number" id="tariff" name="tariff"
+                 min="0.01" max="2.00" step="0.01" placeholder="auto from country">
+          <span class="help-text">Leave blank to use country default</span>
+          <span class="error-hint" id="tariff-err"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RENEWABLE SYSTEM ──────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">☀️ Renewable System</div>
+      <div class="form-group full">
+        <label>Energy Type</label>
+        <div class="renewable-checks">
+          <label><input type="checkbox" name="renewable_type" value="solar" id="chkSolar" checked> ☀️ Solar PV</label>
+          <label><input type="checkbox" name="renewable_type" value="wind" id="chkWind"> 💨 Wind Turbine</label>
+          <label><input type="checkbox" name="renewable_type" value="hybrid" id="chkHybrid"> ⚡ Hybrid</label>
+        </div>
+        <span class="error-hint" id="renewable_type-err"></span>
+      </div>
+
+      <div class="form-grid">
+        <!-- PV fields -->
+        <div class="form-group" id="pvGroup">
+          <label for="pv_w">PV System Size (W)</label>
+          <input type="number" id="pv_w" name="pv_w"
+                 value="4000" min="100" max="20000" step="100">
+          <span class="help-text">4,000 W = 4 kWp (typical home)</span>
+          <span class="error-hint" id="pv_w-err"></span>
+        </div>
+
+        <div class="form-group" id="roofGroup">
+          <label for="roof_area">Roof Area (m²) <span style="font-weight:400; color:#9ca3af;">— optional</span></label>
+          <input type="number" id="roof_area" name="roof_area"
+                 min="5" max="500" step="1" placeholder="e.g. 30">
+          <span class="help-text" id="roofHint">Caps max PV: m² × 180 W</span>
+        </div>
+
+        <!-- Wind field — shown only for wind/hybrid -->
+        <div class="form-group wind-field" id="windGroup">
+          <label for="wind_kw">Wind Turbine Capacity (kW)</label>
+          <input type="number" id="wind_kw" name="wind_kw"
+                 min="0.5" max="50" step="0.5" placeholder="e.g. 3.5">
+          <span class="help-text">0.5–50 kW residential turbine</span>
+          <span class="error-hint" id="wind_kw-err"></span>
+        </div>
+
+        <!-- Battery -->
         <div class="form-group">
           <label for="battery_kwh">Battery Capacity (kWh)</label>
-          <input type="number" id="battery_kwh" name="battery_kwh" value="10" min="0" max="200" step="0.5" required>
-          <span class="help-text">Set to 0 if no battery storage</span>
+          <input type="number" id="battery_kwh" name="battery_kwh"
+                 value="10" min="0" max="100" step="0.5">
+          <span class="help-text">0 = no battery storage</span>
+          <span class="error-hint" id="battery_kwh-err"></span>
         </div>
+
         <div class="form-group">
-          <label for="efficiency">Battery Round-trip Efficiency (%)</label>
-          <input type="number" id="efficiency" name="efficiency" value="90" min="50" max="100" step="1" required>
-          <span class="help-text">Lithium: ~90–95%, Lead-acid: ~75–85%</span>
+          <label for="battery_efficiency">Battery Round-trip Efficiency (%)</label>
+          <input type="number" id="battery_efficiency" name="battery_efficiency"
+                 value="90" min="50" max="99" step="1">
+          <span class="help-text">Li-ion: 90–95% · Lead-acid: 75–85%</span>
+          <span class="error-hint" id="battery_efficiency-err"></span>
         </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL SETTINGS ────────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-title">🔧 Panel Settings</div>
+      <div class="form-grid">
         <div class="form-group">
           <label for="tilt">Panel Tilt Angle (°)</label>
-          <input type="number" id="tilt" name="tilt" value="35" min="0" max="90" step="1" required>
-          <span class="help-text">Optimal: ~latitude of location</span>
+          <input type="number" id="tilt" name="tilt"
+                 value="35" min="0" max="90" step="1">
+          <span class="help-text">Optimal ≈ your latitude</span>
         </div>
+
         <div class="form-group">
           <label for="orientation">Panel Orientation</label>
           <select id="orientation" name="orientation">
@@ -73,21 +180,172 @@
             <option value="north-east">North-East</option>
             <option value="north-west">North-West</option>
           </select>
-          <span class="help-text">South-facing maximizes yield in northern hemisphere</span>
         </div>
+
         <div class="form-group">
-          <label for="installation_cost">Installation Cost (€) — optional</label>
-          <input type="number" id="installation_cost" name="installation_cost" placeholder="Leave blank to auto-estimate" min="0" max="1000000" step="100">
-          <span class="help-text">Leave blank to use €900/kWp + €500/kWh + €1,200 fixed estimate</span>
+          <label for="performance_ratio">Performance Ratio <span style="font-weight:400; color:#9ca3af;">— advanced</span></label>
+          <input type="number" id="performance_ratio" name="performance_ratio"
+                 value="0.75" min="0.60" max="0.85" step="0.01">
+          <span class="help-text">Default 0.75 · Range 0.60–0.85</span>
+          <span class="error-hint" id="performance_ratio-err"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="installation_cost">Installation Cost (€) <span style="font-weight:400; color:#9ca3af;">— optional</span></label>
+          <input type="number" id="installation_cost" name="installation_cost"
+                 min="0" max="1000000" step="100" placeholder="auto-estimate">
+          <span class="help-text">Leave blank: €900/kWp + €500/kWh + €1,200</span>
         </div>
       </div>
     </div>
 
-    <div style="text-align: center; margin-top: 1rem;">
-      <button type="submit" class="btn btn-primary btn-lg">
-        ⚡ Calculate Solar Savings
+    <div style="text-align:center; margin-top: 1rem;">
+      <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+        ⚡ Calculate Savings
       </button>
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPeE=" crossorigin=""></script>
+<script>
+// ── Leaflet map ─────────────────────────────────────────────────────────────
+const defaultLat = 52.52, defaultLon = 13.405;
+const map = L.map('map').setView([defaultLat, defaultLon], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 18
+}).addTo(map);
+
+const marker = L.marker([defaultLat, defaultLon], { draggable: true }).addTo(map);
+
+function setCoords(lat, lon) {
+  document.getElementById('lat').value = lat.toFixed(5);
+  document.getElementById('lon').value = lon.toFixed(5);
+}
+
+map.on('click', (e) => {
+  marker.setLatLng(e.latlng);
+  setCoords(e.latlng.lat, e.latlng.lng);
+});
+
+marker.on('dragend', () => {
+  const { lat, lng } = marker.getLatLng();
+  setCoords(lat, lng);
+});
+
+// Sync manual lat/lon inputs → map
+['lat','lon'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    const lat = parseFloat(document.getElementById('lat').value);
+    const lon = parseFloat(document.getElementById('lon').value);
+    if (!isNaN(lat) && !isNaN(lon)) {
+      marker.setLatLng([lat, lon]);
+      map.setView([lat, lon], map.getZoom());
+    }
+  });
+});
+
+// Geocode location text via Nominatim
+async function findLocation() {
+  const q = document.getElementById('location').value.trim();
+  if (!q) return;
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+      headers: { 'Accept-Language': 'en' }
+    });
+    const data = await r.json();
+    if (data.length) {
+      const lat = parseFloat(data[0].lat), lon = parseFloat(data[0].lon);
+      marker.setLatLng([lat, lon]);
+      map.setView([lat, lon], 10);
+      setCoords(lat, lon);
+      document.getElementById('nasaBadge').style.display = 'none';
+    }
+  } catch(e) { console.warn('Geocode failed', e); }
+}
+
+document.getElementById('btnFind').addEventListener('click', findLocation);
+document.getElementById('location').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); findLocation(); }
+});
+
+// Roof area hint
+document.getElementById('roof_area').addEventListener('input', () => {
+  const a = parseFloat(document.getElementById('roof_area').value);
+  const hint = document.getElementById('roofHint');
+  hint.textContent = isNaN(a) || a <= 0
+    ? 'Caps max PV: m² × 180 W'
+    : `Max PV from this roof: ${Math.round(a * 180).toLocaleString()} W`;
+});
+
+// ── Renewable type toggles ──────────────────────────────────────────────────
+function updateWindVisibility() {
+  const showWind = document.getElementById('chkWind').checked
+                || document.getElementById('chkHybrid').checked;
+  document.querySelectorAll('.wind-field').forEach(el => {
+    el.style.display = showWind ? '' : 'none';
+  });
+  document.getElementById('wind_kw').required = showWind;
+}
+['chkSolar','chkWind','chkHybrid'].forEach(id => {
+  document.getElementById(id).addEventListener('change', updateWindVisibility);
+});
+updateWindVisibility();
+
+// ── Form submission via fetch → handle JSON errors ─────────────────────────
+function clearErrors() {
+  document.querySelectorAll('.error-hint').forEach(el => {
+    el.style.display = 'none'; el.textContent = '';
+  });
+  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+  document.getElementById('globalError').style.display = 'none';
+}
+
+function showFieldError(field, msg) {
+  const hint = document.getElementById(field + '-err');
+  const input = document.getElementById(field);
+  if (hint) { hint.textContent = msg; hint.style.display = 'block'; }
+  if (input) { input.classList.add('field-error'); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  else {
+    const ge = document.getElementById('globalError');
+    ge.textContent = '⚠️ ' + msg; ge.style.display = 'block';
+    ge.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+document.getElementById('calcForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearErrors();
+  document.getElementById('loadingOverlay').classList.add('active');
+  document.getElementById('submitBtn').disabled = true;
+
+  try {
+    const resp = await fetch('/calculate', {
+      method: 'POST',
+      body: new FormData(e.target),
+    });
+
+    const contentType = resp.headers.get('content-type') || '';
+    if (!resp.ok && contentType.includes('json')) {
+      const err = await resp.json();
+      document.getElementById('loadingOverlay').classList.remove('active');
+      document.getElementById('submitBtn').disabled = false;
+      showFieldError(err.field || '_global', err.error || 'Validation error');
+      return;
+    }
+
+    // Success — replace page with results HTML
+    const html = await resp.text();
+    document.open(); document.write(html); document.close();
+  } catch(err) {
+    document.getElementById('loadingOverlay').classList.remove('active');
+    document.getElementById('submitBtn').disabled = false;
+    const ge = document.getElementById('globalError');
+    ge.textContent = '⚠️ Network error — please try again.';
+    ge.style.display = 'block';
+  }
+});
+</script>
 {% endblock %}

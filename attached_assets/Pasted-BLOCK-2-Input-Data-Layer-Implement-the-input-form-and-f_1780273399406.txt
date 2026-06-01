@@ -1,0 +1,54 @@
+BLOCK 2 — Input & Data Layer
+Implement the input form and full data pipeline:
+User inputs (all required unless marked optional):
+
+Location: latitude + longitude (Leaflet.js map picker + manual fields)
+Current annual energy usage (kWh/year)
+Electricity tariff rate (€/kWh) — default 0.18
+Renewable type: solar / wind / hybrid (checkbox — multiple allowed)
+PV wattage (Wp) — shown always
+Wind turbine capacity (kW) — shown ONLY when wind or hybrid selected
+Battery capacity (kWh)
+Battery round-trip efficiency (%) — default 90
+Panel tilt angle (degrees) — default 35
+Performance ratio (optional advanced input) — default 0.75, range 0.60–0.85
+Roof area (m²) — used to cap maximum PV wattage: max_wp = roof_area * 180
+Number of occupants
+
+Real data sources:
+
+Solar irradiance — NASA POWER API:
+Endpoint: https://power.larc.nasa.gov/api/temporal/monthly/point
+Parameters: ALLSKY_SFC_SW_DWN (kWh/m²/day), lat, lon, format=JSON
+Returns 12 monthly values. Store in session for the calculation.
+On API failure (timeout or error): use fallback irradiance dict by
+latitude band:
+lat < 30: 5.5, lat 30–40: 5.0, lat 40–50: 3.8, lat > 50: 2.8
+Log NASA API failure to audit_log with WARNING level.
+Grid carbon intensity — static JSON (data/grid_carbon_intensity.json):
+{ "ES": 207, "MA": 638, "DE": 380, "FR": 85,
+"IT": 371, "PT": 180, "GB": 233, "DEFAULT": 400 }
+Select by user's country ISO derived from lat/lon (use simple
+bounding box lookup — no external geocoding API needed).
+Electricity tariff fallback — static dict (if user leaves tariff blank):
+{ "ES": 0.18, "MA": 0.12, "DE": 0.35, "FR": 0.20,
+"IT": 0.25, "PT": 0.22, "GB": 0.28, "DEFAULT": 0.20 }
+
+Input validation rules (return HTTP 400 with user-friendly message on failure):
+
+PV wattage: 100W – 20,000W
+PV wattage must not exceed roof_area * 180 (cap by roof)
+Wind turbine capacity: 0.5kW – 50kW
+Battery capacity: 0 – 100kWh
+Battery efficiency: 50% – 99%
+Performance ratio: 0.60 – 0.85
+Annual kWh usage: 500 – 50,000
+Coordinates: lat -90 to 90, lon -180 to 180
+Tariff: 0.01 – 2.00 €/kWh
+If any input is outside ML training distribution bounds,
+set flag: boundary_violation = True (used in Block 4 fallback logic)
+Never crash silently — all validation errors return JSON:
+{"error": "human-readable message", "field": "field_name"}
+
+Stop here. Confirm form submits and NASA API returns 12 monthly values
+before moving to Block 3.

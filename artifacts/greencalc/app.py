@@ -8,6 +8,31 @@ from extensions import db
 from config import SECRET_KEY, DATABASE_URL
 
 
+def _migrate_db(app):
+    """Add any new columns to existing SQLite tables without losing data."""
+    new_columns = [
+        ("country_iso",       "VARCHAR(3)"),
+        ("renewable_type",    "VARCHAR(50)"),
+        ("wind_kw",           "FLOAT DEFAULT 0.0"),
+        ("performance_ratio", "FLOAT DEFAULT 0.75"),
+        ("roof_area",         "FLOAT"),
+        ("num_occupants",     "INTEGER"),
+        ("wind_pct",          "FLOAT DEFAULT 0.0"),
+        ("boundary_violation","BOOLEAN DEFAULT 0"),
+        ("nasa_source",       "VARCHAR(20) DEFAULT 'nasa'"),
+    ]
+    with app.app_context():
+        engine = db.engine
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            for col_name, col_type in new_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE calculations ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+                except Exception:
+                    pass  # Column already exists — safe to ignore
+
+
 def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = SECRET_KEY
@@ -30,6 +55,8 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+
+    _migrate_db(app)
 
     from models.ml_model import ml_model
     ml_model.ensure_ready()
