@@ -36,21 +36,21 @@ class Calculation(db.Model):
 
     # Block 3 spec output fields
     solar_kwh = db.Column(db.Float)           # E_solar_annual
-    wind_kwh = db.Column(db.Float, default=0.0)   # E_wind_annual
-    energy_covered = db.Column(db.Float)      # min(solar+wind, consumption)
-    cost_savings_eur = db.Column(db.Float)    # energy_covered * tariff
-    co2_reduced_tonnes = db.Column(db.Float)  # tonnes CO₂/year
-    payback_year = db.Column(db.Integer)      # first year cumulative >= cost
-    npv_savings = db.Column(db.Float)         # net present value of 25yr savings
-    installation_cost_eur = db.Column(db.Float)  # (pv_w/1000)*1200 spec formula
-    cumulative_savings_json = db.Column(db.Text)  # JSON array [25 floats]
+    wind_kwh = db.Column(db.Float, default=0.0)
+    energy_covered = db.Column(db.Float)
+    cost_savings_eur = db.Column(db.Float)
+    co2_reduced_tonnes = db.Column(db.Float)
+    payback_year = db.Column(db.Integer)
+    npv_savings = db.Column(db.Float)
+    installation_cost_eur = db.Column(db.Float)
+    cumulative_savings_json = db.Column(db.Text)
 
-    # Legacy / compat fields (used by templates + PDF)
-    annual_saved_kwh = db.Column(db.Float)    # = energy_covered
-    annual_savings_eur = db.Column(db.Float)  # = cost_savings_eur
-    co2_kg = db.Column(db.Float)              # co2_reduced_tonnes * 1000
-    payback_years = db.Column(db.Float)       # float version of payback_year
-    net_25yr = db.Column(db.Float)            # cumulative[-1] - install_cost
+    # Legacy / template-compat fields
+    annual_saved_kwh = db.Column(db.Float)
+    annual_savings_eur = db.Column(db.Float)
+    co2_kg = db.Column(db.Float)
+    payback_years = db.Column(db.Float)
+    net_25yr = db.Column(db.Float)
 
     # Energy mix
     solar_pct = db.Column(db.Float)
@@ -63,3 +63,22 @@ class Calculation(db.Model):
     boundary_violation = db.Column(db.Boolean, default=False)
     nasa_source = db.Column(db.String(20), default="nasa")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ModelMetrics(db.Model):
+    """Block 4: records training metrics for each PVOptimizationModel run."""
+    __tablename__ = "model_metrics"
+
+    id               = db.Column(db.Integer, primary_key=True)
+    timestamp        = db.Column(db.DateTime, default=datetime.utcnow)
+    model_version    = db.Column(db.String(8), index=True)   # YYYYMMDD
+    r2               = db.Column(db.Float)
+    mae              = db.Column(db.Float)
+    rmse             = db.Column(db.Float)
+    training_samples = db.Column(db.Integer)
+    seed             = db.Column(db.Integer)
+    geographic_scope = db.Column(db.String(100))
+    # Regional MAE breakdown
+    mae_southern_eu  = db.Column(db.Float)   # lat < 42
+    mae_northern_eu  = db.Column(db.Float)   # lat >= 42
+    mae_north_africa = db.Column(db.Float)   # lat < 35

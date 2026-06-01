@@ -1,0 +1,81 @@
+BLOCK 4 — ML Optimization Layer
+Build the scikit-learn prediction model:
+Training data (generate synthetic on first run if no artifact exists):
+
+Features: [month (1–12), latitude, irradiance_kwh_m2_day,
+avg_temp_c, household_size, current_consumption_kwh]
+Target: optimal_pv_wattage for minimum cost per kWh
+2000 samples, NumPy random seed 42 (document seed in /model-info)
+
+Synthetic data distribution:
+
+latitude: uniform 28–60 (Spain + Morocco + EU range)
+irradiance: 4.5 - (latitude - 28) * 0.05 + random noise
+consumption: normal(mean=4500, std=1500), clipped 500–50000
+optimal_wattage: (consumption / 1200) * 1000 + noise
+
+Models to train (THREE total — one main + two for confidence interval):
+
+model_main = GradientBoostingRegressor(n_estimators=100, max_depth=4)
+model_lower = GradientBoostingRegressor(
+loss='quantile', alpha=0.1, n_estimators=100, max_depth=4)
+model_upper = GradientBoostingRegressor(
+loss='quantile', alpha=0.9, n_estimators=100, max_depth=4)
+
+Train all three on same 80/20 split.
+Confidence interval = [model_lower.predict(X), model_upper.predict(X)]
+Metrics: compute R², MAE, RMSE on test set.
+Store in SQLite table: model_metrics
+Fields: id, timestamp, model_version, r2, mae, rmse,
+training_samples, seed, geographic_scope
+Regional MAE breakdown (compute separately and store):
+
+Southern EU: lat < 42
+Northern EU: lat >= 42
+North Africa: lat < 35
+
+Model persistence (Replit-safe paths):
+
+Save all three models to:
+/home/user/greencalc/models/artifacts/model_v{YYYYMMDD}.pkl
+(single pickle dict with keys: main, lower, upper)
+On startup: load latest artifact by filename date sort
+If no artifact found: train immediately and save
+
+SHAP explainability:
+
+Use shap.Explainer on model_main after each prediction
+Extract top 3 features by absolute SHAP value
+Generate plain-language explanation:
+"Solar output is high because your location receives
+{X} irradiance hours (impact: +{Y} kWh/year)"
+
+POST /predict endpoint:
+Input JSON: all user inputs from Block 2
+Output JSON: {
+calculation_id: "uuid from Block 3",
+recommended_pv_wattage: int,
+predicted_annual_savings_kwh: float,
+predicted_cost_savings_eur: float,
+confidence_interval: [lower_float, upper_float],
+top_features: [
+{"feature": "irradiance", "impact": "+320 kWh/year",
+"direction": "positive"},
+...
+],
+explanation: "plain language string",
+model_version: "YYYYMMDD string",
+fallback_used: bool,
+boundary_violation: bool
+}
+Fallback logic:
+
+If boundary_violation is True OR ML model raises any exception:
+set fallback_used = true
+use physics-based calculation from Block 3 only
+log exception + reason to audit_log at WARNING level
+Show yellow banner in UI: "Physics-based fallback applied.
+Your inputs are outside our calibrated range."
+
+Stop here. Test /predict with valid JSON and confirm all
+three output fields (main, lower, upper) return.

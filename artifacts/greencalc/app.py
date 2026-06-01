@@ -9,40 +9,40 @@ from config import SECRET_KEY, DATABASE_URL
 
 
 def _migrate_db(app):
-    """Add any new columns to existing SQLite tables without losing data."""
+    """Add any new columns / tables to existing SQLite DBs without data loss."""
     new_columns = [
-        # Block 2 additions
-        ("country_iso",              "VARCHAR(3)"),
-        ("renewable_type",           "VARCHAR(50)"),
-        ("wind_kw",                  "FLOAT DEFAULT 0.0"),
-        ("performance_ratio",        "FLOAT DEFAULT 0.75"),
-        ("roof_area",                "FLOAT"),
-        ("num_occupants",            "INTEGER"),
-        ("wind_pct",                 "FLOAT DEFAULT 0.0"),
-        ("boundary_violation",       "BOOLEAN DEFAULT 0"),
-        ("nasa_source",              "VARCHAR(20) DEFAULT 'nasa'"),
-        # Block 3 additions
-        ("calc_uuid",                "VARCHAR(36)"),
-        ("session_id",               "VARCHAR(64)"),
-        ("input_hash",               "VARCHAR(16)"),
-        ("solar_kwh",                "FLOAT"),
-        ("wind_kwh",                 "FLOAT DEFAULT 0.0"),
-        ("energy_covered",           "FLOAT"),
-        ("cost_savings_eur",         "FLOAT"),
-        ("co2_reduced_tonnes",       "FLOAT"),
-        ("payback_year",             "INTEGER"),
-        ("npv_savings",              "FLOAT"),
-        ("installation_cost_eur",    "FLOAT"),
-        ("cumulative_savings_json",  "TEXT"),
+        # Block 2
+        ("calculations", "country_iso",             "VARCHAR(3)"),
+        ("calculations", "renewable_type",           "VARCHAR(50)"),
+        ("calculations", "wind_kw",                  "FLOAT DEFAULT 0.0"),
+        ("calculations", "performance_ratio",        "FLOAT DEFAULT 0.75"),
+        ("calculations", "roof_area",                "FLOAT"),
+        ("calculations", "num_occupants",            "INTEGER"),
+        ("calculations", "wind_pct",                 "FLOAT DEFAULT 0.0"),
+        ("calculations", "boundary_violation",       "BOOLEAN DEFAULT 0"),
+        ("calculations", "nasa_source",              "VARCHAR(20) DEFAULT 'nasa'"),
+        # Block 3
+        ("calculations", "calc_uuid",                "VARCHAR(36)"),
+        ("calculations", "session_id",               "VARCHAR(64)"),
+        ("calculations", "input_hash",               "VARCHAR(16)"),
+        ("calculations", "solar_kwh",                "FLOAT"),
+        ("calculations", "wind_kwh",                 "FLOAT DEFAULT 0.0"),
+        ("calculations", "energy_covered",           "FLOAT"),
+        ("calculations", "cost_savings_eur",         "FLOAT"),
+        ("calculations", "co2_reduced_tonnes",       "FLOAT"),
+        ("calculations", "payback_year",             "INTEGER"),
+        ("calculations", "npv_savings",              "FLOAT"),
+        ("calculations", "installation_cost_eur",    "FLOAT"),
+        ("calculations", "cumulative_savings_json",  "TEXT"),
     ]
     with app.app_context():
         engine = db.engine
         with engine.connect() as conn:
             from sqlalchemy import text
-            for col_name, col_type in new_columns:
+            for table, col_name, col_type in new_columns:
                 try:
                     conn.execute(text(
-                        f"ALTER TABLE calculations ADD COLUMN {col_name} {col_type}"
+                        f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"
                     ))
                     conn.commit()
                 except Exception:
@@ -57,7 +57,7 @@ def create_app():
 
     db.init_app(app)
 
-    from models.db_models import Calculation  # noqa: F401
+    from models.db_models import Calculation, ModelMetrics  # noqa: F401
 
     from routes.calculator import calculator_bp
     from routes.predictions import predictions_bp
@@ -74,8 +74,9 @@ def create_app():
 
     _migrate_db(app)
 
-    from models.ml_model import ml_model
+    from models.ml_model import ml_model, pv_model
     ml_model.ensure_ready()
+    pv_model.ensure_ready()
 
     return app
 
