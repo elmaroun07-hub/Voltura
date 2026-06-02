@@ -12,8 +12,11 @@ class Calculation(db.Model):
     input_hash = db.Column(db.String(16), index=True)
 
     location = db.Column(db.String(200), nullable=False)
+    # Block 6 GDPR: lat/lon only written when user opts in
     lat = db.Column(db.Float)
     lon = db.Column(db.Float)
+    location_opt_in = db.Column(db.Boolean, default=False)
+
     country_iso = db.Column(db.String(3))
 
     annual_kwh = db.Column(db.Float)
@@ -41,7 +44,7 @@ class Calculation(db.Model):
     installation_cost_eur = db.Column(db.Float)
     cumulative_savings_json = db.Column(db.Text)
 
-    # Template-compat
+    # Template-compat aliases
     annual_saved_kwh = db.Column(db.Float)
     annual_savings_eur = db.Column(db.Float)
     co2_kg = db.Column(db.Float)
@@ -58,18 +61,24 @@ class Calculation(db.Model):
     nasa_source = db.Column(db.String(20), default="nasa")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationship to emissions (one-to-one)
+    # Relationships
     emissions = db.relationship(
         "CalculationEmissions", back_populates="calculation",
         uselist=False, cascade="all, delete-orphan",
+    )
+    feedback = db.relationship(
+        "UserFeedback", back_populates="calculation",
+        uselist=False, cascade="all, delete-orphan",
+    )
+    overrides = db.relationship(
+        "UserOverride", back_populates="calculation",
+        cascade="all, delete-orphan",
     )
 
 
 class CalculationEmissions(db.Model):
     """Block 5: per-calculation CodeCarbon emissions record.
-
-    Note: location coordinates are NOT stored here.
-    Only emissions metadata. Location stays in the Calculation row / session.
+    Location coordinates are NOT stored here — only country_iso.
     """
     __tablename__ = "calculation_emissions"
 
@@ -82,7 +91,7 @@ class CalculationEmissions(db.Model):
     emissions_kg = db.Column(db.Float, nullable=False, default=0.0)
     duration_seconds = db.Column(db.Float, default=0.0)
     energy_consumed_kwh = db.Column(db.Float, default=0.0)
-    country_iso = db.Column(db.String(3))   # from Calculation.country_iso (not lat/lon)
+    country_iso = db.Column(db.String(3))
 
     calculation = db.relationship("Calculation", back_populates="emissions")
 
@@ -103,3 +112,58 @@ class ModelMetrics(db.Model):
     mae_southern_eu  = db.Column(db.Float)
     mae_northern_eu  = db.Column(db.Float)
     mae_north_africa = db.Column(db.Float)
+
+
+class UserFeedback(db.Model):
+    """Block 6 Article 14: human oversight feedback (thumbs up/down)."""
+    __tablename__ = "user_feedback"
+
+    id             = db.Column(db.Integer, primary_key=True)
+    calculation_id = db.Column(
+        db.Integer, db.ForeignKey("calculations.id", ondelete="CASCADE"),
+        nullable=True, index=True,
+    )
+    session_id  = db.Column(db.String(64), index=True)
+    timestamp   = db.Column(db.DateTime, default=datetime.utcnow)
+    rating      = db.Column(db.Integer)   # 1 = thumbs up, -1 = thumbs down
+    comment     = db.Column(db.Text)
+
+    calculation = db.relationship("Calculation", back_populates="feedback")
+
+
+class UserOverride(db.Model):
+    """Block 6 Article 14: manual override of any numeric output field."""
+    __tablename__ = "user_overrides"
+
+    id             = db.Column(db.Integer, primary_key=True)
+    calculation_id = db.Column(
+        db.Integer, db.ForeignKey("calculations.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    session_id      = db.Column(db.String(64), index=True)
+    timestamp       = db.Column(db.DateTime, default=datetime.utcnow)
+    field_name      = db.Column(db.String(64))
+    original_value  = db.Column(db.String(64))
+    override_value  = db.Column(db.String(64))
+
+    calculation = db.relationship("Calculation", back_populates="overrides")
+
+
+class AuditLog(db.Model):
+    """Block 6 Article 73: audit log, minimum 3-year retention."""
+    __tablename__ = "audit_log"
+
+    id                 = db.Column(db.Integer, primary_key=True)
+    timestamp          = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    session_id         = db.Column(db.String(64), index=True)
+    endpoint           = db.Column(db.String(128))
+    input_hash         = db.Column(db.String(64))   # full SHA-256 hex
+    output_summary     = db.Column(db.Text)          # JSON blob
+    model_version      = db.Column(db.String(16))
+    fallback_used      = db.Column(db.Boolean, default=False)
+    boundary_violation = db.Column(db.Boolean, default=False)
+    emissions_kg       = db.Column(db.Float, default=0.0)
+    user_feedback_id   = db.Column(
+        db.Integer, db.ForeignKey("user_feedback.id", ondelete="SET NULL"),
+        nullable=True,
+    )

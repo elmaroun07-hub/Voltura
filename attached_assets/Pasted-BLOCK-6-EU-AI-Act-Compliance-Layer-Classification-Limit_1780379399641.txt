@@ -1,0 +1,80 @@
+BLOCK 6 — EU AI Act Compliance Layer
+Classification: Limited Risk (Article 50).
+All items below are mandatory for this classification.
+
+Transparency (Article 50):
+
+Add badge to all ML-generated output fields:
+AI-assisted estimate
+Display confidence interval on every prediction result
+Show SHAP explanation text in plain language beneath results
+Add "?" tooltip on every output field: "How was this calculated?"
+Never use language implying guaranteed outcomes
+Add disclaimer on results page footer:
+"This tool provides estimates only. Consult a certified
+energy professional before making installation decisions."
+Human oversight (Article 14):
+
+"Recalculate without AI" button on results page
+→ calls /calculate (Block 3 physics only, skips Block 4 ML)
+Feedback form: thumbs up / thumbs down + optional comment
+Store feedback in SQLite table: user_feedback
+Fields: id, calculation_id, session_id, timestamp,
+rating (1 or -1), comment
+Manual override: user can edit any numeric output field
+and click "Save my version" → stored as user_override in DB
+Data governance (GDPR + Article 10):
+
+GDPR consent modal on first visit (JS flag in sessionStorage)
+Location (lat/lon): stored in server-side session only
+NOT written to DB without explicit user opt-in checkbox
+Calculation emissions and results ARE stored (no PII)
+DELETE endpoint: /delete-my-data
+→ Primary: delete all records matching session_id
+→ Fallback (if session expired): accept email input,
+delete all records matching opt-in email
+→ Return: {"deleted": true, "records_removed": N}
+Every calculation logs input_hash (SHA256 of inputs, not raw data)
+Training data documentation (display on /model-info):
+Source: synthetic (NumPy seed 42) + NASA POWER API
+Date range: 2015–2023 (NASA historical)
+Geographic coverage: lat 28°–60° (Spain, Morocco, EU)
+Known bias: underrepresented at lat > 60° and lat < 28°
+Random seed: 42
+Model documentation page at GET /model-info:
+Display all of the following:
+
+System purpose and intended use case
+Algorithm: GradientBoostingRegressor (scikit-learn)
+Training method: supervised regression, 80/20 split
+Training data description (see above)
+Metrics: R², MAE, RMSE (loaded from model_metrics table)
+Regional MAE breakdown: Southern EU / Northern EU / North Africa
+If MAE difference > 15% between any two regions:
+show regional accuracy warning on results page AND /model-info
+Known limitations: calibrated for residential scale only
+(100W–20,000W PV, single-family homes)
+Model version and last trained date
+Random seed: 42
+Contact: [admin email from .env]
+Audit logging (Article 73 — minimum 3 year retention):
+SQLite table: audit_log
+Fields: id, timestamp, session_id, endpoint, input_hash,
+output_summary (JSON), model_version, fallback_used,
+boundary_violation, emissions_kg, user_feedback_id
+
+Admin route: GET /admin/audit
+Auth: check request.headers.get('X-Admin-Token')
+against os.getenv('ADMIN_TOKEN')
+return HTTP 403 if mismatch
+Shows: prediction volume, fallback rate %, error rate,
+feedback sentiment ratio, boundary violations count
+
+Input boundary validation display:
+
+If boundary_violation = True in prediction response:
+show yellow banner: "Physics-based fallback applied.
+Your inputs are outside our calibrated range."
+Log every boundary violation to audit_log
+Stop here. Test /delete-my-data, /model-info, and
+/admin/audit (with wrong token → 403) before Block 7.

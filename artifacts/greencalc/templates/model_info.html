@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Model Documentation{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top:2rem; max-width:900px;">
+  <h1 class="page-title">📋 Model Documentation</h1>
+  <p style="color:#6b7280; margin-bottom:2rem;">
+    EU AI Act Article 10 + Article 50 — Transparency &amp; Training Data Documentation
+  </p>
+
+  <!-- System purpose -->
+  <div class="card">
+    <div class="card-title">🎯 System Purpose &amp; Intended Use</div>
+    <p>GreenCalc estimates the <strong>optimal residential PV wattage</strong> for single-family homes in the EU and Southern Mediterranean region, using a gradient boosting regression model trained on synthetic solar data.</p>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+      <span class="badge badge-green">✅ Residential PV sizing (100W–20,000W)</span>
+      <span class="badge badge-green">✅ Single-family homes</span>
+      <span class="badge badge-green">✅ EU / Southern Mediterranean (lat 28°–60°)</span>
+      <span class="badge" style="background:#fee2e2; color:#991b1b;">❌ Commercial/industrial</span>
+      <span class="badge" style="background:#fee2e2; color:#991b1b;">❌ Off-grid systems</span>
+      <span class="badge" style="background:#fee2e2; color:#991b1b;">❌ lat &lt; 28° or &gt; 60°</span>
+    </div>
+  </div>
+
+  <!-- Algorithm -->
+  <div class="card">
+    <div class="card-title">🤖 Algorithm</div>
+    <table>
+      <tr><td style="color:#6b7280; width:200px;">Algorithm</td><td><strong>GradientBoostingRegressor (scikit-learn)</strong></td></tr>
+      <tr><td style="color:#6b7280;">Training method</td><td>Supervised regression, 80/20 train/test split</td></tr>
+      <tr><td style="color:#6b7280;">Number of models</td><td>3 — main (MSE), lower (quantile α=0.1), upper (quantile α=0.9)</td></tr>
+      <tr><td style="color:#6b7280;">n_estimators</td><td>100</td></tr>
+      <tr><td style="color:#6b7280;">max_depth</td><td>4</td></tr>
+      <tr><td style="color:#6b7280;">Random seed</td><td>42</td></tr>
+      <tr><td style="color:#6b7280;">Model version</td><td>{{ pv_model.model_version }}</td></tr>
+      <tr><td style="color:#6b7280;">Geographic scope</td><td>{{ pv_model.GEO_SCOPE }}</td></tr>
+    </table>
+  </div>
+
+  <!-- Features -->
+  <div class="card">
+    <div class="card-title">📊 Input Features</div>
+    <table>
+      <thead><tr><th>Feature</th><th>Description</th><th>Range</th></tr></thead>
+      <tbody>
+        {% for f in features %}
+        <tr>
+          <td><code>{{ f }}</code></td>
+          <td>
+            {% if f == 'month' %}Calendar month (1=Jan, 12=Dec)
+            {% elif f == 'latitude' %}Geographic latitude
+            {% elif f == 'irradiance_kwh_m2_day' %}Daily solar irradiance from NASA POWER
+            {% elif f == 'avg_temp_c' %}Average monthly temperature (°C)
+            {% elif f == 'household_size' %}Number of occupants
+            {% elif f == 'current_consumption_kwh' %}Annual household energy consumption
+            {% else %}{{ f }}{% endif %}
+          </td>
+          <td>
+            {% if f == 'month' %}1–12
+            {% elif f == 'latitude' %}28°–60°
+            {% elif f == 'irradiance_kwh_m2_day' %}3.0–7.0 kWh/m²/day
+            {% elif f == 'avg_temp_c' %}-10°–35°C
+            {% elif f == 'household_size' %}1–8
+            {% elif f == 'current_consumption_kwh' %}500–50,000 kWh/yr
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Training data -->
+  <div class="card">
+    <div class="card-title">📁 Training Data Documentation <span class="badge badge-green" style="font-size:0.75rem;">Article 10</span></div>
+    <table>
+      <tr><td style="color:#6b7280; width:200px;">Source</td><td>Synthetic (NumPy seed 42) + NASA POWER API historical irradiance</td></tr>
+      <tr><td style="color:#6b7280;">Date range</td><td>2015–2023 (NASA historical)</td></tr>
+      <tr><td style="color:#6b7280;">Training samples</td><td>2,000</td></tr>
+      <tr><td style="color:#6b7280;">Random seed</td><td>42</td></tr>
+      <tr><td style="color:#6b7280;">Geographic coverage</td><td>lat 28°–60° (Spain, Morocco, EU)</td></tr>
+      <tr><td style="color:#6b7280;">Known bias</td><td>
+        Underrepresented at lat &gt; 60° (Scandinavia, Northern Russia)
+        and lat &lt; 28° (sub-Saharan Africa, tropics).
+        Calibrated for residential scale only.
+      </td></tr>
+    </table>
+  </div>
+
+  <!-- Metrics -->
+  <div class="card">
+    <div class="card-title">📈 Model Performance Metrics</div>
+    {% if regional_warning %}
+    <div style="background:#fff7ed; border:1px solid #fb923c; color:#7c2d12; padding:0.6rem 0.85rem; border-radius:6px; margin-bottom:0.75rem; font-size:0.85rem;">
+      ⚠️ <strong>Regional accuracy warning:</strong>
+      MAE varies by more than 15% across geographic regions.
+      The model may be less accurate for some locations.
+    </div>
+    {% endif %}
+    <table>
+      <thead><tr><th>Metric</th><th>Value</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>R²</td><td>{{ "%.4f"|format(metrics.r2 or 0) }}</td><td>Overall fit (test set)</td></tr>
+        <tr><td>MAE</td><td>{{ "%.1f"|format(metrics.mae or 0) }} W</td><td>Mean absolute error (PV wattage)</td></tr>
+        <tr><td>RMSE</td><td>{{ "%.1f"|format(metrics.rmse or 0) }} W</td><td>Root mean squared error</td></tr>
+        <tr><td colspan="3" style="background:#f9fafb; font-weight:600; font-size:0.82rem; color:#374151;">Regional MAE Breakdown</td></tr>
+        {% for region, mae in maes.items() %}
+        <tr>
+          <td>{{ region }}</td>
+          <td>{{ "%.1f"|format(mae) }} W {% if regional_warning and mae == maes.values()|max %}<span style="color:#b45309;">⚠️ highest</span>{% endif %}</td>
+          <td>—</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Known limitations -->
+  <div class="card">
+    <div class="card-title">⚠️ Known Limitations</div>
+    <ul style="color:#374151; font-size:0.9rem; line-height:1.8;">
+      <li>Calibrated for <strong>residential PV only</strong> (100W–20,000W). Do not use for commercial or industrial systems.</li>
+      <li>Accuracy <strong>degrades outside lat 28°–60°</strong>. Nordic countries and North Africa are underrepresented in training data.</li>
+      <li>Wind generation uses a simplified capacity-factor model, not a full meteorological simulation.</li>
+      <li>Does not account for local shading, roof orientation variation, or grid connection constraints.</li>
+      <li>Synthetic training data may not capture all real-world variability.</li>
+    </ul>
+  </div>
+
+  <!-- Contact -->
+  <div class="card">
+    <div class="card-title">📬 Contact &amp; Compliance</div>
+    <table>
+      <tr><td style="color:#6b7280; width:200px;">Classification</td><td>Limited Risk (EU AI Act Article 50)</td></tr>
+      <tr><td style="color:#6b7280;">Human oversight</td><td>Article 14 — feedback and manual override available on results page</td></tr>
+      <tr><td style="color:#6b7280;">Audit logging</td><td>Article 73 — retained for minimum 3 years</td></tr>
+      <tr><td style="color:#6b7280;">Contact</td><td>admin@greencalc.example.com</td></tr>
+    </table>
+  </div>
+</div>
+{% endblock %}

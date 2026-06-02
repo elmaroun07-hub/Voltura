@@ -1,5 +1,5 @@
 """
-Block 4+5: ML Optimization predictions endpoint + legacy predict page.
+Block 4+5+6: ML Optimization predictions endpoint + model documentation.
 """
 import logging
 from datetime import datetime, timedelta
@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 predictions_bp = Blueprint("predictions", __name__)
 
 
-# ── Legacy HTML predict page ─────────────────────────────────────────────────
+# ── Legacy HTML predict page ──────────────────────────────────────────────────
 
 @predictions_bp.route("/predict", methods=["GET"])
 def predict():
     return render_template("predict.html", result=None, shap_vals=None)
 
 
-# ── POST /predict — Block 4 JSON API with Block 5 tracking ──────────────────
+# ── POST /predict — Block 4+5 JSON API ───────────────────────────────────────
 
 @predictions_bp.route("/predict", methods=["POST"])
 def predict_api():
@@ -71,14 +71,12 @@ def predict_api():
     avg_irradiance = irr_monthly[month - 1] if 1 <= month <= 12 else sum(irr_monthly) / 12
     avg_temp       = max(-10.0, 25.0 - (lat - 28) * 0.5)
 
-    # ── Block 5: Track ONLY the ML prediction call ───────────────────────────
     try:
         if boundary_violation:
             raise ValueError("boundary_violation — using physics fallback")
 
         pv_model.ensure_ready()
 
-        # Wrap only predict_pv — not the entire route
         (main_w, lower_w, upper_w), _emissions = track_calculation(
             pv_model.predict_pv,
             month=month,
@@ -117,7 +115,6 @@ def predict_api():
         )
         model_version = "fallback"
 
-    # ── Annual savings for recommended PV wattage ─────────────────────────────
     try:
         from models.energy_model import detect_carbon_intensity
         ci_g = detect_carbon_intensity(lat, lon)
@@ -154,11 +151,25 @@ def predict_api():
     }), 200
 
 
-# ── GET /model-info ───────────────────────────────────────────────────────────
+# ── GET /model-info — Block 4+6 JSON API ─────────────────────────────────────
 
 @predictions_bp.route("/model-info")
 def model_info():
     pv_model.ensure_ready()
+    m = pv_model.metrics
+
+    # Block 6: regional MAE warning if spread > 15%
+    maes = {
+        "Southern EU (lat<42°)": m.get("mae_southern_eu", 0) or 0,
+        "Northern EU (lat≥42°)": m.get("mae_northern_eu", 0) or 0,
+        "North Africa (lat<35°)": m.get("mae_north_africa", 0) or 0,
+    }
+    non_zero = [v for v in maes.values() if v > 0]
+    regional_warning = (
+        len(non_zero) >= 2
+        and (max(non_zero) - min(non_zero)) / min(non_zero) > 0.15
+    )
+
     return jsonify({
         "model_version":    pv_model.model_version,
         "seed":             pv_model.SEED,
@@ -170,20 +181,71 @@ def model_info():
             "Three GradientBoostingRegressor models: main (MSE), "
             "lower (quantile α=0.1), upper (quantile α=0.9)."
         ),
-        "metrics": pv_model.metrics,
+        "metrics": m,
+        # Block 6 training data documentation (Article 10)
+        "training_data": {
+            "source": "Synthetic (NumPy seed 42) + NASA POWER API historical",
+            "date_range": "2015–2023 (NASA historical irradiance)",
+            "geographic_coverage": "lat 28°–60° (Spain, Morocco, EU)",
+            "known_bias": (
+                "Underrepresented at lat > 60° (Scandinavia, Northern Russia) "
+                "and lat < 28° (sub-Saharan Africa, tropics). "
+                "Calibrated for residential scale only (100W–20,000W PV, single-family homes)."
+            ),
+            "random_seed": pv_model.SEED,
+            "algorithm": "GradientBoostingRegressor (scikit-learn)",
+            "training_method": "Supervised regression, 80/20 train/test split",
+            "intended_use": (
+                "Estimate optimal residential PV wattage for single-family homes "
+                "in the EU / Southern Mediterranean region. "
+                "NOT intended for commercial, industrial, or off-grid systems."
+            ),
+        },
+        "regional_mae": maes,
+        "regional_warning": regional_warning,
+        "known_limitations": (
+            "Calibrated for residential PV only (100W–20,000W). "
+            "Accuracy degrades outside lat 28°–60°. "
+            "Wind generation uses simplified capacity-factor model."
+        ),
+        "contact": "admin@greencalc.example.com",
     })
 
 
-# ── GET /dashboard/data — Block 5 JSON for Chart.js ─────────────────────────
+# ── GET /model-info/page — Block 6 HTML documentation page ───────────────────
+
+@predictions_bp.route("/model-info/page")
+def model_info_page():
+    pv_model.ensure_ready()
+    m = pv_model.metrics
+    maes = {
+        "Southern EU (lat<42°)": m.get("mae_southern_eu", 0) or 0,
+        "Northern EU (lat≥42°)": m.get("mae_northern_eu", 0) or 0,
+        "North Africa (lat<35°)": m.get("mae_north_africa", 0) or 0,
+    }
+    non_zero = [v for v in maes.values() if v > 0]
+    regional_warning = (
+        len(non_zero) >= 2
+        and (max(non_zero) - min(non_zero)) / min(non_zero) > 0.15
+    )
+    return render_template(
+        "model_info.html",
+        pv_model=pv_model,
+        metrics=m,
+        maes=maes,
+        regional_warning=regional_warning,
+        features=PV_FEATURE_NAMES,
+    )
+
+
+# ── GET /dashboard/data — Block 5 JSON for Chart.js ──────────────────────────
 
 @predictions_bp.route("/dashboard/data")
 def dashboard_data():
-    """Returns emissions summary + daily breakdown for the last 30 days."""
     from extensions import db
     from models.db_models import CalculationEmissions
     from sqlalchemy import func
 
-    # Total and average
     agg = db.session.execute(
         db.select(
             func.count(CalculationEmissions.id).label("total_calcs"),
@@ -192,11 +254,10 @@ def dashboard_data():
         )
     ).one()
 
-    total_calcs     = agg.total_calcs or 0
-    total_kg        = float(agg.total_kg or 0.0)
-    avg_kg          = float(agg.avg_kg or 0.0)
+    total_calcs = agg.total_calcs or 0
+    total_kg    = float(agg.total_kg or 0.0)
+    avg_kg      = float(agg.avg_kg or 0.0)
 
-    # Daily breakdown — last 30 days
     cutoff = datetime.utcnow() - timedelta(days=30)
     rows = db.session.execute(
         db.select(
@@ -268,7 +329,6 @@ def dashboard():
         db.select(Calculation).order_by(Calculation.created_at.desc()).limit(50)
     ).scalars().all()
 
-    # Emissions summary for template KPIs
     agg = db.session.execute(
         db.select(
             func.count(CalculationEmissions.id).label("n"),

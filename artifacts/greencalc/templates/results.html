@@ -3,13 +3,33 @@
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  .ai-badge { display:inline-flex; align-items:center; gap:0.3rem; font-size:0.72rem;
+    background:#ede9fe; color:#5b21b6; border-radius:99px; padding:2px 8px;
+    font-weight:600; vertical-align:middle; margin-left:0.4rem; }
+  .tooltip-wrap { position:relative; display:inline-block; }
+  .tooltip-wrap .tt { display:none; position:absolute; bottom:125%; left:50%; transform:translateX(-50%);
+    background:#1f2937; color:#fff; padding:6px 10px; border-radius:6px; font-size:0.78rem;
+    white-space:nowrap; z-index:100; pointer-events:none; }
+  .tooltip-wrap:hover .tt { display:block; }
+  .q-icon { display:inline-flex; align-items:center; justify-content:center;
+    width:16px; height:16px; border-radius:50%; background:#e5e7eb; color:#374151;
+    font-size:0.7rem; font-weight:700; cursor:help; margin-left:0.25rem; }
+  .override-field { border:1px dashed #d1fae5; border-radius:6px; padding:0.3rem 0.5rem;
+    font-size:0.9rem; width:120px; text-align:right; }
+  .feedback-btn { font-size:1.4rem; background:none; border:2px solid #e5e7eb;
+    border-radius:8px; padding:0.3rem 0.75rem; cursor:pointer; transition:all 0.15s; }
+  .feedback-btn:hover, .feedback-btn.selected { border-color:#10b981; background:#f0fdf4; }
+  .disclaimer-box { background:#fef9c3; border:1px solid #fde047; border-radius:8px;
+    padding:0.75rem 1rem; font-size:0.82rem; color:#713f12; margin-top:1rem; }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container" style="padding-top: 2rem;">
 
   <!-- Header -->
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
     <div>
       <h1 class="page-title">⚡ Your Energy Results</h1>
       <p style="color:#6b7280;">
@@ -18,61 +38,117 @@
         {{ calc.pv_w|int }} W PV
         {% if calc.wind_kw and calc.wind_kw > 0 %} + {{ calc.wind_kw }} kW wind{% endif %}
         &nbsp;|&nbsp; {{ calc.battery_kwh }} kWh battery
+        {% if noml %}<span class="badge badge-gray" style="margin-left:0.5rem;">🔧 Physics-only mode</span>{% endif %}
       </p>
     </div>
-    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-      <a href="{{ url_for('export.export_pdf', calc_id=calc.id) }}" class="btn btn-outline">
-        📄 Download PDF
-      </a>
-      <a href="{{ url_for('calculator.form') }}" class="btn btn-primary">
-        🔄 New Calculation
-      </a>
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+      <a href="{{ url_for('export.export_pdf', calc_id=calc.id) }}" class="btn btn-outline">📄 PDF</a>
+      <!-- Block 6 Article 14: Recalculate without AI -->
+      {% if not noml %}
+      <form method="POST" action="{{ url_for('calculator.calculate') }}?no_ml=1" style="display:inline;">
+        <input type="hidden" name="location"         value="{{ calc.location }}">
+        <input type="hidden" name="lat"              value="{{ calc.lat or '' }}">
+        <input type="hidden" name="lon"              value="{{ '' }}">
+        <input type="hidden" name="annual_kwh"       value="{{ calc.annual_kwh }}">
+        <input type="hidden" name="pv_w"             value="{{ calc.pv_w }}">
+        <input type="hidden" name="battery_kwh"      value="{{ calc.battery_kwh }}">
+        <input type="hidden" name="battery_efficiency" value="{{ calc.efficiency }}">
+        <input type="hidden" name="tariff"           value="{{ calc.tariff }}">
+        <input type="hidden" name="renewable_type"   value="{{ calc.renewable_type }}">
+        <input type="hidden" name="performance_ratio" value="{{ calc.performance_ratio }}">
+        <input type="hidden" name="wind_kw"          value="{{ calc.wind_kw or 0 }}">
+        <input type="hidden" name="tilt"             value="{{ calc.tilt }}">
+        <input type="hidden" name="orientation"      value="{{ calc.orientation }}">
+        <input type="hidden" name="no_ml"            value="1">
+        <button type="submit" class="btn btn-outline" title="Run the same inputs using physics equations only — no ML model">
+          🔧 Recalculate without AI
+        </button>
+      </form>
+      {% else %}
+      <a href="{{ url_for('calculator.form') }}" class="btn btn-primary">⚡ New Calculation</a>
+      {% endif %}
     </div>
   </div>
 
-  <!-- Warnings -->
+  <!-- Block 6 Article 50: Boundary violation banner -->
   {% if boundary_violation %}
-  <div class="alert" style="background:#fef9c3; border:1px solid #fde047; color:#713f12; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem;">
-    ⚠️ <strong>ML boundary notice:</strong> Some inputs fall outside the model's training distribution.
-    The AI prediction is still shown for reference but may be less accurate.
-  </div>
-  {% endif %}
-  {% if nasa_source == 'fallback' %}
-  <div class="alert" style="background:#fff7ed; border:1px solid #fb923c; color:#7c2d12; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem;">
-    🛰️ <strong>Irradiance fallback:</strong> NASA POWER API was unavailable. Results use a latitude-band estimate
-    ({{ "{:.1f}".format(calc.lat or 0) }}°) — accuracy may be lower than usual.
+  <div style="background:#fef9c3; border:1px solid #fde047; color:#713f12; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem;">
+    ⚠️ <strong>Physics-based fallback applied.</strong>
+    Your inputs are outside our calibrated range (100W–20,000W PV, lat 28°–60°).
+    Results are estimates based on physics equations, not ML predictions.
   </div>
   {% endif %}
 
-  <!-- KPI Cards -->
+  <!-- Block 6: Regional accuracy warning -->
+  {% if regional_warning %}
+  <div style="background:#fff7ed; border:1px solid #fb923c; color:#7c2d12; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem;">
+    🗺️ <strong>Regional accuracy notice:</strong>
+    The AI model shows &gt;15% MAE variation between geographic regions.
+    Results for your location may be less accurate than the overall benchmark.
+    <a href="{{ url_for('predictions.model_info_page') }}" style="color:inherit; text-decoration:underline;">See model docs →</a>
+  </div>
+  {% endif %}
+
+  {% if nasa_source == 'fallback' %}
+  <div style="background:#fff7ed; border:1px solid #fb923c; color:#7c2d12; margin-bottom:1rem; padding:0.75rem 1rem; border-radius:8px; font-size:0.88rem;">
+    🛰️ <strong>Irradiance fallback:</strong> NASA POWER API was unavailable. Results use a latitude-band estimate — accuracy may be lower.
+  </div>
+  {% endif %}
+
+  <!-- KPI Cards with AI badges + tooltips -->
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-icon">⚡</div>
-      <div class="kpi-value">{{ "{:,.0f}".format(calc.annual_saved_kwh) }}</div>
+      <div class="kpi-value">
+        {{ "{:,.0f}".format(calc.annual_saved_kwh) }}
+        <span class="tooltip-wrap"><span class="q-icon">?</span>
+          <span class="tt">Physics model: solar/wind generated – battery/grid losses</span>
+        </span>
+      </div>
       <div class="kpi-label">kWh Covered / Year</div>
       <div class="kpi-sub">from {{ "{:,.0f}".format(calc.annual_kwh) }} kWh consumed</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">💰</div>
-      <div class="kpi-value">€{{ "{:,.0f}".format(calc.annual_savings_eur) }}</div>
+      <div class="kpi-value">
+        €{{ "{:,.0f}".format(calc.annual_savings_eur) }}
+        <span class="tooltip-wrap"><span class="q-icon">?</span>
+          <span class="tt">Energy covered × tariff (€{{ "%.3f"|format(calc.tariff) }}/kWh)</span>
+        </span>
+      </div>
       <div class="kpi-label">Savings / Year</div>
       <div class="kpi-sub">at €{{ "%.3f"|format(calc.tariff) }}/kWh</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">🌿</div>
-      <div class="kpi-value">{{ "{:,.1f}".format(calc.co2_kg) }}</div>
+      <div class="kpi-value">
+        {{ "{:,.1f}".format(calc.co2_kg) }}
+        <span class="tooltip-wrap"><span class="q-icon">?</span>
+          <span class="tt">Energy covered × grid carbon intensity ({{ country_iso }})</span>
+        </span>
+      </div>
       <div class="kpi-label">kg CO₂ Reduced</div>
       <div class="kpi-sub">{{ "%.4f"|format(calc.co2_reduced_tonnes or calc.co2_kg / 1000) }} tonnes/year</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-icon">📅</div>
-      <div class="kpi-value">{{ payback_year }}</div>
+      <div class="kpi-value">
+        {{ payback_year }}
+        <span class="tooltip-wrap"><span class="q-icon">?</span>
+          <span class="tt">Year when cumulative savings ≥ installation cost (NPV model)</span>
+        </span>
+      </div>
       <div class="kpi-label">Year Payback</div>
       <div class="kpi-sub">25yr net: €{{ "{:,.0f}".format(calc.net_25yr) }}</div>
     </div>
     <div class="kpi-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
       <div class="kpi-icon">📈</div>
-      <div class="kpi-value">€{{ "{:,.0f}".format(npv_savings) }}</div>
+      <div class="kpi-value">
+        €{{ "{:,.0f}".format(npv_savings) }}
+        <span class="tooltip-wrap"><span class="q-icon">?</span>
+          <span class="tt">Net present value of 25yr savings (discount 5%, tariff inflation 2%)</span>
+        </span>
+      </div>
       <div class="kpi-label">25yr NPV Savings</div>
       <div class="kpi-sub">5% discount rate · 2% inflation</div>
     </div>
@@ -90,19 +166,57 @@
     </div>
   </div>
 
+  <!-- Block 6 Article 50: AI Recommendation with confidence interval -->
+  {% if pv_recommended and not noml %}
+  <div class="card" style="border-left:4px solid #7c3aed; margin-bottom:1rem;">
+    <div class="card-title">
+      🤖 AI Optimal PV Recommendation
+      <span class="ai-badge">AI-assisted estimate</span>
+    </div>
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-start; margin-bottom:0.75rem;">
+      <div style="flex:1; min-width:200px;">
+        <div style="font-size:2rem; font-weight:700; color:#5b21b6;">{{ pv_recommended }} W</div>
+        <div style="font-size:0.85rem; color:#6b7280;">Recommended PV size</div>
+        <div style="font-size:0.8rem; color:#7c3aed; margin-top:0.25rem;">
+          90% confidence interval: <strong>{{ pv_ci_lower }} W – {{ pv_ci_upper }} W</strong>
+          <span class="tooltip-wrap"><span class="q-icon">?</span>
+            <span class="tt">Quantile regression (α=0.1, α=0.9). Your optimal size is likely within this range.</span>
+          </span>
+        </div>
+        <div style="font-size:0.78rem; color:#9ca3af; margin-top:0.25rem;">Model version: {{ pv_model_version }}</div>
+      </div>
+      <div style="flex:2; min-width:200px;">
+        <p style="font-size:0.88rem; color:#374151; background:#f5f3ff; padding:0.75rem; border-radius:8px; margin:0;">
+          💡 {{ pv_explanation }}
+        </p>
+      </div>
+    </div>
+    {% if pv_top_features %}
+    <div style="font-size:0.82rem; color:#6b7280; margin-bottom:0.5rem;"><strong>Top factors driving this recommendation:</strong></div>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+      {% for f in pv_top_features %}
+      <span class="badge" style="background:{% if f.direction == 'positive' %}#d1fae5{% else %}#fee2e2{% endif %}; color:{% if f.direction == 'positive' %}#065f46{% else %}#991b1b{% endif %};">
+        {{ f.feature }}: {{ f.impact }}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <p style="font-size:0.78rem; color:#9ca3af; margin-top:0.75rem; margin-bottom:0;">
+      ⚠️ This is an <em>estimate</em>. Do not make installation decisions based solely on this output.
+      Consult a certified energy professional.
+    </p>
+  </div>
+  {% endif %}
+
   <!-- Charts Row 1 -->
   <div class="charts-grid">
     <div class="card">
       <div class="card-title">📊 Monthly Energy Breakdown</div>
-      <div class="chart-container">
-        <canvas id="monthlyChart"></canvas>
-      </div>
+      <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
     </div>
     <div class="card">
       <div class="card-title">🔵 Energy Mix</div>
-      <div class="chart-container">
-        <canvas id="energyDonut"></canvas>
-      </div>
+      <div class="chart-container"><canvas id="energyDonut"></canvas></div>
       <div style="text-align:center; margin-top:0.5rem; font-size:0.85rem; color:#6b7280;">
         Solar <strong>{{ calc.solar_pct }}%</strong>
         {% if calc.wind_pct and calc.wind_pct > 0 %}&nbsp;|&nbsp; Wind <strong>{{ calc.wind_pct }}%</strong>{% endif %}
@@ -114,33 +228,41 @@
 
   <!-- ROI Chart -->
   <div class="card">
-    <div class="card-title">📈 25-Year ROI Curve (NPV model)</div>
+    <div class="card-title">
+      📈 25-Year ROI Curve (NPV model)
+      <span class="tooltip-wrap"><span class="q-icon">?</span>
+        <span class="tt">Cumulative NPV of annual savings minus installation cost. Discount 5%, tariff +2%/yr.</span>
+      </span>
+    </div>
     <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
       <span class="badge badge-green">💶 Install: €{{ "{:,.0f}".format(calc.installation_cost_eur or calc.installation_cost) }}</span>
       <span class="badge badge-green">⏳ Payback: Year {{ payback_year }}</span>
       <span class="badge badge-green">📈 NPV: €{{ "{:,.0f}".format(npv_savings) }}</span>
       <span class="badge badge-green">25yr Net: €{{ "{:,.0f}".format(calc.net_25yr) }}</span>
     </div>
-    <div class="chart-container" style="height:300px;">
-      <canvas id="roiChart"></canvas>
-    </div>
+    <div class="chart-container" style="height:300px;"><canvas id="roiChart"></canvas></div>
     <p style="font-size:0.78rem; color:#9ca3af; margin-top:0.5rem; text-align:center;">
       Discount rate 5% · Tariff inflation 2% · Installation: ({{ calc.pv_w|int }} W ÷ 1000) × €1,200/kWp
     </p>
   </div>
 
   <!-- ML + SHAP -->
+  {% if not noml and shap_vals %}
   <div class="charts-grid">
     <div class="card">
-      <div class="card-title">🤖 ML Feature Importance (SHAP)</div>
-      <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
-        SHAP values for the ML consumption prediction.
-        Peak-hour predicted consumption: <strong>{{ ml_pred }} kWh</strong>
+      <div class="card-title">
+        🤖 ML Feature Importance (SHAP)
+        <span class="ai-badge">AI-assisted estimate</span>
+      </div>
+      <p style="font-size:0.85rem; color:#6b7280; margin-bottom:0.5rem;">
+        SHAP values for peak-hour consumption prediction: <strong>{{ ml_pred }} kWh</strong>
         {% if boundary_violation %}<span style="color:#b45309;"> ⚠️ boundary violation</span>{% endif %}
       </p>
-      <div class="chart-container" style="height:200px;">
-        <canvas id="shapChart"></canvas>
-      </div>
+      <p style="font-size:0.82rem; background:#f0fdf4; padding:0.6rem 0.75rem; border-radius:6px; margin-bottom:0.75rem; color:#065f46;">
+        💡 The chart shows which factors most influenced the ML consumption estimate.
+        Larger bars mean stronger influence on the prediction.
+      </p>
+      <div class="chart-container" style="height:200px;"><canvas id="shapChart"></canvas></div>
     </div>
     <div class="card">
       <div class="card-title">🌱 Computation Carbon (CodeCarbon)</div>
@@ -160,12 +282,12 @@
         <tr><td style="color:#6b7280; font-size:0.85rem;">Battery Efficiency</td><td style="font-size:0.85rem;"><strong>{{ calc.efficiency }}%</strong></td></tr>
         <tr><td style="color:#6b7280; font-size:0.85rem;">Grid Export</td><td style="font-size:0.85rem;"><strong>{{ grid_export_kwh }} kWh/yr</strong></td></tr>
         <tr><td style="color:#6b7280; font-size:0.85rem;">Country / ISO</td><td style="font-size:0.85rem;"><strong>{{ country_iso }}</strong></td></tr>
-        <tr><td style="color:#6b7280; font-size:0.85rem;">NASA Source</td><td style="font-size:0.85rem;"><strong>{{ nasa_source }}</strong></td></tr>
         <tr><td style="color:#6b7280; font-size:0.85rem;">Calculation ID</td><td style="font-size:0.85rem;"><strong>#{{ calculation_id }}</strong></td></tr>
-        <tr><td style="color:#6b7280; font-size:0.85rem;">Calculated on</td><td style="font-size:0.85rem;"><strong>{{ calc.created_at.strftime('%Y-%m-%d %H:%M') }}</strong></td></tr>
+        <tr><td style="color:#6b7280; font-size:0.85rem;">Location stored</td><td style="font-size:0.85rem;"><strong>{{ "Yes (opt-in)" if calc.location_opt_in else "City name only (GDPR)" }}</strong></td></tr>
       </table>
     </div>
   </div>
+  {% endif %}
 
   <!-- Monthly Table -->
   <div class="card">
@@ -207,6 +329,57 @@
       </table>
     </div>
   </div>
+
+  <!-- Block 6 Article 14: Manual override -->
+  <div class="card">
+    <div class="card-title">✏️ Manual Override <span style="font-size:0.8rem; font-weight:400; color:#6b7280;">— Article 14 Human Oversight</span></div>
+    <p style="font-size:0.85rem; color:#6b7280; margin-bottom:0.75rem;">
+      You can edit any output field below and save your version for the record.
+      This does not change the physics model but records your expert assessment.
+    </p>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0.75rem;" id="overrideGrid">
+      {% set fields = [
+        ("annual_savings_eur", "Annual Savings (€/yr)", calc.annual_savings_eur),
+        ("annual_saved_kwh",   "kWh Covered/yr",        calc.annual_saved_kwh),
+        ("payback_years",      "Payback Years",          calc.payback_years),
+        ("net_25yr",           "25yr Net (€)",           calc.net_25yr),
+      ] %}
+      {% for fname, flabel, fval in fields %}
+      <div>
+        <label style="font-size:0.82rem; color:#374151; display:block; margin-bottom:0.25rem;">{{ flabel }}</label>
+        <input type="number" class="override-field" id="ov_{{ fname }}"
+               data-field="{{ fname }}" data-orig="{{ fval }}" value="{{ fval|round(2) }}" step="any">
+      </div>
+      {% endfor %}
+    </div>
+    <button id="saveOverrideBtn" class="btn btn-outline" style="margin-top:0.75rem;">💾 Save my version</button>
+    <span id="overrideSaveMsg" style="display:none; margin-left:0.75rem; color:#10b981; font-size:0.85rem;">✅ Saved!</span>
+  </div>
+
+  <!-- Block 6 Article 14: Feedback form -->
+  <div class="card">
+    <div class="card-title">💬 Feedback <span style="font-size:0.8rem; font-weight:400; color:#6b7280;">— Article 14 Human Oversight</span></div>
+    <p style="font-size:0.85rem; color:#6b7280; margin-bottom:0.75rem;">
+      Were these results helpful and accurate for your situation?
+    </p>
+    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; margin-bottom:0.75rem;">
+      <button class="feedback-btn" id="thumbsUp" title="Thumbs up">👍</button>
+      <button class="feedback-btn" id="thumbsDown" title="Thumbs down">👎</button>
+      <input type="text" id="fbComment" placeholder="Optional comment (max 200 chars)"
+             style="flex:1; min-width:200px;" maxlength="200">
+      <button id="submitFeedback" class="btn btn-outline">Send</button>
+    </div>
+    <span id="fbMsg" style="display:none; font-size:0.85rem; color:#10b981;">✅ Thank you for your feedback!</span>
+  </div>
+
+  <!-- Block 6 Article 50: Disclaimer -->
+  <div class="disclaimer-box">
+    ⚠️ <strong>This tool provides estimates only.</strong>
+    Consult a certified energy professional before making installation decisions.
+    AI-assisted fields are labelled with <span class="ai-badge" style="font-size:0.7rem;">AI-assisted estimate</span>.
+    Results depend on NASA POWER irradiance data and may not reflect local shading, roof condition, or grid constraints.
+  </div>
+
 </div>
 {% endblock %}
 
@@ -215,7 +388,64 @@
 <script>
   initMonthlyChart({{ monthly_data_json | safe }});
   initRoiChart({{ roi_curve_json | safe }});
-  initShapChart({{ shap_vals_json | safe }});
+  {% if shap_vals %}initShapChart({{ shap_vals_json | safe }});{% endif %}
   initEnergyDonut({{ calc.solar_pct }}, {{ calc.battery_pct }}, {{ calc.grid_pct }});
+
+  const CALC_ID = {{ calculation_id }};
+
+  // ── Block 6: Feedback ─────────────────────────────────────────────────────
+  let selectedRating = null;
+  document.getElementById('thumbsUp').addEventListener('click', function() {
+    selectedRating = 1;
+    this.classList.add('selected');
+    document.getElementById('thumbsDown').classList.remove('selected');
+  });
+  document.getElementById('thumbsDown').addEventListener('click', function() {
+    selectedRating = -1;
+    this.classList.add('selected');
+    document.getElementById('thumbsUp').classList.remove('selected');
+  });
+  document.getElementById('submitFeedback').addEventListener('click', async () => {
+    if (!selectedRating) { alert('Please select 👍 or 👎 first.'); return; }
+    const comment = document.getElementById('fbComment').value.trim();
+    try {
+      await fetch('/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calculation_id: CALC_ID, rating: selectedRating, comment }),
+      });
+      document.getElementById('fbMsg').style.display = 'inline';
+      document.getElementById('submitFeedback').disabled = true;
+    } catch(e) { console.warn('Feedback failed', e); }
+  });
+
+  // ── Block 6: Manual override ──────────────────────────────────────────────
+  document.getElementById('saveOverrideBtn').addEventListener('click', async () => {
+    const inputs = document.querySelectorAll('.override-field');
+    const saves = [];
+    inputs.forEach(inp => {
+      const orig = parseFloat(inp.dataset.orig);
+      const newv = parseFloat(inp.value);
+      if (!isNaN(newv) && Math.abs(newv - orig) > 0.001) {
+        saves.push(fetch('/override', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            calculation_id: CALC_ID,
+            field_name: inp.dataset.field,
+            original_value: inp.dataset.orig,
+            override_value: inp.value,
+          }),
+        }));
+      }
+    });
+    if (saves.length) {
+      await Promise.all(saves);
+      document.getElementById('overrideSaveMsg').style.display = 'inline';
+    } else {
+      document.getElementById('overrideSaveMsg').textContent = 'No changes detected.';
+      document.getElementById('overrideSaveMsg').style.display = 'inline';
+    }
+  });
 </script>
 {% endblock %}

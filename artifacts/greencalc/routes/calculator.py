@@ -1,15 +1,16 @@
 import json
 import time
 import uuid as uuid_mod
-from flask import Blueprint, render_template, request, session, jsonify, current_app
+from flask import Blueprint, render_template, request, session, jsonify
 from models.energy_model import (
     geocode, fetch_nasa_power, panel_efficiency_factor,
     calculate_energy, detect_carbon_intensity,
     country_from_latlon, TARIFF_BY_COUNTRY,
     validate_inputs, make_input_hash,
 )
-from models.ml_model import ml_model
+from models.ml_model import ml_model, pv_model
 from models.carbon_tracker import track_calculation
+from models.audit_utils import log_audit
 
 calculator_bp = Blueprint("calculator", __name__)
 
@@ -49,7 +50,13 @@ def calculate():
     from extensions import db
     from models.db_models import Calculation, CalculationEmissions
 
-    # ── Parse inputs ────────────────────────────────────────────────────────
+    # ── Block 6: no-ML override flag (Recalculate without AI) ───────────────
+    noml = (
+        request.args.get("no_ml") == "1"
+        or request.form.get("no_ml") == "1"
+    )
+
+    # ── Parse inputs ─────────────────────────────────────────────────────────
     location = request.form.get("location", "").strip() or "Berlin, Germany"
     renewable_type = request.form.getlist("renewable_type")
     renewable_type_str = ",".join(sorted(set(renewable_type)))
@@ -75,6 +82,9 @@ def calculate():
     tariff_input  = _parse_float(tariff_raw, None) if tariff_raw else None
     install_raw   = request.form.get("installation_cost", "").strip()
 
+    # Block 6 GDPR: lat/lon only written to DB with explicit opt-in
+    store_location = request.form.get("store_location") == "on"
+
     if lat is None or lon is None:
         lat, lon = geocode(location)
 
@@ -83,7 +93,7 @@ def calculate():
         country_iso, TARIFF_BY_COUNTRY["DEFAULT"]
     )
 
-    # ── Validate ────────────────────────────────────────────────────────────
+    # ── Validate ──────────────────────────────────────────────────────────────
     validation_data = {
         "lat": lat, "lon": lon,
         "annual_kwh": annual_kwh, "tariff": tariff,
@@ -99,7 +109,7 @@ def calculate():
 
     effective_wind_kw = wind_kw if wind_kw is not None else 0.0
 
-    # ── NASA POWER (session-cached) ──────────────────────────────────────────
+    # ── NASA POWER (session-cached) ───────────────────────────────────────────
     nasa_key = f"nasa_{lat:.3f}_{lon:.3f}"
     cached = session.get(nasa_key)
     if cached:
@@ -124,9 +134,9 @@ def calculate():
     sid = _session_id()
 
     carbon_intensity_g = detect_carbon_intensity(lat, lon)
-    panel_efficiency_factor(tilt, orientation)  # still called for compat
+    panel_efficiency_factor(tilt, orientation)
 
-    # ── Block 5: Track ONLY the calculation engine call ──────────────────────
+    # ── Block 5: Track ONLY the calculation engine call ───────────────────────
     t_start = time.time()
     result, emissions_kg = track_calculation(
         calculate_energy,
@@ -142,8 +152,7 @@ def calculate():
         carbon_intensity_g_per_kwh=carbon_intensity_g,
     )
     duration_s = time.time() - t_start
-    # emissions_kg from CodeCarbon; compute_co2_mg for template display
-    computation_co2_mg = round(emissions_kg * 1e6, 4)  # kg → mg
+    computation_co2_mg = round(emissions_kg * 1e6, 4)
 
     roi_curve    = result["roi_curve"]
     monthly_data = result["monthly_data"]
@@ -152,20 +161,67 @@ def calculate():
         float(install_raw) if install_raw else result["installation_cost_eur"]
     )
 
-    # ── ML prediction + SHAP (NOT tracked — only engine is in scope) ─────────
+    # ── Legacy ML prediction + SHAP ───────────────────────────────────────────
     mid_month, mid_hour = 6, 12
     mid_irr  = irr_monthly[mid_month - 1]
     mid_temp = temp_monthly[mid_month - 1]
-    ml_pred   = ml_model.predict(mid_month, mid_hour, mid_irr, mid_temp)
-    shap_vals = ml_model.explain(mid_month, mid_hour, mid_irr, mid_temp)
+    if not noml:
+        ml_pred   = ml_model.predict(mid_month, mid_hour, mid_irr, mid_temp)
+        shap_vals = ml_model.explain(mid_month, mid_hour, mid_irr, mid_temp)
+    else:
+        ml_pred   = 0.0
+        shap_vals = {}
 
-    # ── Persist Calculation ──────────────────────────────────────────────────
+    # ── Block 6: PV optimization CI (Article 50 transparency) ────────────────
+    pv_recommended = pv_ci_lower = pv_ci_upper = None
+    pv_explanation = ""
+    pv_top_features = []
+    pv_model_version = "n/a"
+    regional_warning = False
+
+    if not noml:
+        try:
+            pv_model.ensure_ready()
+            avg_irr   = sum(irr_monthly) / 12
+            avg_temp_c = max(-10.0, 25.0 - (lat - 28) * 0.5)
+            (main_w, lower_w, upper_w), _em = track_calculation(
+                pv_model.predict_pv,
+                month=mid_month, latitude=lat, irradiance=avg_irr,
+                avg_temp=avg_temp_c, household_size=(num_occupants or 3),
+                consumption_kwh=annual_kwh,
+            )
+            pv_recommended = int(round(main_w))
+            pv_ci_lower    = round(lower_w)
+            pv_ci_upper    = round(upper_w)
+            pv_top_features, pv_explanation = pv_model.explain_top3(
+                month=mid_month, latitude=lat, irradiance=avg_irr,
+                avg_temp=avg_temp_c, household_size=(num_occupants or 3),
+                consumption_kwh=annual_kwh, tariff=tariff,
+            )
+            pv_model_version = pv_model.model_version
+
+            # Regional MAE warning: flag if spread > 15%
+            m = pv_model.metrics
+            maes = [
+                v for k, v in m.items()
+                if k.startswith("mae_") and v and v > 0
+            ]
+            if len(maes) >= 2:
+                regional_warning = (max(maes) - min(maes)) / min(maes) > 0.15
+
+        except Exception:
+            pv_explanation = "AI recommendation unavailable — physics estimate used."
+
+    # ── Persist Calculation ───────────────────────────────────────────────────
     calc = Calculation(
         calc_uuid=str(uuid_mod.uuid4()),
         session_id=sid,
         input_hash=input_hash,
         location=location,
-        lat=lat, lon=lon,
+        # GDPR: only store coordinates if user opted in
+        lat=lat if store_location else None,
+        lon=lon if store_location else None,
+        location_opt_in=store_location,
         country_iso=country_iso,
         annual_kwh=annual_kwh,
         renewable_type=renewable_type_str,
@@ -203,24 +259,40 @@ def calculate():
         nasa_source=nasa_source,
     )
     db.session.add(calc)
-    db.session.flush()  # get calc.id before emissions insert
+    db.session.flush()
 
-    # ── Block 5: Persist CalculationEmissions ───────────────────────────────
-    # energy_consumed_kwh: ~10W CPU for duration_s
+    # Block 5: Persist CalculationEmissions
     energy_kwh = duration_s * 10.0 / 3_600_000.0
     emission_row = CalculationEmissions(
         calculation_id=calc.id,
         emissions_kg=emissions_kg,
         duration_seconds=round(duration_s, 3),
         energy_consumed_kwh=round(energy_kwh, 9),
-        country_iso=country_iso,   # from bounding-box lookup, not stored coords
+        country_iso=country_iso,
     )
     db.session.add(emission_row)
     db.session.commit()
 
-    # Badge values for template
-    emissions_g  = round(emissions_kg * 1000, 6)           # grams
-    car_km       = round(emissions_kg / 0.00021, 4)        # km driven in petrol car
+    # Block 6 Article 73: Audit log
+    log_audit(
+        session_id=sid,
+        endpoint="/calculate",
+        input_hash=input_hash,
+        output_summary={
+            "calc_id": calc.id,
+            "annual_savings_eur": result["annual_savings_eur"],
+            "pv_w": pv_w,
+            "payback_year": result["payback_year"],
+            "noml": noml,
+        },
+        model_version=pv_model_version,
+        fallback_used=noml,
+        boundary_violation=boundary_violation,
+        emissions_kg=emissions_kg,
+    )
+
+    emissions_g = round(emissions_kg * 1000, 6)
+    car_km      = round(emissions_kg / 0.00021, 4)
 
     return render_template(
         "results.html",
@@ -241,8 +313,16 @@ def calculate():
         roi_curve_json=json.dumps(roi_curve),
         shap_vals_json=json.dumps(shap_vals),
         calculation_id=calc.id,
-        # Block 5 emissions badge
         emissions_g=emissions_g,
         car_km=car_km,
         emissions_kg=emissions_kg,
+        # Block 6 transparency
+        noml=noml,
+        pv_recommended=pv_recommended,
+        pv_ci_lower=pv_ci_lower,
+        pv_ci_upper=pv_ci_upper,
+        pv_explanation=pv_explanation,
+        pv_top_features=pv_top_features,
+        pv_model_version=pv_model_version,
+        regional_warning=regional_warning,
     )

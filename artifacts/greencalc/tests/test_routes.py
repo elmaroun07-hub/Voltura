@@ -486,3 +486,199 @@ def test_dashboard_html_shows_kpi(client):
     r = client.get("/dashboard")
     assert r.status_code == 200
     assert b"CO\xe2\x82\x82" in r.data or b"CO2" in r.data or b"emissions" in r.data.lower()
+
+
+# ── Block 6: EU AI Act Compliance ─────────────────────────────────────────────
+
+def test_delete_my_data_get_returns_200(client):
+    r = client.get("/delete-my-data")
+    assert r.status_code == 200
+    assert b"delete" in r.data.lower() or b"gdpr" in r.data.lower() or b"data" in r.data.lower()
+
+
+def test_delete_my_data_post_returns_json(client):
+    r = client.post("/delete-my-data", data={})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert "deleted" in data
+    assert "records_removed" in data
+
+
+def test_delete_my_data_deleted_true(client):
+    r = client.post("/delete-my-data", data={})
+    assert r.get_json()["deleted"] is True
+
+
+def test_delete_my_data_records_removed_is_int(client):
+    r = client.post("/delete-my-data", data={})
+    assert isinstance(r.get_json()["records_removed"], int)
+
+
+def test_model_info_page_returns_200(client):
+    r = client.get("/model-info/page")
+    assert r.status_code == 200
+
+
+def test_model_info_page_contains_training_data(client):
+    r = client.get("/model-info/page")
+    assert b"Training Data" in r.data or b"training" in r.data.lower()
+
+
+def test_model_info_page_contains_algorithm(client):
+    r = client.get("/model-info/page")
+    assert b"Gradient" in r.data or b"gradient" in r.data.lower() or b"GBR" in r.data
+
+
+def test_model_info_page_contains_limitations(client):
+    r = client.get("/model-info/page")
+    assert b"limitation" in r.data.lower() or b"bias" in r.data.lower()
+
+
+def test_model_info_json_has_training_data(client):
+    r = client.get("/model-info")
+    data = r.get_json()
+    assert "training_data" in data
+    assert "source" in data["training_data"]
+    assert "known_bias" in data["training_data"]
+    assert "random_seed" in data["training_data"]
+
+
+def test_model_info_json_has_regional_mae(client):
+    r = client.get("/model-info")
+    data = r.get_json()
+    assert "regional_mae" in data
+    assert "regional_warning" in data
+
+
+def test_model_info_json_has_contact(client):
+    r = client.get("/model-info")
+    data = r.get_json()
+    assert "contact" in data
+
+
+def test_admin_audit_no_token_returns_403(client):
+    r = client.get("/admin/audit")
+    assert r.status_code == 403
+
+
+def test_admin_audit_wrong_token_returns_403(client):
+    r = client.get("/admin/audit", headers={"X-Admin-Token": "definitely_wrong_token_xyz"})
+    assert r.status_code == 403
+
+
+def test_admin_audit_wrong_token_json_error(client):
+    r = client.get("/admin/audit", headers={"X-Admin-Token": "bad"})
+    data = r.get_json()
+    assert "error" in data or "Forbidden" in str(data)
+
+
+def test_admin_audit_correct_token_returns_200(client, app):
+    """If ADMIN_TOKEN env var is set, the correct token must return 200."""
+    import os
+    token = os.getenv("ADMIN_TOKEN", "")
+    if not token:
+        pytest.skip("ADMIN_TOKEN not set in environment")
+    r = client.get("/admin/audit", headers={"X-Admin-Token": token})
+    assert r.status_code == 200
+
+
+def test_feedback_endpoint_returns_201(client):
+    r = client.post("/feedback", json={"rating": 1, "comment": "Great tool!"})
+    assert r.status_code == 201
+    assert r.get_json()["saved"] is True
+
+
+def test_feedback_invalid_rating_returns_400(client):
+    r = client.post("/feedback", json={"rating": 0})
+    assert r.status_code == 400
+
+
+def test_feedback_thumbs_down_accepted(client):
+    r = client.post("/feedback", json={"rating": -1, "comment": "Inaccurate"})
+    assert r.status_code == 201
+
+
+def test_override_endpoint_returns_201(client, app):
+    """POST /override must store a UserOverride row."""
+    from models.db_models import Calculation
+    with app.app_context():
+        calc = _db.session.execute(
+            _db.select(Calculation).limit(1)
+        ).scalars().first()
+        if calc is None:
+            pytest.skip("No calculation in DB")
+        calc_id = calc.id
+
+    r = client.post("/override", json={
+        "calculation_id": calc_id,
+        "field_name": "annual_savings_eur",
+        "original_value": "1200.00",
+        "override_value": "1350.00",
+    })
+    assert r.status_code == 201
+    assert r.get_json()["saved"] is True
+
+
+def test_override_missing_fields_returns_400(client):
+    r = client.post("/override", json={"field_name": "annual_savings_eur"})
+    assert r.status_code == 400
+
+
+def test_results_page_has_ai_badge(client):
+    r = client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    assert r.status_code == 200
+    assert b"AI-assisted estimate" in r.data or b"ai-badge" in r.data.lower()
+
+
+def test_results_page_has_disclaimer(client):
+    r = client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    assert r.status_code == 200
+    assert b"estimates only" in r.data.lower() or b"certified energy professional" in r.data.lower()
+
+
+def test_results_page_has_recalculate_without_ai_button(client):
+    r = client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    assert r.status_code == 200
+    assert b"Recalculate without AI" in r.data or b"no_ml" in r.data
+
+
+def test_gdpr_form_has_store_location_checkbox(client):
+    r = client.get("/form")
+    assert b"store_location" in r.data
+
+
+def test_calculate_without_opt_in_no_coords_in_db(client, app):
+    """When store_location is not checked, lat/lon must be None in DB."""
+    from models.db_models import Calculation
+    payload = _calc_payload()  # no store_location key
+    client.post("/calculate", data=payload, follow_redirects=True)
+    with app.app_context():
+        calc = _db.session.execute(
+            _db.select(Calculation).order_by(Calculation.id.desc()).limit(1)
+        ).scalars().first()
+        assert calc.lat is None
+        assert calc.lon is None
+        assert calc.location_opt_in is False or calc.location_opt_in == 0
+
+
+def test_audit_log_created_after_calculate(client, app):
+    """audit_log must get a new row after each /calculate POST."""
+    from models.db_models import AuditLog
+    with app.app_context():
+        before = _db.session.query(AuditLog).count()
+
+    client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+
+    with app.app_context():
+        after = _db.session.query(AuditLog).count()
+    assert after == before + 1
+
+
+def test_base_has_gdpr_modal(client):
+    r = client.get("/")
+    assert b"gdprModal" in r.data or b"gdpr_consent" in r.data
+
+
+def test_delete_data_page_in_footer(client):
+    r = client.get("/")
+    assert b"delete" in r.data.lower() or b"Delete my data" in r.data

@@ -34,6 +34,8 @@ def _migrate_db(app):
         ("calculations", "npv_savings",             "FLOAT"),
         ("calculations", "installation_cost_eur",   "FLOAT"),
         ("calculations", "cumulative_savings_json", "TEXT"),
+        # Block 6 GDPR: lat/lon only stored with opt-in
+        ("calculations", "location_opt_in",         "BOOLEAN DEFAULT 0"),
     ]
     with app.app_context():
         engine = db.engine
@@ -57,7 +59,11 @@ def create_app():
 
     db.init_app(app)
 
-    from models.db_models import Calculation, CalculationEmissions, ModelMetrics  # noqa: F401
+    # Import all models so SQLAlchemy metadata is populated before create_all
+    from models.db_models import (  # noqa: F401
+        Calculation, CalculationEmissions, ModelMetrics,
+        UserFeedback, UserOverride, AuditLog,
+    )
 
     from routes.calculator import calculator_bp
     from routes.predictions import predictions_bp
@@ -69,8 +75,10 @@ def create_app():
     app.register_blueprint(compliance_bp)
     app.register_blueprint(export_bp)
 
+    # Use checkfirst=True via raw SQLAlchemy to avoid "table already exists"
+    # on existing SQLite DBs (Flask-SQLAlchemy 2.x doesn't pass checkfirst).
     with app.app_context():
-        db.create_all()  # creates calculation_emissions if not present
+        db.Model.metadata.create_all(bind=db.engine, checkfirst=True)
 
     _migrate_db(app)
 

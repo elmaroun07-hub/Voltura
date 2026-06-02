@@ -16,6 +16,10 @@
     padding: 2px 8px; border-radius: 99px; background: #d1fae5; color: #065f46;
     margin-left: 0.5rem; font-weight: 500; }
   .section-note { font-size: 0.8rem; color: #9ca3af; margin-bottom: 0.5rem; }
+  .gdpr-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;
+    padding:0.9rem 1rem; margin-top:0.5rem; font-size:0.85rem; color:#065f46; }
+  .gdpr-box label { display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer; }
+  .gdpr-box input[type=checkbox] { margin-top:2px; flex-shrink:0; accent-color:#10b981; }
 </style>
 {% endblock %}
 
@@ -35,6 +39,7 @@
   <div id="globalError" class="alert alert-error" style="display:none;"></div>
 
   <form id="calcForm" method="POST" action="{{ url_for('calculator.calculate') }}">
+    <input type="hidden" name="no_ml" value="0">
 
     <!-- ── LOCATION ──────────────────────────────────────────────────────── -->
     <div class="card">
@@ -69,6 +74,18 @@
                  step="0.0001" min="-180" max="180" required>
           <span class="error-hint" id="lon-err"></span>
         </div>
+      </div>
+
+      <!-- Block 6 GDPR: opt-in checkbox for storing coordinates -->
+      <div class="gdpr-box">
+        <label>
+          <input type="checkbox" name="store_location" id="store_location">
+          <span>
+            <strong>Optional:</strong> I consent to storing my location coordinates (lat/lon)
+            in the database for performance analysis and history.
+            If unchecked, only the city name is stored — coordinates remain in your session only.
+          </span>
+        </label>
       </div>
     </div>
 
@@ -113,7 +130,6 @@
       </div>
 
       <div class="form-grid">
-        <!-- PV fields -->
         <div class="form-group" id="pvGroup">
           <label for="pv_w">PV System Size (W)</label>
           <input type="number" id="pv_w" name="pv_w"
@@ -129,7 +145,6 @@
           <span class="help-text" id="roofHint">Caps max PV: m² × 180 W</span>
         </div>
 
-        <!-- Wind field — shown only for wind/hybrid -->
         <div class="form-group wind-field" id="windGroup">
           <label for="wind_kw">Wind Turbine Capacity (kW)</label>
           <input type="number" id="wind_kw" name="wind_kw"
@@ -138,7 +153,6 @@
           <span class="error-hint" id="wind_kw-err"></span>
         </div>
 
-        <!-- Battery -->
         <div class="form-group">
           <label for="battery_kwh">Battery Capacity (kWh)</label>
           <input type="number" id="battery_kwh" name="battery_kwh"
@@ -211,7 +225,6 @@
 {% block scripts %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPeE=" crossorigin=""></script>
 <script>
-// ── Leaflet map ─────────────────────────────────────────────────────────────
 const defaultLat = 52.52, defaultLon = 13.405;
 const map = L.map('map').setView([defaultLat, defaultLon], 5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -225,80 +238,50 @@ function setCoords(lat, lon) {
   document.getElementById('lon').value = lon.toFixed(5);
 }
 
-map.on('click', (e) => {
-  marker.setLatLng(e.latlng);
-  setCoords(e.latlng.lat, e.latlng.lng);
-});
+map.on('click', (e) => { marker.setLatLng(e.latlng); setCoords(e.latlng.lat, e.latlng.lng); });
+marker.on('dragend', () => { const { lat, lng } = marker.getLatLng(); setCoords(lat, lng); });
 
-marker.on('dragend', () => {
-  const { lat, lng } = marker.getLatLng();
-  setCoords(lat, lng);
-});
-
-// Sync manual lat/lon inputs → map
 ['lat','lon'].forEach(id => {
   document.getElementById(id).addEventListener('change', () => {
     const lat = parseFloat(document.getElementById('lat').value);
     const lon = parseFloat(document.getElementById('lon').value);
-    if (!isNaN(lat) && !isNaN(lon)) {
-      marker.setLatLng([lat, lon]);
-      map.setView([lat, lon], map.getZoom());
-    }
+    if (!isNaN(lat) && !isNaN(lon)) { marker.setLatLng([lat, lon]); map.setView([lat, lon], map.getZoom()); }
   });
 });
 
-// Geocode location text via Nominatim
 async function findLocation() {
   const q = document.getElementById('location').value.trim();
   if (!q) return;
   try {
-    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
-      headers: { 'Accept-Language': 'en' }
-    });
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, { headers: { 'Accept-Language': 'en' } });
     const data = await r.json();
     if (data.length) {
       const lat = parseFloat(data[0].lat), lon = parseFloat(data[0].lon);
-      marker.setLatLng([lat, lon]);
-      map.setView([lat, lon], 10);
-      setCoords(lat, lon);
+      marker.setLatLng([lat, lon]); map.setView([lat, lon], 10); setCoords(lat, lon);
       document.getElementById('nasaBadge').style.display = 'none';
     }
   } catch(e) { console.warn('Geocode failed', e); }
 }
 
 document.getElementById('btnFind').addEventListener('click', findLocation);
-document.getElementById('location').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); findLocation(); }
-});
+document.getElementById('location').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); findLocation(); } });
 
-// Roof area hint
 document.getElementById('roof_area').addEventListener('input', () => {
   const a = parseFloat(document.getElementById('roof_area').value);
   const hint = document.getElementById('roofHint');
-  hint.textContent = isNaN(a) || a <= 0
-    ? 'Caps max PV: m² × 180 W'
-    : `Max PV from this roof: ${Math.round(a * 180).toLocaleString()} W`;
+  hint.textContent = isNaN(a) || a <= 0 ? 'Caps max PV: m² × 180 W' : `Max PV from this roof: ${Math.round(a * 180).toLocaleString()} W`;
 });
 
-// ── Renewable type toggles ──────────────────────────────────────────────────
 function updateWindVisibility() {
-  const showWind = document.getElementById('chkWind').checked
-                || document.getElementById('chkHybrid').checked;
-  document.querySelectorAll('.wind-field').forEach(el => {
-    el.style.display = showWind ? '' : 'none';
-  });
+  const showWind = document.getElementById('chkWind').checked || document.getElementById('chkHybrid').checked;
+  document.querySelectorAll('.wind-field').forEach(el => { el.style.display = showWind ? '' : 'none'; });
   document.getElementById('wind_kw').required = showWind;
 }
-['chkSolar','chkWind','chkHybrid'].forEach(id => {
-  document.getElementById(id).addEventListener('change', updateWindVisibility);
-});
+['chkSolar','chkWind','chkHybrid'].forEach(id => { document.getElementById(id).addEventListener('change', updateWindVisibility); });
 updateWindVisibility();
 
-// ── Form submission via fetch → handle JSON errors ─────────────────────────
 function clearErrors() {
-  document.querySelectorAll('.error-hint').forEach(el => {
-    el.style.display = 'none'; el.textContent = '';
-  });
+  document.querySelectorAll('.error-hint').forEach(el => { el.style.display = 'none'; el.textContent = ''; });
   document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
   document.getElementById('globalError').style.display = 'none';
 }
@@ -308,11 +291,7 @@ function showFieldError(field, msg) {
   const input = document.getElementById(field);
   if (hint) { hint.textContent = msg; hint.style.display = 'block'; }
   if (input) { input.classList.add('field-error'); input.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-  else {
-    const ge = document.getElementById('globalError');
-    ge.textContent = '⚠️ ' + msg; ge.style.display = 'block';
-    ge.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
+  else { const ge = document.getElementById('globalError'); ge.textContent = '⚠️ ' + msg; ge.style.display = 'block'; ge.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 }
 
 document.getElementById('calcForm').addEventListener('submit', async (e) => {
@@ -320,13 +299,8 @@ document.getElementById('calcForm').addEventListener('submit', async (e) => {
   clearErrors();
   document.getElementById('loadingOverlay').classList.add('active');
   document.getElementById('submitBtn').disabled = true;
-
   try {
-    const resp = await fetch('/calculate', {
-      method: 'POST',
-      body: new FormData(e.target),
-    });
-
+    const resp = await fetch('/calculate', { method: 'POST', body: new FormData(e.target) });
     const contentType = resp.headers.get('content-type') || '';
     if (!resp.ok && contentType.includes('json')) {
       const err = await resp.json();
@@ -335,8 +309,6 @@ document.getElementById('calcForm').addEventListener('submit', async (e) => {
       showFieldError(err.field || '_global', err.error || 'Validation error');
       return;
     }
-
-    // Success — replace page with results HTML
     const html = await resp.text();
     document.open(); document.write(html); document.close();
   } catch(err) {
