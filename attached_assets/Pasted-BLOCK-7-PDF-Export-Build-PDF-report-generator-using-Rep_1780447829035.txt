@@ -1,0 +1,76 @@
+BLOCK 7 — PDF Export
+Build PDF report generator using ReportLab.
+Endpoint: POST /export/pdf
+Body: { "calculation_id": "uuid" }
+Load all data from DB using calculation_id.
+Stream PDF directly to browser. Do NOT save to server disk.
+
+Report pages in order:
+
+Page 1 — Cover:
+
+Title: "Renewable Energy Assessment Report"
+Subtitle: "Powered by GreenCalc | AI-assisted estimate"
+Date generated, location coordinates (lat/lon), Report ID
+GreenCalc branding (green header bar, #2D6A4F)
+Page 2 — Executive Summary:
+
+Recommended PV system: wattage + battery capacity
+Annual energy savings (kWh)
+Annual cost savings (€)
+CO₂ emissions reduced (tonnes/year)
+Payback period (years)
+Net Present Value (€, 25-year, 5% discount rate)
+Confidence interval: [lower – upper kWh/year]
+Model version used
+Page 3 — System Details Table:
+
+All user inputs as formatted two-column table
+Performance ratio used, boundary violation flag
+Page 4 — 25-Year ROI Chart:
+
+Line chart: cumulative savings (€) vs time (years)
+Mark breakeven point with vertical line + annotation
+Generate as ReportLab Drawing object (not image file)
+Page 5 — Monthly Generation Chart:
+
+Bar chart: monthly solar generation (kWh) vs consumption
+12 grouped bars, legend, month labels
+Generate as ReportLab Drawing object
+Page 6 — AI Explanation Section:
+
+SHAP top 3 features in plain language
+Confidence interval explanation paragraph
+EU AI Act disclaimer:
+"This report was generated with AI assistance.
+All figures are estimates. Model version: {X}.
+Consult a certified energy professional before
+making investment decisions."
+Page 7 — Carbon Tracking Section:
+
+CO₂ emitted by this calculation (grams, from CodeCarbon)
+CO₂ saved annually by the recommended system (tonnes)
+Net benefit: saved - emitted
+Car equivalent: grams / 210 = km NOT driven
+Page 8 — Grants & Subsidies:
+Spain:
+
+IDAE (Instituto para la Diversificación y Ahorro de la Energía)
+www.idae.es
+Next Generation EU / Plan de Recuperación, Transformación y Resiliencia
+Regional incentives by Comunidades Autónomas
+Morocco:
+
+AMEE (Agence Marocaine pour l'Efficacité Energétique)
+www.amee.ma
+MASEN (Moroccan Agency for Sustainable Energy)
+www.masen.ma
+Note on every item: "Verify current availability at official sources.
+Incentive programs change frequently."
+
+Footer on every page:
+"AI-assisted estimate | Not financial advice |
+Model v{X} | GreenCalc | {date}"
+
+Stop here. Test that PDF downloads in browser with
+correct calculation data before moving to Block 8.

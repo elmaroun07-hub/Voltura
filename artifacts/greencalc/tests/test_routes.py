@@ -682,3 +682,103 @@ def test_base_has_gdpr_modal(client):
 def test_delete_data_page_in_footer(client):
     r = client.get("/")
     assert b"delete" in r.data.lower() or b"Delete my data" in r.data
+
+
+# ── Block 7: PDF Export ────────────────────────────────────────────────────────
+
+def _run_calc_and_get_uuid(client):
+    """Helper: POST /calculate, return (calc_uuid, calc_id)."""
+    r = client.post("/calculate", data=_calc_payload(), follow_redirects=True)
+    assert r.status_code == 200
+    import sqlite3, os
+    db_path = os.getenv("GREENCALC_DATABASE_URL", "").replace("sqlite:///", "") \
+        or "/home/runner/greencalc/greencalc.db"
+    conn = sqlite3.connect(db_path)
+    row  = conn.execute(
+        "SELECT id, calc_uuid FROM calculations ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    assert row, "No calculation in DB after POST /calculate"
+    return row[0], row[1]   # (calc_id, calc_uuid)
+
+
+def test_export_pdf_post_returns_200(client):
+    calc_id, calc_uuid = _run_calc_and_get_uuid(client)
+    r = client.post("/export/pdf", json={"calculation_id": calc_uuid})
+    assert r.status_code == 200
+
+
+def test_export_pdf_content_type(client):
+    calc_id, calc_uuid = _run_calc_and_get_uuid(client)
+    r = client.post("/export/pdf", json={"calculation_id": calc_uuid})
+    assert r.content_type == "application/pdf"
+
+
+def test_export_pdf_magic_bytes(client):
+    calc_id, calc_uuid = _run_calc_and_get_uuid(client)
+    r = client.post("/export/pdf", json={"calculation_id": calc_uuid})
+    assert r.data[:4] == b"%PDF"
+
+
+def test_export_pdf_not_empty(client):
+    calc_id, calc_uuid = _run_calc_and_get_uuid(client)
+    r = client.post("/export/pdf", json={"calculation_id": calc_uuid})
+    assert len(r.data) > 5000   # at least 5 KB
+
+
+def test_export_pdf_content_disposition(client):
+    calc_id, calc_uuid = _run_calc_and_get_uuid(client)
+    r = client.post("/export/pdf", json={"calculation_id": calc_uuid})
+    cd = r.headers.get("Content-Disposition", "")
+    assert "attachment" in cd
+    assert ".pdf" in cd
+
+
+def test_export_pdf_no_uuid_returns_400(client):
+    r = client.post("/export/pdf", json={})
+    assert r.status_code == 400
+    assert "error" in r.get_json()
+
+
+def test_export_pdf_invalid_uuid_returns_404(client):
+    r = client.post("/export/pdf",
+                    json={"calculation_id": "00000000-0000-0000-0000-000000000000"})
+    assert r.status_code == 404
+
+
+def test_export_pdf_get_by_id_returns_200(client):
+    calc_id, _ = _run_calc_and_get_uuid(client)
+    r = client.get(f"/export/pdf/{calc_id}")
+    assert r.status_code == 200
+
+
+def test_export_pdf_get_by_id_is_pdf(client):
+    calc_id, _ = _run_calc_and_get_uuid(client)
+    r = client.get(f"/export/pdf/{calc_id}")
+    assert r.data[:4] == b"%PDF"
+
+
+def test_export_pdf_get_missing_id_returns_404(client):
+    r = client.get("/export/pdf/9999999")
+    assert r.status_code == 404
+
+
+def test_export_pdf_post_no_body_returns_400(client):
+    r = client.post("/export/pdf", content_type="application/json", data="")
+    assert r.status_code == 400
+
+
+def test_export_pdf_has_eight_pages(client):
+    """Verify the PDF contains 8 or more /Type /Page objects."""
+    calc_id, calc_uuid = _run_calc_and_get_uuid(client)
+    r = client.post("/export/pdf", json={"calculation_id": calc_uuid})
+    assert r.data[:4] == b"%PDF"
+    # Count /Type /Page markers (each real page has one)
+    page_count = r.data.count(b"/Type /Page")
+    assert page_count >= 8, f"Expected 8 pages, got {page_count}"
+
+
+def test_export_pdf_cache_control(client):
+    calc_id, calc_uuid = _run_calc_and_get_uuid(client)
+    r = client.post("/export/pdf", json={"calculation_id": calc_uuid})
+    assert "no-store" in r.headers.get("Cache-Control", "")
