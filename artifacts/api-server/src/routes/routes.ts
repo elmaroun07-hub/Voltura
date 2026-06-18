@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { api } from "../shared-routes";
 import { z } from "zod/v4";
-import { registerChatRoutes } from "../replit_integrations/chat";
+// import { registerChatRoutes } from "../replit_integrations/chat";
 import OpenAI from "openai";
 import PDFDocument from "pdfkit";
 import { CARBON_INTENSITY_BY_COUNTRY, type MonthlyEntry } from "@workspace/db";
