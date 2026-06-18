@@ -484,7 +484,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post(api.calculations.optimize.path, async (req, res) => {
     try {
       const { energyPattern, location } = req.body;
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4.1",
         messages: [
           {
