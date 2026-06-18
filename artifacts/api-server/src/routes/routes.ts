@@ -204,7 +204,7 @@ function simulate8760(
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  registerChatRoutes(app);
+  // registerChatRoutes(app);
 
   // Enhanced PDF report
   app.get("/api/calculate/:id/pdf", async (req, res) => {
