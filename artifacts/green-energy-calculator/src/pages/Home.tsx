@@ -43,7 +43,7 @@ export default function Home() {
               Voltura
             </motion.h1>
             <p className="text-muted-foreground max-w-xl">
-              Live solar irradiance from NASA POWER · 8760-hour battery simulation · Country carbon intensity lookup
+              Solar + battery savings, modeled on live NASA irradiance and real grid carbon data
             </p>
           </div>
         </div>
