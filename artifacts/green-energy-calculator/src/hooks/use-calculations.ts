@@ -6,7 +6,7 @@ export function useHistory() {
   return useQuery({
     queryKey: [api.calculations.history.path],
     queryFn: async () => {
-      const res = await fetch(api.calculations.history.path);
+      const res = await fetch(API_BASE + api.calculations.history.path);
       if (!res.ok) throw new Error("Failed to fetch history");
       return api.calculations.history.responses[200].parse(await res.json());
     },
@@ -19,7 +19,7 @@ export function useCalculate() {
 
   return useMutation({
     mutationFn: async (data: CalculationInput) => {
-      const res = await fetch(api.calculations.create.path, {
+      const res = await fetch(API_BASE + api.calculations.create.path, {
         method: api.calculations.create.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -57,7 +57,7 @@ export function useOptimize() {
   
   return useMutation({
     mutationFn: async (data: { energyPattern: number[], location: string }) => {
-      const res = await fetch(api.calculations.optimize.path, {
+      const res = await fetch(API_BASE + api.calculations.optimize.path, {
         method: api.calculations.optimize.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
