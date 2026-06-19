@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type CalculationInput, type CalculationResponse } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
 export function useHistory() {
   return useQuery({
     queryKey: [api.calculations.history.path],
