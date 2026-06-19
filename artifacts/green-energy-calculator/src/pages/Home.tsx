@@ -40,7 +40,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2"
             >
-              Energy Calculator
+              Voltura
             </motion.h1>
             <p className="text-muted-foreground max-w-xl">
               Live solar irradiance from NASA POWER · 8760-hour battery simulation · Country carbon intensity lookup
