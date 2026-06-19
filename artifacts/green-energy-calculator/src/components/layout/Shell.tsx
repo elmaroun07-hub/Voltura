@@ -22,8 +22,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Leaf className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-lg leading-none text-foreground">EcoCalc</h1>
-              <span className="text-xs text-muted-foreground">Green Energy</span>
+              <h1 className="font-display font-bold text-lg leading-none text-foreground">Voltura</h1>
+              <span className="text-xs text-muted-foreground">Energy Intelligence</span>
             </div>
           </Link>
         </div>
