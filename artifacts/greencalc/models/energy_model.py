@@ -185,6 +185,36 @@ def panel_efficiency_factor(tilt: float, orientation: str) -> float:
     return max(0.5, min(1.0, tilt_factor * orient_factor))
 
 
+# Fix #5: bounded battery state-of-charge. A battery can never exceed capacity or go
+# below empty; energy stored in surplus months is discharged in deficit months.
+BATTERY_ROUND_TRIP_EFF = 0.90   # round-trip efficiency, applied on charge (tunable)
+
+def simulate_battery(gen_monthly, cons_monthly, capacity_kwh, eff=BATTERY_ROUND_TRIP_EFF):
+    """Single usable-capacity battery over 12 months.
+    gen_monthly, cons_monthly: length-12 kWh/month arrays. capacity_kwh: usable kWh."""
+    soc = 0.0
+    discharge, soc_end, grid_import, grid_export = [], [], [], []
+    for g, c in zip(gen_monthly, cons_monthly):
+        net = g - c
+        if net >= 0:                                  # surplus → charge, spill rest to grid
+            room   = capacity_kwh - soc
+            stored = min(net * eff, room)
+            soc   += stored
+            discharge.append(0.0)
+            grid_import.append(0.0)
+            grid_export.append(net - (stored / eff))  # panel energy not absorbed by battery
+        else:                                         # deficit → discharge to cover load
+            need  = -net
+            drawn = min(soc, need)
+            soc  -= drawn
+            discharge.append(drawn)
+            grid_import.append(need - drawn)
+            grid_export.append(0.0)
+        soc_end.append(soc)
+    return {"discharge": discharge, "soc_end": soc_end,
+            "grid_import": grid_import, "grid_export": grid_export}
+
+
 # ── Block 3: Physics-based power balance engine ──────────────────────────────
 
 def calculate_energy(
@@ -210,26 +240,29 @@ def calculate_energy(
     E_solar_monthly = pv_w * irr_arr * MONTH_DAYS * performance_ratio / 1000.0  # kWh/month
     E_solar_annual = float(np.sum(E_solar_monthly))
 
-    # ── Battery dispatch model (monthly, vectorized) ─────────────────────────
+    # ── Battery dispatch model (Fix #5: bounded month-by-month SOC) ─────────────────────────
     consumption_monthly = (annual_kwh / 12.0) * np.ones(12, dtype=np.float64)
-    excess = np.maximum(E_solar_monthly - consumption_monthly, 0.0)
-    deficit = np.maximum(consumption_monthly - E_solar_monthly, 0.0)
 
-    battery_stored = np.minimum(
-        np.cumsum(excess) * (battery_efficiency / 100.0),
-        battery_kwh,
+    # Fix #5: simulate a real bounded battery — SOC capped at usable capacity and
+    # floored at empty; surplus stored (round-trip eff) is discharged in later
+    # deficit months. Replaces the previous np.cumsum(excess) model, whose "stored"
+    # energy grew unbounded across the year.
+    battery_sim = simulate_battery(
+        E_solar_monthly, consumption_monthly,
+        capacity_kwh=battery_kwh, eff=battery_efficiency / 100.0,
     )
+    battery_discharge = np.array(battery_sim["discharge"], dtype=np.float64)
+    grid_monthly      = np.array(battery_sim["grid_import"], dtype=np.float64)
+    grid_export_month = np.array(battery_sim["grid_export"], dtype=np.float64)
+
+    direct_solar  = np.minimum(E_solar_monthly, consumption_monthly)  # solar used on-site directly
+    saved_monthly = direct_solar + battery_discharge
+
+    grid_export_kwh = float(np.sum(grid_export_month))
     self_consumption_rate = (
-        float(np.sum(E_solar_monthly - excess) / E_solar_annual)
+        float((E_solar_annual - grid_export_kwh) / E_solar_annual)
         if E_solar_annual > 0 else 0.0
     )
-    grid_export_kwh = float(max(0.0, np.sum(excess) - np.sum(battery_stored)))
-
-    # Monthly battery discharge: discharge from cumulative stored to cover deficit
-    battery_discharge = np.minimum(deficit, battery_stored)
-    direct_solar = E_solar_monthly - excess           # solar consumed directly this month
-    grid_monthly = np.maximum(deficit - battery_discharge, 0.0)
-    saved_monthly = direct_solar + battery_discharge
 
     # ── Wind generation (vectorized CF by latitude) ──────────────────────────
     E_wind_annual = 0.0

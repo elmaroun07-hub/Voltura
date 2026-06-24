@@ -775,10 +775,13 @@ def _pdf_response_for_calc(calc):
         pv_ci_upper      = round(hi_w)
         pv_model_version = pv_model.model_version
 
-        pv_top_features, pv_explanation = pv_model.explain_top3(
-            month=6, latitude=lat, irradiance=avg_irr,
-            avg_temp=avg_temp, household_size=num_occ,
-            consumption_kwh=calc.annual_kwh or 5000, tariff=tariff,
+        # Fix #3 (path b — physics-honest): no spurious SHAP attribution in the
+        # PDF either — state the real physics drivers instead.
+        pv_top_features = []
+        pv_explanation = (
+            f"Sized to cover {calc.annual_kwh or 5000:,.0f} kWh/year given "
+            f"{avg_irr:.1f} kWh/m²/day of local solar resource "
+            f"(physics-based estimate)."
         )
     except Exception as exc:
         current_app.logger.warning("PDF: PV model failed: %s", exc)

@@ -89,10 +89,12 @@ def predict_api():
         recommended_pv_w    = main_w
         confidence_interval = [lower_w, upper_w]
 
-        top_features, explanation = pv_model.explain_top3(
-            month=month, latitude=lat, irradiance=avg_irradiance,
-            avg_temp=avg_temp, household_size=household_size,
-            consumption_kwh=annual_kwh, tariff=tariff,
+        # Fix #3 (path b — physics-honest): drop spurious SHAP attribution from
+        # the synthetic-trained model; report the real physics drivers instead.
+        top_features = []
+        explanation = (
+            "Recommended size is based on your annual usage and local solar "
+            "irradiance (physics-based estimate)."
         )
         model_version = pv_model.model_version
 
@@ -286,7 +288,7 @@ def dashboard_data():
         "avg_emissions_g":     round(avg_kg * 1000, 6),
         "total_calculations":  total_calcs,
         "daily_emissions":     daily_emissions,
-        "car_km_total":        round(total_kg / 0.00021, 4),
+        "car_km_total":        round(total_kg / 0.210, 4),
     })
 
 
@@ -340,7 +342,7 @@ def dashboard():
     total_emissions_g = round(float(agg.total_kg or 0) * 1000, 6)
     avg_emissions_g   = round(float(agg.avg_kg or 0) * 1000, 6)
     total_calcs       = agg.n or 0
-    car_km_total      = round(float(agg.total_kg or 0) / 0.00021, 4)
+    car_km_total      = round(float(agg.total_kg or 0) / 0.210, 4)
 
     return render_template(
         "dashboard.html",

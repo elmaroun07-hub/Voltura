@@ -259,11 +259,11 @@ def test_predict_savings_positive(client):
 
 
 def test_predict_top_features_length(client):
-    """top_features has 3 entries when ML model is used."""
+    """Fix #3 (path b): top_features is intentionally empty — no spurious SHAP
+    attribution surfaced from the synthetic-trained model."""
     r = client.post("/predict", json=_predict_payload())
     data = r.get_json()
-    if not data["fallback_used"]:
-        assert len(data["top_features"]) == 3
+    assert data["top_features"] == []
 
 
 def test_predict_top_features_schema(client):

@@ -193,10 +193,15 @@ def calculate():
             pv_recommended = int(round(main_w))
             pv_ci_lower    = round(lower_w)
             pv_ci_upper    = round(upper_w)
-            pv_top_features, pv_explanation = pv_model.explain_top3(
-                month=mid_month, latitude=lat, irradiance=avg_irr,
-                avg_temp=avg_temp_c, household_size=(num_occupants or 3),
-                consumption_kwh=annual_kwh, tariff=tariff,
+            # Fix #3 (path b — physics-honest): the PV model trains on SYNTHETIC
+            # data whose target depends only on consumption, so SHAP attribution
+            # to irradiance/latitude is spurious. We drop the causal "top factors"
+            # and state the real physics drivers instead. No false claim is made.
+            pv_top_features = []
+            pv_explanation = (
+                f"Sized to cover your {annual_kwh:,.0f} kWh/year given "
+                f"{avg_irr:.1f} kWh/m²/day of local solar resource "
+                f"(physics-based estimate)."
             )
             pv_model_version = pv_model.model_version
 
@@ -292,7 +297,7 @@ def calculate():
     )
 
     emissions_g = round(emissions_kg * 1000, 6)
-    car_km      = round(emissions_kg / 0.00021, 4)
+    car_km      = round(emissions_kg / 0.210, 4)
 
     return render_template(
         "results.html",
