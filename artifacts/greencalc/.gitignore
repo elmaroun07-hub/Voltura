@@ -1,6 +1,7 @@
 instance/
 *.db
 models/rf_model.pkl
+models/artifacts/*.pkl
 __pycache__/
 *.pyc
 *.pyo
