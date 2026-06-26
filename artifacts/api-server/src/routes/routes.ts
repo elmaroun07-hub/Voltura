@@ -75,7 +75,7 @@ function detectCarbonIntensity(location: string): number {
 // Geocode location string to lat/lon via Nominatim
 async function geocode(location: string): Promise<{ lat: number; lon: number; country: string } | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1&accept-language=en`;
     const res = await fetch(url, {
       headers: { "User-Agent": "GreenEnergyCalculator/1.0" },
       signal: AbortSignal.timeout(6000),
