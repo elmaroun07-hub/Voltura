@@ -260,24 +260,41 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").stroke();
       y += 12;
 
-      // Payback for PDF — uses the SAME inflation model as the main calculation
+
+      // Payback + lifetime for PDF — read persisted values for an exact match to the app.
+
+
+
       const annualSav = calc.annualSavingsEur ?? 0;
-      const instCost = (calc.pvWattage / 1000) * 900 + calc.batteryCapacity * 500 + 1200;
-      const INFLATION = 0.015;
-      const YEARS = 25;
-      let cumulative = 0;
-      let pdfPaybackNum = YEARS;
-      let paidBack = false;
-      for (let y = 0; y <= YEARS; y++) {
-        const yearSavings = annualSav * Math.pow(1 + INFLATION, y);
-        if (!paidBack && cumulative < instCost && cumulative + yearSavings >= instCost) {
-          pdfPaybackNum = parseFloat((y + (instCost - cumulative) / yearSavings).toFixed(1));
-          paidBack = true;
+
+      let pdfPayback: string;
+      let pdfLifetimeSav: number;
+      if (calc.paybackYears != null && calc.lifetimeSavingsEur != null) {
+        pdfPayback = annualSav > 0 ? calc.paybackYears.toFixed(1) : "N/A";
+        pdfLifetimeSav = Math.round(calc.lifetimeSavingsEur);
+      } else {
+        const instCost = calc.installationCostEur
+          ?? ((calc.pvWattage / 1000) * 900 + calc.batteryCapacity * 500 + 1200);
+        const INFLATION = 0.015;
+        const YEARS = 25;
+        let cumulative = 0;
+        let lifetime = 0;
+        let payback = YEARS;
+        let paid = false;
+        for (let y = 0; y <= YEARS; y++) {
+          if (y === YEARS) lifetime = cumulative;
+          const yearSavings = annualSav * Math.pow(1 + INFLATION, y);
+          if (!paid && cumulative < instCost && cumulative + yearSavings >= instCost) {
+            payback = parseFloat((y + (instCost - cumulative) / yearSavings).toFixed(1));
+            paid = true;
+          }
+          cumulative += yearSavings;
         }
-        cumulative += yearSavings;
+        pdfPayback = annualSav > 0 ? payback.toFixed(1) : "N/A";
+        pdfLifetimeSav = annualSav > 0 ? Math.round(lifetime) : 0;
       }
-      const pdfPayback = annualSav > 0 ? pdfPaybackNum.toFixed(1) : "N/A";
-      const pdfLifetimeSav = annualSav > 0 ? Math.round(cumulative) : 0;
+
+
 
       const resultRows = [
         ["Annual Energy Saved", `${(calc.savingsKwh ?? 0).toLocaleString()} kWh`, "#10b981"],
@@ -477,6 +494,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         carbonFootprint: result.carbonFootprint,
         renewableMix: { solar: result.breakdown.solar + result.breakdown.battery, wind: 0 },
         monthlyData,
+        installationCostEur: result.installationCostEur,
+        paybackYears: result.paybackYears,
+        lifetimeSavingsEur: roiCurve[roiCurve.length - 1].cumulativeSavings,
       });
 
       res.json(result);
