@@ -260,11 +260,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").stroke();
       y += 12;
 
-      // Re-compute payback for PDF (simple estimate from stored data)
+      // Payback for PDF — uses the SAME inflation model as the main calculation
       const annualSav = calc.annualSavingsEur ?? 0;
       const instCost = (calc.pvWattage / 1000) * 900 + calc.batteryCapacity * 500 + 1200;
-      const pdfPayback = annualSav > 0 ? (instCost / annualSav).toFixed(1) : "N/A";
-      const pdfLifetimeSav = annualSav > 0 ? Math.round(annualSav * 25 * 1.2) : 0; // rough with inflation
+      const INFLATION = 0.015;
+      const YEARS = 25;
+      let cumulative = 0;
+      let pdfPaybackNum = YEARS;
+      let paidBack = false;
+      for (let y = 0; y <= YEARS; y++) {
+        const yearSavings = annualSav * Math.pow(1 + INFLATION, y);
+        if (!paidBack && cumulative < instCost && cumulative + yearSavings >= instCost) {
+          pdfPaybackNum = parseFloat((y + (instCost - cumulative) / yearSavings).toFixed(1));
+          paidBack = true;
+        }
+        cumulative += yearSavings;
+      }
+      const pdfPayback = annualSav > 0 ? pdfPaybackNum.toFixed(1) : "N/A";
+      const pdfLifetimeSav = annualSav > 0 ? Math.round(cumulative) : 0;
 
       const resultRows = [
         ["Annual Energy Saved", `${(calc.savingsKwh ?? 0).toLocaleString()} kWh`, "#10b981"],
