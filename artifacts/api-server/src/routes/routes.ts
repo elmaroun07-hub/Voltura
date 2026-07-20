@@ -3,19 +3,23 @@ import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { api } from "../shared-routes";
 import { z } from "zod/v4";
-// import { registerChatRoutes } from "../replit_integrations/chat";
+import { registerChatRoutes } from "../replit_integrations/chat";
 import OpenAI from "openai";
 import PDFDocument from "pdfkit";
 import { CARBON_INTENSITY_BY_COUNTRY, type MonthlyEntry } from "@workspace/db";
 
-let _openai: OpenAI | null = null;
-function getOpenAI(): OpenAI {
-  if (_openai) return _openai;
-  const apiKey = process.env.OPENAI_API_KEY ?? process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OpenAI API key not configured.");
-  _openai = new OpenAI({ apiKey, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL });
-  return _openai;
+// Mistral exposes an OpenAI-compatible API, so we reuse the openai SDK
+// pointed at api.mistral.ai. Lazy init: server boots even if the key is
+// missing; only the AI endpoints fail, with a clear error.
+let _mistral: OpenAI | null = null;
+function getMistral(): OpenAI {
+  if (_mistral) return _mistral;
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error("MISTRAL_API_KEY not configured.");
+  _mistral = new OpenAI({ apiKey, baseURL: "https://api.mistral.ai/v1" });
+  return _mistral;
 }
+export const MISTRAL_MODEL = "mistral-small-latest";
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
@@ -204,7 +208,7 @@ function simulate8760(
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  // registerChatRoutes(app);
+  registerChatRoutes(app);
 
   // Enhanced PDF report
   app.get("/api/calculate/:id/pdf", async (req, res) => {
@@ -517,8 +521,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post(api.calculations.optimize.path, async (req, res) => {
     try {
       const { energyPattern, location } = req.body;
-      const response = await getOpenAI().chat.completions.create({
-        model: "gpt-4.1",
+      const response = await getMistral().chat.completions.create({
+        model: MISTRAL_MODEL,
         messages: [
           {
             role: "system",

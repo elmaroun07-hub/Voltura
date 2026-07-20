@@ -1,6 +1,7 @@
 import { createServer } from "http";
 import app from "./app";
 import { registerRoutes } from "./routes/routes";
+import { ensureChatTables } from "./ensure-chat-tables";
 import { logger } from "./lib/logger";
 
 const rawPort = process.env["PORT"];
@@ -19,7 +20,9 @@ if (Number.isNaN(port) || port <= 0) {
 
 const httpServer = createServer(app);
 
-registerRoutes(httpServer, app).then(() => {
+ensureChatTables()
+  .then(() => registerRoutes(httpServer, app))
+  .then(() => {
   httpServer.listen(port, () => {
     logger.info({ port }, "Server listening");
   });

@@ -2,10 +2,29 @@ import type { Express, Request, Response } from "express";
 import OpenAI from "openai";
 import { chatStorage } from "./storage";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+// Mistral via its OpenAI-compatible endpoint. Lazy init so a missing key
+// fails the request, not the server boot.
+let _mistral: OpenAI | null = null;
+function getMistral(): OpenAI {
+  if (_mistral) return _mistral;
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error("MISTRAL_API_KEY not configured.");
+  _mistral = new OpenAI({ apiKey, baseURL: "https://api.mistral.ai/v1" });
+  return _mistral;
+}
+
+const MISTRAL_MODEL = "mistral-small-latest";
+
+const SYSTEM_PROMPT = `You are Voltura's Energy Assistant, an expert advisor on residential solar PV, battery storage, energy self-consumption, and grid-import reduction.
+
+Context: Voltura is an EU AI Act-compliant energy-intelligence platform. Users have typically run a solar/battery savings calculation (PV size in watts, battery capacity in kWh, location, electricity price, CO2 factor) and want help interpreting results or optimizing their setup.
+
+Guidelines:
+- Be concise and practical. Prefer concrete numbers and ranges over generalities.
+- When sizing advice is requested, reason from consumption patterns, solar irradiance for the stated location, and battery round-trip efficiency (~90%).
+- Use EUR for prices unless the user specifies otherwise; use metric units.
+- If a question needs data the user hasn't given (annual consumption, location, tariff), ask for it briefly rather than guessing.
+- Stay on energy topics; politely redirect anything else.`;
 
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
@@ -80,12 +99,12 @@ export function registerChatRoutes(app: Express): void {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Stream response from OpenAI
-      const stream = await openai.chat.completions.create({
-        model: "gpt-5.1",
-        messages: chatMessages,
+      // Stream response from Mistral
+      const stream = await getMistral().chat.completions.create({
+        model: MISTRAL_MODEL,
+        messages: [{ role: "system" as const, content: SYSTEM_PROMPT }, ...chatMessages],
         stream: true,
-        max_completion_tokens: 2048,
+        max_tokens: 2048,
       });
 
       let fullResponse = "";
