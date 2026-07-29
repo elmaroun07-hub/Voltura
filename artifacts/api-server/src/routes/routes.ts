@@ -526,7 +526,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         messages: [
           {
             role: "system",
-            content: "You are an expert energy consultant. Analyze the energy usage pattern and location to recommend optimal solar and battery sizing. Return JSON with keys: optimal_pv_watts, optimal_battery_kwh, explanation.",
+            content: "You are an expert energy consultant. Analyze the energy usage pattern and location to recommend optimal solar and battery sizing. Return JSON with exactly these keys: optimal_pv_watts (a number), optimal_battery_kwh (a number), explanation (a single plain string of prose). The explanation MUST be a string — never an object, never an array, never nested.",
           },
           {
             role: "user",
@@ -535,13 +535,49 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         ],
         response_format: { type: "json_object" },
       });
-      const rec = JSON.parse(response.choices[0].message.content || "{}");
-      res.json({
-        optimalPv: rec.optimal_pv_watts || 5000,
-        optimalBattery: rec.optimal_battery_kwh || 10,
+      const rawContent = response.choices[0].message.content || "{}";
+
+      let rec: Record<string, unknown>;
+      try {
+        rec = JSON.parse(rawContent) as Record<string, unknown>;
+      } catch {
+        console.error("[optimize] model returned non-JSON content — raw:", rawContent);
+        return res.status(502).json({
+          message: "The optimization model returned an unusable response. Please try again.",
+          code: "invalid_model_response",
+          issues: [{ path: "", message: "response was not valid JSON" }],
+        });
+      }
+
+      // Validate at the boundary. The model guarantees valid JSON, not the shape of
+      // each value, so coerce first: a string/object/array explanation and numeric
+      // strings all normalize here. Only a payload with nothing usable fails — and
+      // that returns 502 rather than a silent 200 the client chokes on later.
+      const parsed = api.calculations.optimize.responses[200].safeParse({
+        optimalPv: rec["optimal_pv_watts"] || 5000,
+        optimalBattery: rec["optimal_battery_kwh"] || 10,
         roiYears: 7.5,
-        explanation: rec.explanation || "Based on your usage pattern, a battery is recommended for evening coverage.",
+        explanation: rec["explanation"],
       });
+
+      if (!parsed.success) {
+        console.error(
+          "[optimize] malformed model payload — raw:",
+          rawContent,
+          "| issues:",
+          JSON.stringify(parsed.error.issues),
+        );
+        return res.status(502).json({
+          message: "The optimization model returned an unusable response. Please try again.",
+          code: "invalid_model_response",
+          issues: parsed.error.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        });
+      }
+
+      res.json(parsed.data);
     } catch (err) {
       console.error("Optimization error:", err);
       res.status(500).json({ message: "Failed to generate optimization" });

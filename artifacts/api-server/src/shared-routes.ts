@@ -14,6 +14,62 @@ export const errorSchemas = {
   }),
 };
 
+// ── LLM payload tolerance ────────────────────────────────────────────────────
+// NOTE: mirrored in artifacts/green-energy-calculator/src/lib/api.ts — keep in sync.
+// `response_format: json_object` guarantees the model returns valid JSON, but NOT
+// the shape of any value. In production `explanation` arrives as a plain string,
+// an object of labelled parts, or an array of bullets, varying between calls.
+// Normalize all three to readable text; return "" when nothing usable is present
+// so the .pipe() below FAILS the parse rather than emitting an empty explanation.
+
+function humanizeKey(key: string): string {
+  const spaced = key
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function normalizeText(value: unknown, depth = 0): string {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value === null || typeof value !== 'object' || depth > 2) return '';
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeText(item, depth + 1))
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  return Object.entries(value as Record<string, unknown>)
+    .map(([key, val]) => {
+      const text = normalizeText(val, depth + 1);
+      return text ? `${humanizeKey(key)}: ${text}` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+const llmTextSchema = z
+  .unknown()
+  .transform((value) => normalizeText(value))
+  .pipe(z.string().min(1, 'could not be normalized to readable text'));
+
+// Models also emit numbers as strings ("5000"). Accept both; reject anything that
+// is not a finite number afterwards (null/{}/"" must fail, not silently become 0).
+const llmNumberSchema = z
+  .unknown()
+  .transform((value) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed === '' ? Number.NaN : Number(trimmed);
+    }
+    // Cast keeps the inferred output `number` for .pipe(); non-numbers still fail below.
+    return value as number;
+  })
+  .pipe(z.number().refine(Number.isFinite, 'must be a finite number'));
+
 const monthlyEntrySchema = z.object({
   month: z.number(),
   name: z.string(),
@@ -73,10 +129,10 @@ export const api = {
       }),
       responses: {
         200: z.object({
-          optimalPv: z.number(),
-          optimalBattery: z.number(),
-          roiYears: z.number(),
-          explanation: z.string(),
+          optimalPv: llmNumberSchema,
+          optimalBattery: llmNumberSchema,
+          roiYears: llmNumberSchema,
+          explanation: llmTextSchema,
         }),
       },
     },
