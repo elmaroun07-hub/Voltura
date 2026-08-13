@@ -63,8 +63,24 @@ export function useOptimize() {
         body: JSON.stringify(data),
       });
 
-      if (!res.ok) throw new Error("Optimization failed");
-      return api.calculations.optimize.responses[200].parse(await res.json());
+      if (!res.ok) {
+        // The server sends readable prose (e.g. 502 invalid_model_response).
+        // Prefer it; fall back to a generic line if the body isn't JSON.
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          body?.message ?? "Optimization failed. Please try again in a moment.",
+        );
+      }
+
+      // safeParse, not parse: a ZodError's `message` is a raw JSON dump of its
+      // issues, and onError renders it into a toast. That is how validation
+      // internals ended up on screen. Log the detail, show the user prose.
+      const parsed = api.calculations.optimize.responses[200].safeParse(await res.json());
+      if (!parsed.success) {
+        console.error("[optimize] response failed validation:", parsed.error.issues);
+        throw new Error("The optimizer returned an unexpected response. Please try again.");
+      }
+      return parsed.data;
     },
     onError: (error) => {
       toast({

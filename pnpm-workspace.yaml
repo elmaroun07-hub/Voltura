@@ -4,6 +4,12 @@ packages:
   - lib/integrations/*
   - scripts
 
+# esbuild needs its postinstall to fetch the platform binary. pnpm 11 no longer
+# reads `pnpm.onlyBuiltDependencies` from package.json, so without this the CI
+# install fails with ERR_PNPM_IGNORED_BUILDS and the deploy never ships.
+allowBuilds:
+  esbuild: true
+
 autoInstallPeers: false
 
 catalog:

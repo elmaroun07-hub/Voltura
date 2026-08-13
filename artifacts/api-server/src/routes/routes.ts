@@ -6,6 +6,7 @@ import { z } from "zod/v4";
 import { registerChatRoutes } from "../replit_integrations/chat";
 import OpenAI from "openai";
 import PDFDocument from "pdfkit";
+import { parseOptimizePayload, OPTIMIZE_FAILURE_MESSAGE } from "./optimize-payload";
 import { CARBON_INTENSITY_BY_COUNTRY, type MonthlyEntry } from "@workspace/db";
 
 // Mistral exposes an OpenAI-compatible API, so we reuse the openai SDK
@@ -537,47 +538,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
       const rawContent = response.choices[0].message.content || "{}";
 
-      let rec: Record<string, unknown>;
-      try {
-        rec = JSON.parse(rawContent) as Record<string, unknown>;
-      } catch {
-        console.error("[optimize] model returned non-JSON content — raw:", rawContent);
-        return res.status(502).json({
-          message: "The optimization model returned an unusable response. Please try again.",
-          code: "invalid_model_response",
-          issues: [{ path: "", message: "response was not valid JSON" }],
-        });
-      }
+      // Coerce + validate at the boundary; never echo the model payload straight
+      // out. Zod detail goes to the logs, the client gets readable prose only.
+      const result = parseOptimizePayload(rawContent);
 
-      // Validate at the boundary. The model guarantees valid JSON, not the shape of
-      // each value, so coerce first: a string/object/array explanation and numeric
-      // strings all normalize here. Only a payload with nothing usable fails — and
-      // that returns 502 rather than a silent 200 the client chokes on later.
-      const parsed = api.calculations.optimize.responses[200].safeParse({
-        optimalPv: rec["optimal_pv_watts"] || 5000,
-        optimalBattery: rec["optimal_battery_kwh"] || 10,
-        roiYears: 7.5,
-        explanation: rec["explanation"],
-      });
-
-      if (!parsed.success) {
+      if (!result.ok) {
         console.error(
-          "[optimize] malformed model payload — raw:",
+          "[optimize] malformed model payload — reason:",
+          result.reason,
+          "| raw:",
           rawContent,
           "| issues:",
-          JSON.stringify(parsed.error.issues),
+          JSON.stringify(result.issues),
         );
         return res.status(502).json({
-          message: "The optimization model returned an unusable response. Please try again.",
+          message: OPTIMIZE_FAILURE_MESSAGE,
           code: "invalid_model_response",
-          issues: parsed.error.issues.map((issue) => ({
-            path: issue.path.join("."),
-            message: issue.message,
-          })),
         });
       }
 
-      res.json(parsed.data);
+      res.json(result.data);
     } catch (err) {
       console.error("Optimization error:", err);
       res.status(500).json({ message: "Failed to generate optimization" });
