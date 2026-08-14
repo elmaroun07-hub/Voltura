@@ -1,6 +1,42 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { execFileSync } from "child_process";
+
+/**
+ * Short git SHA of the build, resolved at build time only — no runtime cost and
+ * no new dependency.
+ *
+ * Render sets RENDER_GIT_COMMIT on all runtimes including static sites, which is
+ * what voltura-web is. The git fallback covers local builds; a shallow clone
+ * still resolves HEAD, but if git or .git is unavailable entirely we degrade to
+ * "unknown" rather than failing the build.
+ */
+function resolveBuildSha(): string {
+  const fromRender = process.env.RENDER_GIT_COMMIT;
+  if (fromRender && fromRender.trim()) return fromRender.trim().slice(0, 7);
+
+  try {
+    const sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+      cwd: import.meta.dirname,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return sha || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Replaces the __BUILD_SHA__ placeholder in index.html. */
+function buildShaPlugin(sha: string): Plugin {
+  return {
+    name: "voltura-build-sha",
+    transformIndexHtml(html: string) {
+      return html.replaceAll("__BUILD_SHA__", sha);
+    },
+  };
+}
 
 export default defineConfig(async ({ command }) => {
   const isBuild = command === "build";
@@ -39,7 +75,7 @@ export default defineConfig(async ({ command }) => {
 
   return {
     base: basePath,
-    plugins: [react(), ...replitPlugins],
+    plugins: [react(), buildShaPlugin(resolveBuildSha()), ...replitPlugins],
     css: {
       postcss: {
         plugins: [
