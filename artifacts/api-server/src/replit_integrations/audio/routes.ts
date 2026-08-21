@@ -6,10 +6,23 @@ import { openai, speechToText, ensureCompatibleFormat } from "./client";
 const audioBodyParser = express.json({ limit: "50mb" });
 
 export function registerAudioRoutes(app: Express): void {
+  // Never called - nothing imports this barrel. Kept in step with chat/routes.ts
+  // only so it typechecks and so it is not a session hole if it is ever wired up.
+  const requireSessionId = (req: Request, res: Response): string | null => {
+    const sessionId = req.get("x-session-id");
+    if (!sessionId) {
+      res.status(400).json({ error: "X-Session-Id header is required" });
+      return null;
+    }
+    return sessionId;
+  };
   // Get all conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
-      const conversations = await chatStorage.getAllConversations();
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
+      const conversations = await chatStorage.getAllConversations(sessionId);
       res.json(conversations);
     } catch (error) {
       console.error("Error fetching conversations:", error);
@@ -36,8 +49,11 @@ export function registerAudioRoutes(app: Express): void {
   // Create new conversation
   app.post("/api/conversations", async (req: Request, res: Response) => {
     try {
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
       const { title } = req.body;
-      const conversation = await chatStorage.createConversation(title || "New Chat");
+      const conversation = await chatStorage.createConversation(title || "New Chat", sessionId);
       res.status(201).json(conversation);
     } catch (error) {
       console.error("Error creating conversation:", error);
@@ -48,8 +64,11 @@ export function registerAudioRoutes(app: Express): void {
   // Delete conversation
   app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
       const id = parseInt(String(req.params.id));
-      await chatStorage.deleteConversation(id);
+      await chatStorage.deleteConversation(id, sessionId);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting conversation:", error);

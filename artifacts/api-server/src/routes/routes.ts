@@ -215,8 +215,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/calculate/:id/pdf", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const history = await storage.getHistory();
-      const calc = history.find((c) => c.id === id);
+      const calc = await storage.getCalculationById(id);
       if (!calc) { res.status(404).json({ message: "Calculation not found" }); return; }
 
       const doc = new PDFDocument({ margin: 50 });
@@ -360,6 +359,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Main calculation endpoint
   app.post(api.calculations.create.path, async (req, res) => {
     try {
+      // Header only: never defaulted, never generated server-side, never taken
+      // from the body. Absent means reject, before any work is done.
+      const sessionId = req.get("x-session-id");
+      if (!sessionId) {
+        return res.status(400).json({ message: "X-Session-Id header is required" });
+      }
+
       const input = api.calculations.create.input.parse(req.body);
 
       // Geocode location
@@ -493,6 +499,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         installationCostEur: result.installationCostEur,
         paybackYears: result.paybackYears,
         lifetimeSavingsEur: roiCurve[roiCurve.length - 1].cumulativeSavings,
+        sessionId,
       });
 
       return res.json(result);
@@ -506,8 +513,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get(api.calculations.history.path, async (req, res) => {
-    const history = await storage.getHistory();
-    res.json(history);
+    const sessionId = req.get("x-session-id");
+    if (!sessionId) {
+      return res.status(400).json({ message: "X-Session-Id header is required" });
+    }
+
+    const history = await storage.getHistory(sessionId);
+    return res.json(history);
   });
 
   app.post(api.calculations.optimize.path, async (req, res) => {

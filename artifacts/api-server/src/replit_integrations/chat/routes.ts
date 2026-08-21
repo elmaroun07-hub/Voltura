@@ -26,25 +26,54 @@ Guidelines:
 - If a question needs data the user hasn't given (annual consumption, location, tariff), ask for it briefly rather than guessing.
 - Stay on energy topics; politely redirect anything else.`;
 
+/**
+ * The session id every conversation route is scoped by. Read from the header
+ * only: never defaulted, never generated server-side, never read from the body.
+ * Absent means the request is rejected - inserting null here is what let one
+ * visitor's chat render in another's browser.
+ *
+ * Returns null and answers 400 itself so each handler is one guard clause.
+ */
+function requireSessionId(req: Request, res: Response): string | null {
+  const sessionId = req.get("x-session-id");
+  if (!sessionId) {
+    res.status(400).json({ error: "X-Session-Id header is required" });
+    return null;
+  }
+  return sessionId;
+}
+
+/** Byte-identical for "not yours" and "does not exist" - a distinguishable
+ *  response would confirm the conversation exists, which is itself the leak. */
+function notFound(res: Response) {
+  return res.status(404).json({ error: "Conversation not found" });
+}
+
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {
-      const conversations = await chatStorage.getAllConversations();
-      res.json(conversations);
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
+      const conversations = await chatStorage.getAllConversations(sessionId);
+      return res.json(conversations);
     } catch (error) {
       console.error("Error fetching conversations:", error);
-      res.status(500).json({ error: "Failed to fetch conversations" });
+      return res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
 
   // Get single conversation with messages
   app.get("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
       const id = parseInt(String(req.params.id));
       const conversation = await chatStorage.getConversation(id);
-      if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
+      if (!conversation || conversation.sessionId !== sessionId) {
+        return notFound(res);
       }
       const messages = await chatStorage.getMessagesByConversation(id);
       return res.json({ ...conversation, messages });
@@ -57,31 +86,49 @@ export function registerChatRoutes(app: Express): void {
   // Create new conversation
   app.post("/api/conversations", async (req: Request, res: Response) => {
     try {
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
       const { title } = req.body;
-      const conversation = await chatStorage.createConversation(title || "New Chat");
-      res.status(201).json(conversation);
+      const conversation = await chatStorage.createConversation(title || "New Chat", sessionId);
+      return res.status(201).json(conversation);
     } catch (error) {
       console.error("Error creating conversation:", error);
-      res.status(500).json({ error: "Failed to create conversation" });
+      return res.status(500).json({ error: "Failed to create conversation" });
     }
   });
 
   // Delete conversation
   app.delete("/api/conversations/:id", async (req: Request, res: Response) => {
     try {
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
       const id = parseInt(String(req.params.id));
-      await chatStorage.deleteConversation(id);
-      res.status(204).send();
+      const conversation = await chatStorage.getConversation(id);
+      if (!conversation || conversation.sessionId !== sessionId) {
+        return notFound(res);
+      }
+      await chatStorage.deleteConversation(id, sessionId);
+      return res.status(204).send();
     } catch (error) {
       console.error("Error deleting conversation:", error);
-      res.status(500).json({ error: "Failed to delete conversation" });
+      return res.status(500).json({ error: "Failed to delete conversation" });
     }
   });
 
   // Send message and get AI response (streaming)
   app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
     try {
+      const sessionId = requireSessionId(req, res);
+      if (!sessionId) return;
+
       const conversationId = parseInt(String(req.params.id));
+      const conversation = await chatStorage.getConversation(conversationId);
+      if (!conversation || conversation.sessionId !== sessionId) {
+        return notFound(res);
+      }
+
       const { content } = req.body;
 
       // Save user message
@@ -121,15 +168,15 @@ export function registerChatRoutes(app: Express): void {
       await chatStorage.createMessage(conversationId, "assistant", fullResponse);
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-      res.end();
+      return res.end();
     } catch (error) {
       console.error("Error sending message:", error);
       // Check if headers already sent (SSE streaming started)
       if (res.headersSent) {
         res.write(`data: ${JSON.stringify({ error: "Failed to send message" })}\n\n`);
-        res.end();
+        return res.end();
       } else {
-        res.status(500).json({ error: "Failed to send message" });
+        return res.status(500).json({ error: "Failed to send message" });
       }
     }
   });
