@@ -8,7 +8,7 @@ import { type CalculationResponse } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Leaf, TrendingUp, Sun, Download, Zap, Euro, Satellite, AlertTriangle, CalendarCheck } from "lucide-react";
+import { Leaf, TrendingUp, Sun, Download, Euro, Satellite, AlertTriangle, CalendarCheck } from "lucide-react";
 
 interface ResultsDisplayProps {
   results: CalculationResponse | null;
@@ -95,13 +95,6 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
           </div>
           <p className="font-semibold text-sm">€{(results.annualSavingsEur / Math.max(results.savingsKwh, 1)).toFixed(3)}/kWh</p>
           <p className="text-xs text-muted-foreground">→ €{results.annualSavingsEur.toFixed(0)} total</p>
-        </Card>
-        <Card className="p-4 flex flex-col gap-1">
-          <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-            <Zap className="w-3.5 h-3.5" /> Computation CO₂
-          </div>
-          <p data-testid="text-carbon-footprint" className="font-semibold text-sm">{results.carbonFootprint} mg</p>
-          <p className="text-xs text-muted-foreground">8760h sim + NASA fetch</p>
         </Card>
       </div>
 

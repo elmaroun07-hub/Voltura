@@ -8,7 +8,6 @@ export interface IStorage {
     savingsKwh: number;
     co2Reduction: number;
     annualSavingsEur?: number;
-    carbonFootprint?: number;
     renewableMix?: { solar: number; wind: number };
     monthlyData?: any[];
   }): Promise<Calculation>;

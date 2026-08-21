@@ -308,7 +308,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         ["Est. 25-Year Net Gain", `€${pdfLifetimeSav.toLocaleString()}`, "#2563eb"],
         ["CO₂ Emissions Reduced", `${(calc.co2Reduction ?? 0).toLocaleString()} kg`, "#059669"],
         ["Trees Equivalent", `${Math.round((calc.co2Reduction ?? 0) / 20)} trees/year`, "#059669"],
-        ["Computation Carbon Footprint", `${calc.carbonFootprint ?? 0} mg CO₂`, "#6b7280"],
       ];
 
       resultRows.forEach(([label, value, color], i) => {
@@ -360,7 +359,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Main calculation endpoint
   app.post(api.calculations.create.path, async (req, res) => {
-    const startTime = Date.now();
     try {
       const input = api.calculations.create.input.parse(req.body);
 
@@ -427,11 +425,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         recommendation = `Your system offsets ${solarPct}% of your energy usage, saving €${annualSavingsEur.toFixed(0)}/year. Consider increasing PV capacity to ${Math.round(input.pvWattage * 1.5)}W for better coverage.`;
       }
 
-      // Carbon footprint of computation (CodeCarbon-style)
-      const durationMs = Date.now() - startTime;
-      const cpuPowerW = 50;
-      const carbonMg = Math.max(1, Math.round((durationMs / 1000 / 3600) * cpuPowerW * (carbonIntensity * 1000)));
-
       // ROI curve: auto-estimate installation cost if not provided
       // Solar panels ~€900/kWp + battery ~€500/kWh + inverter/install €1,200 fixed
       const estimatedCost = Math.round(
@@ -468,7 +461,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         savingsKwh: Math.round(totalSavingsKwh),
         co2Reduction: Math.round(annualCo2Reduction),
         annualSavingsEur,
-        carbonFootprint: carbonMg,
         carbonIntensity,
         avgIrradiance,
         irradianceSource,
@@ -496,7 +488,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         savingsKwh: result.savingsKwh,
         co2Reduction: result.co2Reduction,
         annualSavingsEur: result.annualSavingsEur,
-        carbonFootprint: result.carbonFootprint,
         renewableMix: { solar: result.breakdown.solar + result.breakdown.battery, wind: 0 },
         monthlyData,
         installationCostEur: result.installationCostEur,

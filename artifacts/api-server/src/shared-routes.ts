@@ -91,7 +91,6 @@ export const api = {
           savingsKwh: z.number(),
           co2Reduction: z.number(),
           annualSavingsEur: z.number(),
-          carbonFootprint: z.number(),
           carbonIntensity: z.number(),
           avgIrradiance: z.number(),
           irradianceSource: z.string(),
