@@ -512,7 +512,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post(api.calculations.optimize.path, async (req, res) => {
     try {
-      const { energyPattern, location } = req.body;
+      const { energyPattern, location } = api.calculations.optimize.input.parse(req.body);
       const response = await getMistral().chat.completions.create({
         model: MISTRAL_MODEL,
         messages: [
@@ -550,6 +550,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       return res.json(result.data);
     } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.issues[0].message, field: err.issues[0].path.join(".") });
+      }
       console.error("Optimization error:", err);
       return res.status(500).json({ message: "Failed to generate optimization" });
     }
