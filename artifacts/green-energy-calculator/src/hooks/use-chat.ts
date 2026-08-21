@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { sessionFetch } from "@/lib/queryClient";
 
 // Same API base the data hooks use (VITE_API_URL); "" keeps same-origin behavior.
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -20,7 +21,7 @@ export function useChat(conversationId: number | null) {
     queryKey: ["/api/conversations", conversationId],
     enabled: !!conversationId,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/conversations/${conversationId}`);
+      const res = await sessionFetch(`${API_BASE}/api/conversations/${conversationId}`);
       if (!res.ok) return null;
       const data = await res.json();
       setMessages(data.messages || []);
@@ -36,7 +37,7 @@ export function useChat(conversationId: number | null) {
     setIsStreaming(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/conversations/${id}/messages`, {
+      const res = await sessionFetch(`${API_BASE}/api/conversations/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
@@ -83,7 +84,7 @@ export function useChat(conversationId: number | null) {
 
   const createConversation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${API_BASE}/api/conversations`, {
+      const res = await sessionFetch(`${API_BASE}/api/conversations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: "Energy Assistant Chat" }),

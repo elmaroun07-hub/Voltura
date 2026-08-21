@@ -6,6 +6,7 @@ import { ResultsDisplay } from "@/components/calculator/ResultsDisplay";
 import { useCalculate } from "@/hooks/use-calculations";
 import { type CalculationInput, type CalculationResponse, api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import { sessionFetch } from "@/lib/queryClient";
 
 export default function Home() {
   const [results, setResults] = useState<CalculationResponse | null>(null);
@@ -15,7 +16,7 @@ export default function Home() {
   const { data: history } = useQuery({
     queryKey: [api.calculations.history.path],
     queryFn: async () => {
-      const res = await fetch(api.calculations.history.path);
+      const res = await sessionFetch(api.calculations.history.path);
       if (!res.ok) throw new Error("Failed to fetch history");
       return res.json();
     },
