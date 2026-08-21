@@ -86,7 +86,7 @@ async function geocode(location: string): Promise<{ lat: number; lon: number; co
       signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) return null;
-    const data: any[] = await res.json();
+    const data = (await res.json()) as any[];
     if (!data.length) return null;
     return {
       lat: parseFloat(data[0].lat),
@@ -217,7 +217,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const id = parseInt(req.params.id);
       const history = await storage.getHistory();
       const calc = history.find((c) => c.id === id);
-      if (!calc) return res.status(404).json({ message: "Calculation not found" });
+      if (!calc) { res.status(404).json({ message: "Calculation not found" }); return; }
 
       const doc = new PDFDocument({ margin: 50 });
       res.setHeader("Content-Type", "application/pdf");
@@ -504,13 +504,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         lifetimeSavingsEur: roiCurve[roiCurve.length - 1].cumulativeSavings,
       });
 
-      res.json(result);
+      return res.json(result);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message, field: err.errors[0].path.join(".") });
+        return res.status(400).json({ message: err.issues[0].message, field: err.issues[0].path.join(".") });
       }
       console.error("Calculation error:", err);
-      res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -557,10 +557,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
 
-      res.json(result.data);
+      return res.json(result.data);
     } catch (err) {
       console.error("Optimization error:", err);
-      res.status(500).json({ message: "Failed to generate optimization" });
+      return res.status(500).json({ message: "Failed to generate optimization" });
     }
   });
 
