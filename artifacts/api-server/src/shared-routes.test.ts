@@ -12,7 +12,7 @@ import { api } from "./shared-routes";
  */
 
 const schema = api.calculations.optimize.responses[200];
-const base = { optimalPv: 5000, optimalBattery: 10, roiYears: 7.5 };
+const base = { optimalPv: 5000, optimalBattery: 10 };
 
 describe("optimize response — explanation shape tolerance", () => {
   it("(i) accepts a plain string unchanged", () => {
@@ -82,13 +82,11 @@ describe("optimize response — numeric coercion", () => {
     const result = schema.parse({
       optimalPv: "5000",
       optimalBattery: "10.5",
-      roiYears: "7.5",
       explanation: "ok",
     });
 
     expect(result.optimalPv).toBe(5000);
     expect(result.optimalBattery).toBe(10.5);
-    expect(result.roiYears).toBe(7.5);
   });
 
   it("leaves real numbers untouched", () => {
@@ -96,7 +94,6 @@ describe("optimize response — numeric coercion", () => {
 
     expect(result.optimalPv).toBe(5000);
     expect(result.optimalBattery).toBe(10);
-    expect(result.roiYears).toBe(7.5);
   });
 
   it("rejects non-numeric junk instead of silently yielding 0", () => {

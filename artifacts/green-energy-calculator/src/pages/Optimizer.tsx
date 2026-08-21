@@ -113,12 +113,6 @@ export default function Optimizer() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-accent/10 rounded-xl border border-accent/20">
-                    <p className="font-semibold text-accent-foreground mb-1">Estimated ROI</p>
-                    <p className="text-3xl font-bold text-accent-foreground">{optimizeMutation.data.roiYears} Years</p>
-                    <p className="text-xs opacity-80 mt-1">Payback period based on current local rates</p>
-                  </div>
-
                   <div className="bg-white/50 p-4 rounded-xl text-sm leading-relaxed">
                     <p className="font-medium mb-1">Analysis:</p>
                     {optimizeMutation.data.explanation}

@@ -45,7 +45,6 @@ export function parseOptimizePayload(rawContent: string): OptimizePayloadResult 
   const parsed = optimizeResponse.safeParse({
     optimalPv: rec["optimal_pv_watts"] || 5000,
     optimalBattery: rec["optimal_battery_kwh"] || 10,
-    roiYears: 7.5,
     explanation: rec["explanation"],
   });
 

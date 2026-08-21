@@ -136,7 +136,6 @@ export const api = {
         200: z.object({
           optimalPv: llmNumberSchema,
           optimalBattery: llmNumberSchema,
-          roiYears: llmNumberSchema,
           explanation: llmTextSchema,
         }),
       },
