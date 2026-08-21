@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import { useChat } from "@/hooks/use-chat";
 import { Button } from "@/components/ui/button";
@@ -8,27 +8,31 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 export function ChatInterface() {
-  const { messages, sendMessage, isStreaming, createConversation } = useChat(1); // Hardcoded ID for MVP demo
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const { messages, sendMessage, isStreaming, createConversation } = useChat(conversationId);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Initialize chat if needed
-  useEffect(() => {
-    // In a real app, we'd list conversations and select one. 
-    // Here we'll just try to ensure one exists or create it.
-    createConversation.mutate(); 
-  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const content = inputRef.current?.value;
     if (!content) return;
-    
-    sendMessage(content);
+
+    // The row is created by the first message, not by loading the page. State
+    // is not readable in this tick, so the new id goes straight to sendMessage
+    // and is reused for every later send in this session.
+    let id = conversationId;
+    if (id === null) {
+      const conversation: { id: number } = await createConversation.mutateAsync();
+      id = conversation.id;
+      setConversationId(id);
+    }
+
+    sendMessage(content, id);
     if (inputRef.current) inputRef.current.value = "";
   };
 

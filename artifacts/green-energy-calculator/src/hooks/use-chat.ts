@@ -28,8 +28,7 @@ export function useChat(conversationId: number | null) {
     },
   });
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!conversationId) return;
+  const sendMessage = useCallback(async (content: string, id: number) => {
 
     // Optimistic update
     const userMsg: Message = { id: Date.now(), role: "user", content };
@@ -37,7 +36,7 @@ export function useChat(conversationId: number | null) {
     setIsStreaming(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/conversations/${conversationId}/messages`, {
+      const res = await fetch(`${API_BASE}/api/conversations/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
@@ -78,9 +77,9 @@ export function useChat(conversationId: number | null) {
       console.error(error);
     } finally {
       setIsStreaming(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations", id] });
     }
-  }, [conversationId, queryClient]);
+  }, [queryClient]);
 
   const createConversation = useMutation({
     mutationFn: async () => {
