@@ -1,0 +1,447 @@
+{
+  "Fuengirola, Málaga, Spain": {
+    "lat": 36.5388398,
+    "lon": -4.6233974,
+    "nominatim": [
+      {
+        "place_id": 296718476,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 345414,
+        "lat": "36.5388398",
+        "lon": "-4.6233974",
+        "class": "boundary",
+        "type": "administrative",
+        "place_rank": 16,
+        "importance": 0.5257237258429168,
+        "addresstype": "city",
+        "name": "Fuengirola",
+        "display_name": "Fuengirola, Costa del Sol Occidental, Malaga, Andalusia, 29640, Spain",
+        "address": {
+          "city": "Fuengirola",
+          "county": "Costa del Sol Occidental",
+          "state_district": "Malaga",
+          "ISO3166-2-lvl6": "ES-MA",
+          "state": "Andalusia",
+          "ISO3166-2-lvl4": "ES-AN",
+          "postcode": "29640",
+          "country": "Spain",
+          "country_code": "es"
+        },
+        "boundingbox": [
+          "36.5190239",
+          "36.5896933",
+          "-4.6366187",
+          "-4.5897986"
+        ]
+      }
+    ],
+    "nasa": {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -4.623,
+          36.539,
+          144.54
+        ]
+      },
+      "properties": {
+        "parameter": {
+          "ALLSKY_SFC_SW_DWN": {
+            "202201": 2.6544,
+            "202202": 3.5544,
+            "202203": 3.5868,
+            "202204": 5.8231,
+            "202205": 7.4213,
+            "202206": 7.8293,
+            "202207": 7.5842,
+            "202208": 6.8023,
+            "202209": 5.3477,
+            "202210": 3.6223,
+            "202211": 2.963,
+            "202212": 2.1646,
+            "202213": 4.9517
+          },
+          "T2M": {
+            "202201": 13.29,
+            "202202": 14.27,
+            "202203": 14.41,
+            "202204": 15.59,
+            "202205": 19.53,
+            "202206": 22.3,
+            "202207": 25.02,
+            "202208": 25.67,
+            "202209": 22.92,
+            "202210": 20.81,
+            "202211": 17.59,
+            "202212": 16.07,
+            "202213": 18.99
+          }
+        }
+      },
+      "header": {
+        "title": "NASA/POWER Source Native Resolution Monthly and Annual",
+        "api": {
+          "version": "v2.9.8",
+          "name": "POWER Monthly and Annual API"
+        },
+        "sources": [
+          "MERRA2",
+          "SYN1DEG"
+        ],
+        "fill_value": -999,
+        "time_standard": "LST",
+        "start": "20220101",
+        "end": "20221231"
+      },
+      "messages": [],
+      "parameters": {
+        "ALLSKY_SFC_SW_DWN": {
+          "units": "kW-hr/m^2/day",
+          "longname": "All Sky Surface Shortwave Downward Irradiance"
+        },
+        "T2M": {
+          "units": "C",
+          "longname": "Temperature at 2 Meters"
+        }
+      },
+      "times": {
+        "data": 0.154,
+        "process": 0.01
+      }
+    }
+  },
+  "Tétouan, Morocco": {
+    "lat": 35.5697958,
+    "lon": -5.3746918,
+    "nominatim": [
+      {
+        "place_id": 297329172,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 2464649,
+        "lat": "35.5697958",
+        "lon": "-5.3746918",
+        "class": "boundary",
+        "type": "administrative",
+        "place_rank": 16,
+        "importance": 0.5656022813621683,
+        "addresstype": "city",
+        "name": "Tétouan تطوان",
+        "display_name": "Tétouan تطوان, Pachalik de Tétouan باشوية تطوان, Tetouan Province, Tangier-Tetouan-Al Hoceima, Morocco",
+        "address": {
+          "city": "Tétouan تطوان",
+          "county": "Pachalik de Tétouan باشوية تطوان",
+          "state_district": "Tetouan Province",
+          "ISO3166-2-lvl5": "MA-TET",
+          "state": "Tangier-Tetouan-Al Hoceima",
+          "ISO3166-2-lvl4": "MA-01",
+          "country": "Morocco",
+          "country_code": "ma"
+        },
+        "boundingbox": [
+          "35.5410698",
+          "35.6106991",
+          "-5.4303242",
+          "-5.2611430"
+        ]
+      }
+    ],
+    "nasa": {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -5.375,
+          35.57,
+          218.16
+        ]
+      },
+      "properties": {
+        "parameter": {
+          "ALLSKY_SFC_SW_DWN": {
+            "202201": 3.0017,
+            "202202": 3.8083,
+            "202203": 3.6595,
+            "202204": 5.9448,
+            "202205": 7.1587,
+            "202206": 7.6783,
+            "202207": 7.741,
+            "202208": 6.5971,
+            "202209": 5.3808,
+            "202210": 3.7769,
+            "202211": 3.0794,
+            "202212": 2.257,
+            "202213": 5.0112
+          },
+          "T2M": {
+            "202201": 12.24,
+            "202202": 13.67,
+            "202203": 13.53,
+            "202204": 14.93,
+            "202205": 20.25,
+            "202206": 23.42,
+            "202207": 26.97,
+            "202208": 26.56,
+            "202209": 23.32,
+            "202210": 22.2,
+            "202211": 17.37,
+            "202212": 15.09,
+            "202213": 19.17
+          }
+        }
+      },
+      "header": {
+        "title": "NASA/POWER Source Native Resolution Monthly and Annual",
+        "api": {
+          "version": "v2.9.8",
+          "name": "POWER Monthly and Annual API"
+        },
+        "sources": [
+          "MERRA2",
+          "SYN1DEG"
+        ],
+        "fill_value": -999,
+        "time_standard": "LST",
+        "start": "20220101",
+        "end": "20221231"
+      },
+      "messages": [],
+      "parameters": {
+        "ALLSKY_SFC_SW_DWN": {
+          "units": "kW-hr/m^2/day",
+          "longname": "All Sky Surface Shortwave Downward Irradiance"
+        },
+        "T2M": {
+          "units": "C",
+          "longname": "Temperature at 2 Meters"
+        }
+      },
+      "times": {
+        "data": 0.084,
+        "process": 0.01
+      }
+    }
+  },
+  "Tromsø, Norway": {
+    "lat": 69.6516345,
+    "lon": 18.9558585,
+    "nominatim": [
+      {
+        "place_id": 273091362,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 407754,
+        "lat": "69.6516345",
+        "lon": "18.9558585",
+        "class": "boundary",
+        "type": "administrative",
+        "place_rank": 14,
+        "importance": 0.5061380775168335,
+        "addresstype": "municipality",
+        "name": "Tromsø",
+        "display_name": "Tromsø, Troms, Norway",
+        "address": {
+          "municipality": "Tromsø",
+          "county": "Troms",
+          "ISO3166-2-lvl4": "NO-55",
+          "country": "Norway",
+          "country_code": "no"
+        },
+        "boundingbox": [
+          "69.2820889",
+          "70.1684167",
+          "17.1600465",
+          "20.0436387"
+        ]
+      }
+    ],
+    "nasa": {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.956,
+          69.652,
+          231.21
+        ]
+      },
+      "properties": {
+        "parameter": {
+          "ALLSKY_SFC_SW_DWN": {
+            "202201": 0.012,
+            "202202": 0.277,
+            "202203": 1.2372,
+            "202204": 2.8932,
+            "202205": 4.5718,
+            "202206": 5.0558,
+            "202207": 4.0555,
+            "202208": 2.73,
+            "202209": 1.6284,
+            "202210": 0.5568,
+            "202211": 0.0547,
+            "202212": 0,
+            "202213": 1.9308
+          },
+          "T2M": {
+            "202201": -5.74,
+            "202202": -9.05,
+            "202203": -1.92,
+            "202204": -1.51,
+            "202205": 4.3,
+            "202206": 10.79,
+            "202207": 12.62,
+            "202208": 11.72,
+            "202209": 6.36,
+            "202210": 2.35,
+            "202211": -3.07,
+            "202212": -7.28,
+            "202213": 1.7
+          }
+        }
+      },
+      "header": {
+        "title": "NASA/POWER Source Native Resolution Monthly and Annual",
+        "api": {
+          "version": "v2.9.8",
+          "name": "POWER Monthly and Annual API"
+        },
+        "sources": [
+          "MERRA2",
+          "SYN1DEG"
+        ],
+        "fill_value": -999,
+        "time_standard": "LST",
+        "start": "20220101",
+        "end": "20221231"
+      },
+      "messages": [],
+      "parameters": {
+        "ALLSKY_SFC_SW_DWN": {
+          "units": "kW-hr/m^2/day",
+          "longname": "All Sky Surface Shortwave Downward Irradiance"
+        },
+        "T2M": {
+          "units": "C",
+          "longname": "Temperature at 2 Meters"
+        }
+      },
+      "times": {
+        "data": 0.167,
+        "process": 0.01
+      }
+    }
+  },
+  "Almería, Spain": {
+    "lat": 36.8685739,
+    "lon": -2.3120282,
+    "nominatim": [
+      {
+        "place_id": 294981008,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "relation",
+        "osm_id": 347796,
+        "lat": "36.8685739",
+        "lon": "-2.3120282",
+        "class": "boundary",
+        "type": "administrative",
+        "place_rank": 16,
+        "importance": 0.6295518492517769,
+        "addresstype": "city",
+        "name": "Almeria",
+        "display_name": "Almeria, Andalusia, Spain",
+        "address": {
+          "city": "Almeria",
+          "province": "Almeria",
+          "ISO3166-2-lvl6": "ES-AL",
+          "state": "Andalusia",
+          "ISO3166-2-lvl4": "ES-AN",
+          "country": "Spain",
+          "country_code": "es"
+        },
+        "boundingbox": [
+          "35.9376398",
+          "37.0000125",
+          "-3.0372135",
+          "-2.2022024"
+        ]
+      }
+    ],
+    "nasa": {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -2.312,
+          36.869,
+          665.86
+        ]
+      },
+      "properties": {
+        "parameter": {
+          "ALLSKY_SFC_SW_DWN": {
+            "202201": 2.9525,
+            "202202": 3.7514,
+            "202203": 3.6182,
+            "202204": 5.6446,
+            "202205": 7.1062,
+            "202206": 7.3838,
+            "202207": 7.0421,
+            "202208": 6.4505,
+            "202209": 5.0882,
+            "202210": 3.6998,
+            "202211": 3.0036,
+            "202212": 2.3573,
+            "202213": 4.8456
+          },
+          "T2M": {
+            "202201": 8.74,
+            "202202": 10.86,
+            "202203": 10.87,
+            "202204": 12.9,
+            "202205": 19.84,
+            "202206": 24.7,
+            "202207": 27.06,
+            "202208": 26.73,
+            "202209": 23.14,
+            "202210": 19.96,
+            "202211": 14.66,
+            "202212": 12.06,
+            "202213": 17.67
+          }
+        }
+      },
+      "header": {
+        "title": "NASA/POWER Source Native Resolution Monthly and Annual",
+        "api": {
+          "version": "v2.9.8",
+          "name": "POWER Monthly and Annual API"
+        },
+        "sources": [
+          "MERRA2",
+          "SYN1DEG"
+        ],
+        "fill_value": -999,
+        "time_standard": "LST",
+        "start": "20220101",
+        "end": "20221231"
+      },
+      "messages": [],
+      "parameters": {
+        "ALLSKY_SFC_SW_DWN": {
+          "units": "kW-hr/m^2/day",
+          "longname": "All Sky Surface Shortwave Downward Irradiance"
+        },
+        "T2M": {
+          "units": "C",
+          "longname": "Temperature at 2 Meters"
+        }
+      },
+      "times": {
+        "data": 0.107,
+        "process": 0.01
+      }
+    }
+  }
+}

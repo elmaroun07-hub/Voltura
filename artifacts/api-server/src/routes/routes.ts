@@ -99,34 +99,91 @@ async function geocode(location: string): Promise<{ lat: number; lon: number; co
   }
 }
 
-// Fetch monthly irradiance + temperature from NASA POWER API
-async function fetchNasaPower(lat: number, lon: number): Promise<{ irradiance: number[]; temperature: number[] } | null> {
+/**
+ * NASA POWER keys monthly data YYYYMM. The previous code built `2022${m}` from
+ * ["JAN","FEB",...], so every one of the twelve lookups missed, and the
+ * `|| 4.0` / `|| 15.0` defaults on the read supplied fabricated values for
+ * every location on Earth while the response still reported live NASA data.
+ *
+ * The month list is explicit and is never read off the response: NASA appends
+ * YYYY13 as the annual mean, so Object.keys() would yield thirteen entries and
+ * a wrong annual figure.
+ */
+const NASA_YEAR = 2022;
+const NASA_MONTH_KEYS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+
+type NasaProbe = {
+  httpStatus: number | "not-called" | "request-failed";
+  keysRequested: string[];
+  keysPresent: string[];
+  year: number | null;
+  data: { irradiance: number[]; temperature: number[] } | null;
+};
+
+async function fetchNasaPower(lat: number, lon: number): Promise<NasaProbe> {
+  const monthKeys = NASA_MONTH_KEYS.map((mm) => `${NASA_YEAR}${mm}`);
+  const keysRequested = monthKeys.slice(0, 3);
+  const miss = (
+    httpStatus: number | "not-called" | "request-failed",
+    keysPresent: string[] = [],
+  ): NasaProbe => ({ httpStatus, keysRequested, keysPresent, year: null, data: null });
+
   try {
     const url =
       `https://power.larc.nasa.gov/api/temporal/monthly/point` +
       `?parameters=ALLSKY_SFC_SW_DWN,T2M&community=RE` +
       `&longitude=${lon.toFixed(4)}&latitude=${lat.toFixed(4)}` +
-      `&start=2022&end=2022&format=JSON`;
+      `&start=${NASA_YEAR}&end=${NASA_YEAR}&format=JSON`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return null;
+    if (!res.ok) return miss(res.status);
     const data: any = await res.json();
     const param = data?.properties?.parameter;
-    if (!param) return null;
+    if (!param) return miss(res.status);
     const irr = param["ALLSKY_SFC_SW_DWN"];
     const temp = param["T2M"];
-    if (!irr || !temp) return null;
-    const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-    const irrArr = months.map((m) => Number(irr[`2022${m}`]) || 4.0);
-    const tempArr = months.map((m) => Number(temp[`2022${m}`]) || 15.0);
-    return { irradiance: irrArr, temperature: tempArr };
+    if (!irr || !temp) return miss(res.status);
+
+    // Object.keys is deliberate and must NOT be rewritten to
+    // monthKeys.filter((k) => k in irr). This field's job is to report the
+    // shape the response actually arrived in, including a shape we did not
+    // anticipate; built from the keys we expected it would have returned []
+    // when the YYYYMM/YYYYMON mismatch was live, which is the evidence that
+    // found that defect. Diagnostic only - never feeds a calculated number.
+    const keysPresent = Object.keys(irr).slice(0, 3);
+
+    const irrArr = monthKeys.map((k) => Number(irr[k]));
+    const tempArr = monthKeys.map((k) => Number(temp[k]));
+
+    // No partial-NASA state. One non-finite month and the entire read is a
+    // miss; the caller runs the latitude fallback and reports it as such. A
+    // figure that is eleven twelfths real and one twelfth invented, labelled
+    // live, is the defect this block removes.
+    if (!irrArr.every(Number.isFinite) || !tempArr.every(Number.isFinite)) {
+      return miss(res.status, keysPresent);
+    }
+
+    return {
+      httpStatus: res.status,
+      keysRequested,
+      keysPresent,
+      year: NASA_YEAR,
+      data: { irradiance: irrArr, temperature: tempArr },
+    };
   } catch {
-    return null;
+    // A request was issued and no HTTP response came back.
+    return miss("request-failed");
   }
 }
 
 // Fallback irradiance by latitude
-function fallbackIrradiance(lat: number): { irradiance: number[]; temperature: number[] } {
-  const absLat = Math.abs(lat || 45);
+export function fallbackIrradiance(lat: number): { irradiance: number[]; temperature: number[] } {
+  // Was `Math.abs(lat || 45)`. `||` is falsy-coalescing, so it also fired at
+  // latitude 0 and silently moved the equator to 45 degrees north. Deleted, not
+  // replaced: this function receives a real latitude or it is not called.
+  if (!Number.isFinite(lat)) {
+    throw new Error(`fallbackIrradiance received a non-finite latitude: ${lat}`);
+  }
+  const absLat = Math.abs(lat);
   const baseIrr = Math.max(2.5, 6.5 - absLat * 0.06);
   const irradiance = MONTH_NAMES.map((_, i) => {
     const seasonalFactor = 1 + 0.45 * Math.cos(((i + 6) * Math.PI) / 6);
@@ -390,11 +447,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Some requests that used to "succeed" now fail here. That is the point.
       const geo = await geocode(input.location);
       if (!geo) {
+        // Provenance matters most at the moment a request cannot be served.
         return res.status(422).json({
           message:
             "We could not locate that place. Check the spelling, or try including the country - for example \"Madrid, Spain\".",
           code: "geocode_failed",
           field: "location",
+          resolution: {
+            locationInput: input.location,
+            geocodeStatus: "failed" as const,
+            lat: null,
+            lon: null,
+            irradianceSource: "not-reached" as const,
+            irradianceYear: null,
+            nasaHttpStatus: "not-called" as const,
+            nasaKeysRequested: [],
+            nasaKeysPresent: [],
+            irradianceMonthly: [],
+          },
         });
       }
 
@@ -406,11 +476,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const carbonIntensity = detectCarbonIntensity(countryFromGeo + " " + input.location);
 
       // Fetch NASA POWER data (fall back to lat-based estimate)
-      let nasaData = await fetchNasaPower(lat, lon);
-      let irradianceSource = "NASA POWER API";
+      const nasaProbe = await fetchNasaPower(lat, lon);
+      let nasaData = nasaProbe.data;
+      let irradianceSource: "nasa-live" | "fallback-lat" = "nasa-live";
       if (!nasaData) {
         nasaData = fallbackIrradiance(lat);
-        irradianceSource = "Estimated (lat-based)";
+        irradianceSource = "fallback-lat";
       }
 
       const { irradiance: irrMonthly, temperature: tempMonthly } = nasaData;
@@ -491,6 +562,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         cumulative += yearSavings;
       }
 
+      // Provenance record. Not debug logging - it stays in the response body so a
+      // user-facing number can say where its inputs came from.
+      const resolution = {
+        locationInput: input.location,
+        geocodeStatus: "resolved" as const,
+        lat: parseFloat(lat.toFixed(4)),
+        lon: parseFloat(lon.toFixed(4)),
+        irradianceSource,
+        irradianceYear: nasaProbe.year,
+        nasaHttpStatus: nasaProbe.httpStatus,
+        nasaKeysRequested: nasaProbe.keysRequested,
+        nasaKeysPresent: nasaProbe.keysPresent,
+        irradianceMonthly: irrMonthly,
+      };
+
       const result = {
         savingsKwh: Math.round(totalSavingsKwh),
         co2Reduction: Math.round(annualCo2Reduction),
@@ -508,6 +594,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         installationCostEur,
         paybackYears,
         roiCurve,
+        resolution,
       };
 
       await storage.createCalculation({
