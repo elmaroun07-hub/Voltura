@@ -384,11 +384,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const input = api.calculations.create.input.parse(req.body);
 
-      // Geocode location
+      // Geocode location. A failure used to fall through to lat 45, lon 10 -
+      // northern Italy - and produce a complete, confident result computed from
+      // a location the user never asked about, with nothing on screen saying so.
+      // Some requests that used to "succeed" now fail here. That is the point.
       const geo = await geocode(input.location);
-      const lat = geo?.lat ?? 45;
-      const lon = geo?.lon ?? 10;
-      const countryFromGeo = geo?.country ?? input.location;
+      if (!geo) {
+        return res.status(422).json({
+          message:
+            "We could not locate that place. Check the spelling, or try including the country - for example \"Madrid, Spain\".",
+          code: "geocode_failed",
+          field: "location",
+        });
+      }
+
+      const lat = geo.lat;
+      const lon = geo.lon;
+      const countryFromGeo = geo.country;
 
       // Detect carbon intensity from location
       const carbonIntensity = detectCarbonIntensity(countryFromGeo + " " + input.location);

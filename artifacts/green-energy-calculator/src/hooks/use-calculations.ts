@@ -27,7 +27,10 @@ export function useCalculate() {
       });
 
       if (!res.ok) {
-        if (res.status === 400) {
+        // 422 is the geocode failure. It carries a readable message and must
+        // reach the toast - a generic "failed" here is the invisible-wrong-answer
+        // problem in a different costume.
+        if (res.status === 400 || res.status === 422) {
           const error = await res.json();
           throw new Error(error.message || "Validation failed");
         }
