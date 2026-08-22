@@ -6,6 +6,7 @@ import { z } from "zod/v4";
 import { registerChatRoutes } from "../replit_integrations/chat";
 import OpenAI from "openai";
 import PDFDocument from "pdfkit";
+import rateLimit from "express-rate-limit";
 import { parseOptimizePayload, OPTIMIZE_FAILURE_MESSAGE } from "./optimize-payload";
 import { CARBON_INTENSITY_BY_COUNTRY, type MonthlyEntry } from "@workspace/db";
 
@@ -207,6 +208,21 @@ function simulate8760(
 
   return monthly;
 }
+
+/**
+ * /api/optimize is one of only two routes that spend money on a paid API, and
+ * it was open. Conservative on purpose: a single Mistral completion per request,
+ * and no legitimate visitor runs the optimizer ten times in a quarter hour.
+ * Keyed on IP by the library default - no custom key generator, no store, no
+ * bypass list.
+ */
+const optimizeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { message: "Too many optimization requests. Please try again later." },
+});
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerChatRoutes(app);
@@ -522,7 +538,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return res.json(history);
   });
 
-  app.post(api.calculations.optimize.path, async (req, res) => {
+  app.post(api.calculations.optimize.path, optimizeLimiter, async (req, res) => {
     try {
       const { energyPattern, location } = api.calculations.optimize.input.parse(req.body);
       const response = await getMistral().chat.completions.create({

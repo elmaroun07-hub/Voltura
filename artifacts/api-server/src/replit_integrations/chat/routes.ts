@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import OpenAI from "openai";
+import rateLimit from "express-rate-limit";
 import { chatStorage } from "./storage";
 
 // Mistral via its OpenAI-compatible endpoint. Lazy init so a missing key
@@ -48,6 +49,19 @@ function requireSessionId(req: Request, res: Response): string | null {
 function notFound(res: Response) {
   return res.status(404).json({ error: "Conversation not found" });
 }
+
+/**
+ * The other paid route: every message is a streamed Mistral completion. Higher
+ * than the optimizer because a real conversation is many turns, still far below
+ * what a script would do. Keyed on IP by the library default.
+ */
+const messageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many messages. Please try again later." },
+});
 
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
@@ -118,7 +132,7 @@ export function registerChatRoutes(app: Express): void {
   });
 
   // Send message and get AI response (streaming)
-  app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
+  app.post("/api/conversations/:id/messages", messageLimiter, async (req: Request, res: Response) => {
     try {
       const sessionId = requireSessionId(req, res);
       if (!sessionId) return;
