@@ -39,7 +39,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
     <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
       <CardHeader className="pb-6">
         <CardTitle className="text-2xl text-primary">System Parameters</CardTitle>
-        <CardDescription>Enter your details — irradiance fetched live from NASA POWER</CardDescription>
+        <CardDescription>Enter your details — irradiance from NASA POWER satellite data</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>

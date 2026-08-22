@@ -20,6 +20,36 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 const PIE_COLORS = ["#10b981", "#f59e0b", "#e2e8f0"];
 
+/**
+ * irradianceSource is a machine enum - it is the provenance record, it is
+ * asserted in the test suite, and a production watch reads it. It must never be
+ * printed raw to a person, which is what this maps.
+ *
+ * The year is taken from the response, never written as a literal here: a
+ * hardcoded "2022" in the UI would be a second source of truth for one fact,
+ * and would keep saying 2022 the day the server starts sending something else.
+ *
+ * No default branch. The switch is exhaustive over the union, so TypeScript
+ * fails the build if the enum grows; an impossible state throws rather than
+ * being quietly given a comfortable label.
+ */
+function irradianceLabel(resolution: CalculationResponse["resolution"]): string {
+  switch (resolution.irradianceSource) {
+    case "nasa-live": {
+      if (resolution.irradianceYear === null) {
+        throw new Error("nasa-live carries no irradianceYear");
+      }
+      return `NASA POWER satellite data, ${resolution.irradianceYear}`;
+    }
+    case "fallback-lat":
+      return "Estimated from latitude — NASA data unavailable";
+    case "not-reached":
+      // Unreachable on a 200: an unresolvable location returns 422 before any
+      // calculation exists to render.
+      throw new Error("irradianceSource 'not-reached' on a successful calculation");
+  }
+}
+
 export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
   if (!results) {
     return (
@@ -86,7 +116,7 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
           <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
             <Satellite className="w-3.5 h-3.5" /> Irradiance Source
           </div>
-          <p data-testid="text-irradiance-source" className="font-semibold text-sm leading-tight">{results.irradianceSource}</p>
+          <p data-testid="text-irradiance-source" className="font-semibold text-sm leading-tight">{irradianceLabel(results.resolution)}</p>
           <p className="text-xs text-muted-foreground">{results.avgIrradiance} kWh/m²/day avg</p>
         </Card>
         <Card className="p-4 flex flex-col gap-1">
