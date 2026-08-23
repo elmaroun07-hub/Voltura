@@ -70,6 +70,24 @@ const llmNumberSchema = z
   })
   .pipe(z.number().refine(Number.isFinite, 'must be a finite number'));
 
+// A1 provenance record: where each user-facing number's inputs came from.
+const resolutionSchema = z.object({
+  locationInput: z.string(),
+  geocodeStatus: z.enum(['resolved', 'failed']),
+  lat: z.number().nullable(),
+  lon: z.number().nullable(),
+  irradianceSource: z.enum(['nasa-live', 'fallback-lat', 'not-reached']),
+  irradianceYear: z.number().nullable(),
+  nasaHttpStatus: z.union([
+    z.number(),
+    z.literal('not-called'),
+    z.literal('request-failed'),
+  ]),
+  nasaKeysRequested: z.array(z.string()),
+  nasaKeysPresent: z.array(z.string()),
+  irradianceMonthly: z.array(z.number()),
+});
+
 const monthlyEntrySchema = z.object({
   month: z.number(),
   name: z.string(),
@@ -108,6 +126,7 @@ export const api = {
             cumulativeSavings: z.number(),
             netPosition: z.number(),
           })),
+          resolution: resolutionSchema,
         }),
         400: errorSchemas.validation,
       },

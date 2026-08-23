@@ -82,6 +82,24 @@ const monthlyEntrySchema = z.object({
 
 export type MonthlyEntry = z.infer<typeof monthlyEntrySchema>;
 
+// Mirrors resolutionSchema in artifacts/api-server/src/shared-routes.ts.
+const resolutionSchema = z.object({
+  locationInput: z.string(),
+  geocodeStatus: z.enum(["resolved", "failed"]),
+  lat: z.number().nullable(),
+  lon: z.number().nullable(),
+  irradianceSource: z.enum(["nasa-live", "fallback-lat", "not-reached"]),
+  irradianceYear: z.number().nullable(),
+  nasaHttpStatus: z.union([
+    z.number(),
+    z.literal("not-called"),
+    z.literal("request-failed"),
+  ]),
+  nasaKeysRequested: z.array(z.string()),
+  nasaKeysPresent: z.array(z.string()),
+  irradianceMonthly: z.array(z.number()),
+});
+
 const calculationResponseSchema = z.object({
   savingsKwh: z.number(),
   co2Reduction: z.number(),
@@ -103,6 +121,7 @@ const calculationResponseSchema = z.object({
     cumulativeSavings: z.number(),
     netPosition: z.number(),
   })),
+  resolution: resolutionSchema,
 });
 
 export type CalculationResponse = z.infer<typeof calculationResponseSchema>;

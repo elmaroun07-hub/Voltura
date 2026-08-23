@@ -44,7 +44,7 @@ export default function Home() {
               Voltura
             </motion.h1>
             <p className="text-muted-foreground max-w-xl">
-              Solar + battery savings, modeled on live NASA irradiance and real grid carbon data
+              Solar + battery savings, modeled on NASA POWER irradiance and country-level grid carbon intensity
             </p>
           </div>
         </div>
