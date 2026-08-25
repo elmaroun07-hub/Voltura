@@ -45,3 +45,34 @@ Ruling file: `contracts/rulings/block-r-gate-r3.md`.
 §14.2 reserves **any merge to `main`** and **any block that deletes files** to the
 operator, and Block R is both — 21 files, 6,967 deletions. The merge remains operator-only
 and is not taken here.
+
+---
+
+## 2026-08-25 · Gate R self-ruled CLOSED — H0 is empty
+
+Under §14.2. All five R-task criteria mechanical.
+
+Ruling file: `contracts/rulings/h-r-gate-r.md`.
+
+**Task lists amended by the reconciliation, per Gate R's own terms:**
+
+- **H0 — all ten tasks DONE.** Satisfied by `78c26d5..b9ce581`, already in production. H0's
+  fence reads "0.1–0.10, minus whatever Gate R marked DONE", so its scope is now empty.
+  The block should be closed administratively rather than opened. C4 anticipated 0.9; the
+  reconciliation finds all ten.
+- **H1 — 1.0, 1.5, 1.6, 1.7, 1.8, 1.9, 1.x OPEN; 1.1 PARTIAL; 1.3 DONE by relocation.**
+
+Two H1 tasks cannot be executed from inside the fence and need an operator decision:
+
+- **1.3** — the four `*_deploy.md` files are in `Desktopdev/`, the parent directory, not in
+  the repository. Not tracked, not shipped, not deletable from inside any fence this
+  contract defines.
+- **1.1** — LinkedIn, ENISA and Rising UP drafts are not in this repository. The in-repo
+  half (`artifacts/greencalc/templates/*`, `static/lang/*`, `docs/`) is inventoriable and
+  remains to be done.
+
+**`-999` fixture found and committed** — `contracts/fixtures/nasa-power-daily-fillvalue-20260813-20260823.json`.
+Real NASA response, unedited: `ALLSKY_SFC_SW_DWN` is `-999` on 2026-08-21/22/23 and `T2M`
+on 2026-08-23, at Fuengirola's coordinates. Caveat recorded in the ruling: it is the
+**daily** endpoint; the app calls **monthly**, and no monthly fill value was obtainable —
+the monthly endpoint rejects out-of-range periods rather than filling them.
