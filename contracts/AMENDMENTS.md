@@ -146,3 +146,18 @@ plausible number.
 **Added as a named failure mode for H1.8:** *silent partial coverage.* 1.8 must **error on
 partial coverage** and **state the period it actually used**. A mean over three years when
 five were requested, reported as five, is the same defect this contract exists to remove.
+
+---
+
+## A12 · 2026-08-25 — Block R merged; rollback target moves
+
+Merge ruling: `contracts/rulings/block-r-merge.md`. **CLOSED** (operator-approved).
+
+`main` is now **`b7f4095`**. **The rollback target in §2 is superseded: `b7f4095`, not
+`b9ce581`.** §2's table still reads `b9ce581`; fold this in when §2 is next revised.
+
+**New residue, needs an operator eye or a small task:** `voltura-api` exposes no version
+or build-sha endpoint, and Block R changed nothing observable in the API's runtime, so a
+coding session cannot prove the API container redeployed. The web `build-sha` proves the
+commit reached production; nothing proves the API did. A `/api/version` endpoint returning
+the build sha would close this permanently and belongs with H4.8's governance work.
