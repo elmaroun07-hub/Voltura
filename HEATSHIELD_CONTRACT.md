@@ -1,7 +1,7 @@
 # HeatShield — Master Execution Contract (H-series)
 
-**v1.1 · 24 August 2026 · Houssain El Marouni**
-Amended 24 Aug 2026 following two executor refusals at session open. See §13.
+**v1.2 · 24 August 2026 · Houssain El Marouni**
+Amended twice on 24 Aug 2026 — first following two refusals at session open, then following Gate H-∅. See §13.
 Authority: `heatshield-architecture-v2.md` (19 Aug 2026) + the Voltura Phase 1 remediation record (22–23 Aug 2026).
 Location: repository root. **This file is the fence. A session without it on disk has no fence.**
 
@@ -12,7 +12,7 @@ Location: repository root. **This file is the fence. A session without it on dis
 You are Claude Code executing against a written contract. This is not a task list. It is a set of gates you may not pass without evidence.
 
 - Read this file in full before your first tool call. Every session. No exceptions.
-- Work proceeds in blocks: H-∅, H-R, H0, H1, H1b, H1c, H2, H2b, H3, H4.
+- Work proceeds in blocks: H-R, H0, H1, H1b, H1c, H2, H2b, H3, H4.
 - A block does not start until its precondition block is CLOSED by a written gate ruling in `contracts/rulings/`.
 - A gate closes on evidence, never on assertion. "I fixed it" is not evidence. A diff, a failing-then-passing test, and a live-server response are evidence.
 - If this contract is wrong, refuse and say so. See §5. **Refusal is a success state, not a failure.**
@@ -72,7 +72,7 @@ These bind every block. No block-level fence may relax them. If a task appears t
 | G5 | No `\|\|` numeric default. Anywhere. Not for irradiance, not for latitude, not for temperature, not for carbon intensity, not for a rate limit. Typed error instead. This is P2 and it is the defect that cost two days. |
 | G6 | No number reaches the UI or a PDF unless a function computed it or a cited, dated source supplies it. |
 | G7 | Machine enums never render to humans. Any enum that reaches a view needs an explicit label map, and the gate must inspect the **render site**, not the type definition. A previous branch would have shown users `nasa-live`. |
-| G8 | Every gate has a rollback command, and the rollback is **executed** at the gate — not merely written down. A gate was once closed on four of five tasks because the rollback step was skipped. |
+| G8 | Every gate has a rollback command. For any block that reaches `main`, the rollback is **executed** at the gate — not merely written down. A gate was once closed on four of five tasks because the rollback step was skipped. **Amended v1.2:** for a block that has not merged, the rollback is **demonstrated available** — `main` unchanged, branch unmerged, unpushed — and not executed. Deleting a branch to satisfy a checklist destroys the block's only output and serves nothing. Executing a destructive rollback for compliance is itself a breach of G8's purpose. |
 | G9 | Tests are mutation-tested. Reintroduce the defect; prove the test fails; restore. A test that passes both ways tests nothing. |
 | G10 | No network in tests. Fixtures only. The harness must raise if a live call leaks. |
 | G11 | No new track opens until H3 ships. The repository already holds four abandoned integrations, three misleading status files and a second application. |
@@ -194,7 +194,7 @@ Things the architecture document does not say, which will break execution if not
 | C3 | Block R must land before H2. Task 2.13 (`.replit` run target) and parts of 2.3 may already be done by R1 (`913e76d`, including `scripts/post-merge.sh`, which ran unguarded `db push` on every merge) or by R2 (`84f94a1` — vite plugins, catalog entries). | **Amended v1.1:** R2 is committed. Rule Gate R3, merge Block R with `--no-ff`, execute the revert at the merge, then open H2. Do not re-do R1's or R2's deletions. |
 | C4 | Several H0/H1 tasks may already be closed by the 22–23 Aug work — notably 0.9 (the lat-45 geocode fallback: `lat \|\| 45` was deleted at Gate A2) and parts of 1.1/1.2 (a claims inventory ran at Gates B0–B1a, but only over the NASA/irradiance claims, not the GreenCalc landing, LinkedIn, or funding drafts). | H-R decides. Do not assume either way. |
 | C5 | `lib/cte` is imported by nothing — 31 zones, 279 cells, 72 passing tests, orphaned. Architecture-v2 §2 splits it: `cte-zones` and `solar-irradiation` are Layer 1 and wire in at H3; `qsol-jul` and `cte-u-limits` are Layer 2 and wait for H4. | Do not attempt to wire all four at once. That was v1's error. |
-| C6 | Task 1.8 (multi-year irradiance mean) and H1.0 (`-999` guard) touch the same code path. | One task, one branch, one gate. Do not split them across blocks. |
+| C6 | Task 1.8 (multi-year irradiance mean) and H1.0 (`-999` guard) touch the same code path. **Established at Gate H-∅ (v1.2):** `-999` is currently **latent, not live** — unreachable only because `irradianceYear` is hardcoded to a fully-processed 2022. **1.8 is what activates it.** The moment the year range becomes a parameter, incomplete or unprocessed periods become reachable and the missing guard begins fabricating numbers. | One task, one branch, one gate. This is a **safety ordering**, not a convenience. If 1.8 ever ships without 1.0, the product resumes fabricating — the `4.0` defect again, with a different constant. Do not split them. Do not let 1.8 land first "just to unblock". |
 | C7 | The Optimizer quotes its own priors (~5.5 for Tétouan where the site computed 5.01) — a P3 violation shipping today, addressed only at 4.7. | Note it in H1c's inventory as a known-open claim. Do not fix it early; it needs `simulate8760()` extracted (2.11) first. |
 
 ---
@@ -231,7 +231,7 @@ Added in v1.1 because §0 requires this contract at the repository root, §6 req
 - **R.1** Diff `78c26d5..b9ce581`. List every architecture-v2 task the diff already satisfies.
 - **R.2** For each of H0.1–0.10 and H1.1–1.9, mark: DONE / PARTIAL / OPEN — each with `file:line` or a live response as evidence.
 - **R.3** Confirm the state of `phase1/block-r-replit`: what R1 deleted, what R2 holds.
-- **R.4** Confirm `-999` is unguarded on the live API. Evidence: a request whose response shows the path is reachable.
+- **R.4** **Amended v1.2.** Confirm `-999` is unguarded, and establish its **reachability condition**. Three parts: (i) static proof of the missing guard — `Number.isFinite(-999) === true`, no explicit rejection at the parse site, with `file:line`; (ii) a live response proving `irradianceMonthly` reaches the user unfiltered; (iii) a written reachability condition — under what input a fill value enters, and why the current hardcoded `irradianceYear` prevents it today. **No live `-999` sighting is required, because none is obtainable.** The value cannot enter through any user-controlled path while the year is hardcoded to a fully-processed 2022. Do not present a reachability proof as a sighting. **Separate deliverable — the fixture.** Query NASA POWER directly, not through the app, as Gate A1 corroborated Fuengirola at 2.6544. Recent unprocessed periods are the most likely source of a fill value; verify that, do not assume it. A location and period that genuinely returns `-999` becomes a permanent regression fixture for H1.0. G10 still holds — the test consumes the fixture, never the network. **Finding that pair is R.4's most valuable output.**
 - **R.5** Confirm which of the four `lib/cte` modules are imported by anything.
 
 **Failure modes.** Assuming a task is done because it appears in a commit message. Booting the server and triggering DDL. Reporting "no issues found" without naming what was checked.
@@ -451,3 +451,10 @@ These belong to the operator. Do not resolve them by choosing.
 | A3 | H-R's fence forbade all writes while §0 required the contract on disk and §6 required ruling files | Upheld — contract error. New block H-∅ added; H-R's fence narrowed to source, schema, config and dependencies. This is the same self-contradiction as Gate A0 (§2.2 forbidding DB writes while §2.6 required a live check), repeated. |
 | A4 | No `contracts/` directory; no gate has ever been recorded on disk | Upheld. H-∅.3 backfills an honest index. §6 forbids reconstructing evidence that was never captured. |
 | A5 | "Clean under the two permitted exclusions" — exclusions unnamed | New rule. §6: deletion blocks list exclusions by path. G4 is the reason. |
+
+**v1.2 — 24 August 2026, after Gate H-∅.** Two amendments, both raised by the executor and both upheld.
+
+| # | Raised | Ruling |
+|---|---|---|
+| A6 | G8 requires executing the rollback at every gate; for H-∅ that meant deleting the branch holding the block's only output. Flagged rather than skipped silently. | Upheld — contract defect. G8 scoped to blocks that reach `main`. Pre-merge blocks demonstrate the rollback is available rather than executing it. Executing a destructive rollback for compliance breaches G8's purpose. |
+| A7 | R.4 demands live evidence of `-999`, but no location with a missing month is known, and a reachability proof is not a sighting. | Upheld — task defect. R.4 rewritten in three parts, live sighting dropped as unobtainable. The finding underneath it stands on the record: `-999` is latent because `irradianceYear` is hardcoded to 2022. C6 amended accordingly — 1.8 *activates* the defect, so the pairing is a safety ordering. |
