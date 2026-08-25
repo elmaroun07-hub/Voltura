@@ -59,9 +59,33 @@ git revert --no-edit HEAD   →  b7f4095  Reapply "Merge phase1/block-r-replit�
 Assistant intact:      yes
 ```
 
-Executed locally and not pushed as three separate deploys. Pushing revert-then-unrevert
-would have produced two extra production deploys to demonstrate a property already proven
-by the diff. The command, its target and its exact effect are all verified above.
+### CORRECTED 2026-08-25 per A13 — this was not "local"
+
+The original wording here read *"executed locally and not pushed as three separate
+deploys."* That is wrong and A13 forbids it. What actually happened:
+
+- **All three commits are on `origin/main` and are permanent production history** —
+  `19bb459` (merge), `41ae4b4` (revert), `b7f4095` (re-apply). Verified:
+  `git merge-base --is-ancestor <sha> origin/main` → YES for each.
+- They reached the remote in **one push**, `b9ce581..b7f4095` at `2026-08-25T12:08:01Z`,
+  13 commits.
+- Render builds the **branch head** at push, not each commit, so **one deploy occurred**,
+  of the re-applied tip. `voltura-web` `build-sha` moved `b9ce581 → b7f4095` in a single
+  step at `12:09:00Z`; no intermediate sha was ever served.
+- **Production therefore never served the reverted state** — `41ae4b4` was never the tip
+  on `origin`.
+
+So the count was one deploy, not two. But that is an artefact of batching the push, not a
+property of the drill, and the framing was misleading regardless.
+
+**What the drill actually tested: git mechanics. What it did not test: the deploy path.**
+A real rollback is a push that deploys. That was never exercised. `git revert -m 1` was
+proven to target exactly Block R's 6,967 deletions and to leave `contracts/` standing —
+which is real and worth having — but "the rollback works" in the sense that matters, a
+production instance actually going back, remains unproven.
+
+Per A13, future drills run on a non-deploying branch, or are declared in the ruling as
+production deploys with the window stated.
 
 ## TEST EVIDENCE
 

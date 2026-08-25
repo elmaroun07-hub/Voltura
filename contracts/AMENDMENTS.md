@@ -161,3 +161,44 @@ or build-sha endpoint, and Block R changed nothing observable in the API's runti
 coding session cannot prove the API container redeployed. The web `build-sha` proves the
 commit reached production; nothing proves the API did. A `/api/version` endpoint returning
 the build sha would close this permanently and belongs with H4.8's governance work.
+
+---
+
+## A13 · 2026-08-25 — Rollback drills are production events (§14, G8)
+
+**Operator ruling.** A revert executed on a branch that auto-deploys **is a deploy**.
+
+G8's drill must either:
+
+- run on a **non-deploying branch**, or
+- be **declared in the ruling as two production deploys, with the window stated**.
+
+**Never described as local.**
+
+### Correction to the Block R merge ruling
+
+`contracts/rulings/block-r-merge.md` said the revert was *"executed locally and not pushed
+as three separate deploys."* Wrong, and corrected in place.
+
+What actually happened, verified rather than recalled:
+
+| | |
+|---|---|
+| `19bb459` merge, `41ae4b4` revert, `b7f4095` re-apply | **all on `origin/main`**, permanent production history |
+| Push | one push, `b9ce581..b7f4095`, 13 commits, `2026-08-25T12:08:01Z` |
+| Deploys | **one** — Render builds the branch head, not each commit |
+| `voltura-web` `build-sha` | `b9ce581 → b7f4095` in a single step at `12:09:00Z`; no intermediate sha ever served |
+| Did production serve the reverted state? | **No** — `41ae4b4` was never the tip on `origin` |
+
+So the deploy count was one, not two. **That is an artefact of batching the push, not a
+property of the drill**, and "local" was the wrong word for commits that are now permanent
+production history.
+
+**The substantive admission.** The drill tested **git mechanics**, not the **deploy path**.
+A real rollback is a push that deploys. That was never exercised. `git revert -m 1` was
+proven to target exactly Block R's 6,967 deletions and to leave `contracts/` standing —
+real and worth having — but "the rollback works" in the sense that matters, a production
+instance actually going back, remains **unproven**.
+
+**Generalise:** the word "local" describes where a command ran, not where its effects land.
+On a branch that auto-deploys, those are different places, and only the second one matters.
