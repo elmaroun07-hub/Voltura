@@ -13,9 +13,6 @@ allowBuilds:
 autoInstallPeers: false
 
 catalog:
-  '@replit/vite-plugin-cartographer': ^0.5.1
-  '@replit/vite-plugin-dev-banner': ^0.1.1
-  '@replit/vite-plugin-runtime-error-modal': ^0.0.6
   '@tailwindcss/vite': ^4.1.14
   '@tanstack/react-query': ^5.90.21
   '@types/node': ^25.3.3
@@ -37,10 +34,6 @@ catalog:
   zod: 3.25.76
 
 minimumReleaseAge: 1440
-
-minimumReleaseAgeExclude:
-  - '@replit/*'
-  - stripe-replit-sync
 
 onlyBuiltDependencies:
   - '@swc/core'
@@ -106,7 +99,6 @@ overrides:
   lightningcss>lightningcss-linux-x64-musl: '-'
   lightningcss>lightningcss-win32-arm64-msvc: '-'
   lightningcss>lightningcss-win32-x64-msvc: '-'
-  # Replit scaffolding from e262bd9; not a fix for any install failure.
   # Redundant: @rollup/rollup-* are optionalDependencies with os/cpu constraints, so pnpm already installs only the matching platform.
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
