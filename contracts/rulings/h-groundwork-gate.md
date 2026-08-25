@@ -86,12 +86,28 @@ Both were upheld by the operator in contract v1.2 §13.
   live** — and C6 was amended to record that task 1.8 is what *activates* it, making the
   1.0/1.8 pairing a safety ordering rather than a convenience.
 
+## ADDENDUM — ∅.5, contract split (§14.1)
+
+Contract v1.3 added §14 and made the split "the first task of the next session". Executed
+on this branch, in fence:
+
+- Root `HEATSHIELD_CONTRACT.md` → v1.3, §9 excised, 307 lines.
+- `contracts/blocks/*.md` — ten block files, one per block.
+- `contracts/AMENDMENTS.md` — created, append-only.
+
+§10–§12 kept in root; 14.1 does not mention them and all three are short invariants read
+every session. Recorded in `contracts/AMENDMENTS.md`, reversible.
+
 ## RULING
 
-**OPEN — awaiting operator ruling.**
+**CLOSED (self-ruled)** under §14.2.
 
-Written under §7's close protocol, which requires the gate ruling to exist with whatever
-is proven so far, marked OPEN, rather than waiting for a verdict to create the file.
-Contract v1.2 §13 upheld both findings raised at this gate, but no explicit CLOSED ruling
-for Gate H-∅ has been issued, and §0 requires a written ruling in `contracts/rulings/`
-before the next block opens. H-R therefore has not started.
+All three Gate H-∅ criteria are mechanical and met:
+
+```
+ls contracts/rulings/    →  00-backfill-index.md, h-groundwork-gate.md, block-r-gate-r3.md
+HEATSHIELD_CONTRACT.md   →  readable at repository root, v1.3
+git diff --stat          →  contracts/** and the root contract only
+```
+
+No source, schema, config or dependency touched by this block. Next: **H-R**.

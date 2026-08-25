@@ -1,7 +1,7 @@
 # HeatShield — Master Execution Contract (H-series)
 
-**v1.2 · 24 August 2026 · Houssain El Marouni**
-Amended twice on 24 Aug 2026 — first following two refusals at session open, then following Gate H-∅. See §13.
+**v1.3 · 24 August 2026 · Houssain El Marouni**
+Amended three times on 24 Aug 2026. See §13. **§14 governs process cost and overrides any procedure above it that costs more than it protects.**
 Authority: `heatshield-architecture-v2.md` (19 Aug 2026) + the Voltura Phase 1 remediation record (22–23 Aug 2026).
 Location: repository root. **This file is the fence. A session without it on disk has no fence.**
 
@@ -201,218 +201,17 @@ Things the architecture document does not say, which will break execution if not
 
 ## 9. The blocks
 
-Each block carries: fence (in and out of scope), precondition, tasks, failure modes, gate, rollback.
-
-### H-∅ — Groundwork · first, and it is ten minutes
-
-Added in v1.1 because §0 requires this contract at the repository root, §6 requires ruling files, and H-R's original fence forbade all writes. Those three could not hold together. This block resolves it.
-
-**Fence.** In: creating `contracts/` and `contracts/rulings/`, writing this contract to the repository root, writing the backfill index. Out: every source file, every schema, every config, every dependency. Branch: `heatshield/h-groundwork` — G1 still applies.
-
-**Tasks**
-
-- **∅.1** Create `contracts/` and `contracts/rulings/`.
-- **∅.2** Write this contract to the repository root as `HEATSHIELD_CONTRACT.md`.
-- **∅.3** Write `contracts/rulings/00-backfill-index.md` per §6's backfill rule — index only, marked retroactive.
-- **∅.4** Commit. Do not merge yet; it can ride with Block R or land on its own.
-
-**Failure modes.** Reconstructing evidence for gates that closed in chat. Touching anything outside `contracts/` and the root contract file. Merging to `main`.
-
-**Gate H-∅.** `ls contracts/rulings/` returns the index. The contract is readable at the repository root. `git diff --stat` shows changes to those paths and nothing else.
-
-**Rollback.** `git branch -D heatshield/h-groundwork` — nothing shipped, nothing to revert.
-
-### H-R — Reconcile · blocking for the H-series, opens after H-∅
-
-**Fence.** Read-only with respect to source, schema, configuration and dependencies. The block's own ruling file under `contracts/rulings/` is the sole permitted write — amended in v1.1; the original "no writes of any kind" contradicted §0 and §6. No DDL — and therefore, per G3, **no server boot**; `index.ts:23` calls `ensureChatTables()` before `listen()`. Use static inspection and the deployed Render URL, never a local listen.
-
-**Tasks**
-
-- **R.1** Diff `78c26d5..b9ce581`. List every architecture-v2 task the diff already satisfies.
-- **R.2** For each of H0.1–0.10 and H1.1–1.9, mark: DONE / PARTIAL / OPEN — each with `file:line` or a live response as evidence.
-- **R.3** Confirm the state of `phase1/block-r-replit`: what R1 deleted, what R2 holds.
-- **R.4** **Amended v1.2.** Confirm `-999` is unguarded, and establish its **reachability condition**. Three parts: (i) static proof of the missing guard — `Number.isFinite(-999) === true`, no explicit rejection at the parse site, with `file:line`; (ii) a live response proving `irradianceMonthly` reaches the user unfiltered; (iii) a written reachability condition — under what input a fill value enters, and why the current hardcoded `irradianceYear` prevents it today. **No live `-999` sighting is required, because none is obtainable.** The value cannot enter through any user-controlled path while the year is hardcoded to a fully-processed 2022. Do not present a reachability proof as a sighting. **Separate deliverable — the fixture.** Query NASA POWER directly, not through the app, as Gate A1 corroborated Fuengirola at 2.6544. Recent unprocessed periods are the most likely source of a fill value; verify that, do not assume it. A location and period that genuinely returns `-999` becomes a permanent regression fixture for H1.0. G10 still holds — the test consumes the fixture, never the network. **Finding that pair is R.4's most valuable output.**
-- **R.5** Confirm which of the four `lib/cte` modules are imported by anything.
-
-**Failure modes.** Assuming a task is done because it appears in a commit message. Booting the server and triggering DDL. Reporting "no issues found" without naming what was checked.
-
-**Gate R.** A written reconciliation table for all twenty tasks, each with evidence. The contract's task lists are amended by this table before H0 opens.
-
-**Rollback.** None needed. If any write landed outside `contracts/rulings/`, that is a fence breach: report it under §5.
-
-### H0 — Stop the bleeding · week 1
-
-**Fence.** In: 0.1–0.10, minus whatever Gate R marked DONE. Out: anything cosmetic, any refactor, any new feature. Branch: `heatshield/h0`.
-
-| # | Task |
-|---|---|
-| 0.1 | Replace `useChat(1)` with a session-scoped conversation id |
-| 0.2 | Authorize `GET`/`DELETE /api/conversations/:id` |
-| 0.3 | Stop the orphan-row leak in `ChatInterface` |
-| 0.4 | Scope `/history` to the requesting session |
-| 0.5 | Delete the "Estimated ROI — 7.5 Years" card |
-| 0.6 | Lock CORS to the known web origin |
-| 0.7 | Rate-limit `/api/optimize` and chat |
-| 0.8 | Apply the existing Zod schema on `/api/optimize` |
-| 0.9 | Remove the silent geocode fallback — typed error, never lat 45 / lon 10 |
-| 0.10 | Remove "Computation CO₂" — duration × 50 W × carbonIntensity floored at 1 mg is fabricated |
-
-**Specific constraints.** 0.1–0.4 are live personal-data exposure on a public URL, and the intended buyer is governed by public-sector data-protection obligations. Treat them as the highest-priority items in the entire contract. 0.9 and 0.10 are the clearest P1/P2 violations currently shipping.
-
-**Failure modes.** Fixing the type but not the render site (G7). Adding a rate limit whose fence you carried from a different route without checking — that error has been made. Replacing a silent fallback with a quieter fallback instead of an error.
-
-**Gate H0.** Two browsers in different sessions cannot see each other's data — demonstrated live, two real sessions, response bodies shown. No displayed number is a constant — demonstrated by grep plus a rendered screenshot or DOM dump. Mutation evidence for each new test.
-
-**Rollback.** `git revert -m 1 <merge>` — executed at the gate, output pasted, then re-applied.
-
-### H1 — Truth · week 2
-
-**Fence.** In: H1.0 plus 1.1–1.9. Out: `lib/emissions` (that is H1b), the claims takedown (H1c). Branch: `heatshield/h1`.
-
-| # | Task |
-|---|---|
-| 1.0 | `-999` guard. NASA's fill value is finite and passes the current check. Reject it explicitly, as a typed error, not a substitution. Harvest the filter from `artifacts/greencalc/models/energy_model.py`. C1, C2. |
-| 1.8 | Multi-year irradiance. 2022-only is not a climate normal. Move to a multi-year mean; state the period in the output and in the PDF. Same branch as 1.0 — C6. |
-| 1.1 | Claims inventory across app, GreenCalc landing, LinkedIn, and any ENISA or Rising UP draft (scope check: Gate B0–B1a covered only NASA claims) |
-| 1.3 | Delete `RATELIMIT_deploy.md`, `NASA_CACHE_deploy.md`, `POSTGRES_SWAP_deploy.md`, `VOLTURA_fix3b_fix6_patch.md` |
-| 1.5 | Fix the substring match resolving "Indianapolis" to India |
-| 1.6 | Correct the stale `ZONE_BY_PROVINCE_ALTITUDE` comment |
-| 1.7 | GitHub Actions running the TypeScript suites on push |
-| 1.9 | Remove `CARBON_INTENSITY_BY_COUNTRY` from `lib/db/src/schema/schema.ts` |
-| 1.x | Salvage `artifacts/greencalc/static/lang/es.json` into the repo proper before H2 archives it. C2. |
-
-**Specific constraints.** 1.0 must fail loudly on `-999`, never substitute. 1.8 must not hardcode the new period either — the year range is a parameter with a stated default, and the output states which period it used. 1.9: emissions constants do not belong in a schema package, and moving them is not the same as fixing them (that is H1b).
-
-**Failure modes.** Guarding `-999` at one call site and not the others. Changing the year range but leaving `irradianceYear` hardcoded somewhere else. Salvaging `es.json` into a location nothing will find at H2b.
-
-**Gate H1.** A live request against a location with a known missing month returns a typed error and no number. A live request against Fuengirola returns a multi-year figure with the period stated in the response and in the generated PDF. Mutation-tested: reintroduce `-999` acceptance, prove the test fails. Full suite green.
-
-**Rollback.** `git revert -m 1 <merge>`, executed.
-
-### H1b — lib/emissions · week 2
-
-**Fence.** In: the module, its tests, its wiring. Out: the UI copy that quotes CO₂ — that is H1c. Branch: `heatshield/h1b`.
-
-**Tasks.** Build to `lib/cte`'s standard.
-
-- Store authority, edition, activity year, unit, GdO treatment, scope. Never a bare number.
-- Seed: MITECO official workbook, revised 7 May 2026 — Mix sin GdO 0.283 kg CO₂e/kWh (activity year 2024), 0.258 (2025). Series back to 2007.
-- Render as: `MITECO 2026-edition factor, activity year 2024: 0.283 kg CO₂e/kWh, Mix sin GdO`.
-- Throw on unknown jurisdiction. No 400 default. No 0.4 default. G5.
-- Country comes from the geocoder's structured response, never substring matching (see 1.5).
-- Morocco: no national authority publishes a citable factor. Either label explicitly as non-Moroccan-authority data, or omit the market. Do not silently keep 0.543 or 638 g.
-- The factor is a parameter, not a constant — the correct one depends on the accounting protocol a programme or contract specifies.
-
-**Failure modes.** Replacing two wrong constants with one wrong constant. Keeping a fallback "for safety" — that is the defect class this whole contract exists to remove. Rendering the bare number without the provenance string (G7's cousin: provenance is part of the value).
-
-**Gate H1b.** Every emissions figure in the codebase resolves through this module — proven by grep showing no other source. An unknown jurisdiction throws, demonstrated live. The rendered string carries authority and year. **Until this gate closes, quote no CO₂ figure publicly, anywhere.**
-
-### H1c — Claims inventory · week 2
-
-**Fence.** In: taking claims down. Out: writing new marketing. Branch: `heatshield/h1c`.
-
-**Must come down** (architecture-v2 §7): the "8760-hour hour-by-hour" claim, "adjusted for your panel tilt and orientation", "1.5% annual inflation", "35+ countries", "EU AI Act — Fully compliant", the hardcoded ROI, "Typical Daily Usage Pattern", the chat prompt's compliance assertion, "Computation CO₂", any post-timeout location result, any Python test count, and any CO₂ factor until H1b closes.
-
-**Language discipline — enforce in code and copy:**
-
-| Never say | Say instead |
-|---|---|
-| "Summer is unregulated in Spain" | "Solar-control compliance is not the same as knowing whether a dwelling is dangerously hot for the person in it" |
-| "HeatShield grade" / "habitability rating" | "Screening index, benchmarked to recognised methods" |
-| "TM59-compliant" | "Benchmarked against CIBSE TM59" |
-| "We calculate indoor temperature" | "We prioritise; assessment follows survey" |
-| "38% of southern Spanish social housing overheats" | Nothing — that figure is [REPORTED] from an abstract |
-
-**Specific constraint.** `qsol;jul` is a real obligation with real limits — 2.00 kWh/m²·month private residential, 4.00 other uses, for reforms renewing more than 25% of the thermal envelope. Anyone at AVRA knows this. Claiming summer is unregulated loses the room in one sentence.
-
-**IP flag.** CIBSE TM52/TM59 numerical thresholds in the research came from secondary reproductions, not licensed documents. Citing TM59 as a technical reference is fine. Reproducing its pass/fail criteria inside a commercial product is a licensing question to resolve before it reaches code. Flag it at H4; do not code it now.
-
-**Gate H1c.** Every row of the inventory is either removed from the deployed UI or has a code path proving it — checked against the live URL, not the local build. Grep for the P7 words returns nothing in code or rendered output.
-
-### H2 — Consolidate · weeks 3–5
-
-**Precondition.** Block R merged (C3). `es.json` and the greencalc `-999`/multi-year logic already salvaged in H1 (C2).
-
-**Fence.** In: 2.1–2.13. Out: any new capability. Branch: `heatshield/h2`.
-
-**Tasks.** Architecture-v2 §8, with these amendments:
-
-- **2.3** is scoped to the unregistered `audio`/`image`/`batch` subpackages only. **G4 governs. Do not touch the Assistant.**
-- **2.1** archives `artifacts/greencalc/` — only after C2's salvage is committed. Tag `greencalc-final` first.
-- **2.11** — extract `simulate8760()` out of `routes/routes.ts` (568 lines: geocoder, NASA client, PDF generator, optimize handler, all in one file). H4.7 must call it from a grid search; it has to be a module first.
-- **2.13** may already be satisfied by R1 — check before acting.
-
-**On ML.** Synthetic-data models go; a model trained on `default_rng(42)` cannot be defended to a public buyer. What survives is the architecture: `ML_TRAINING_BOUNDS` and the boundary-violation guard, the model-card endpoint shape, the confidence-interval rendering path, the audit fields recording model version and fallback. Port those to TypeScript as scaffolding with no model behind them. When customer data arrives under contract, the harness is already built and already compliant.
-
-**Failure modes.** Deleting the Assistant under a "replit" grep — the single most expensive available mistake. Deleting greencalc before the salvage lands. Extracting `simulate8760()` without a characterisation test proving identical output before and after.
-
-**Gate H2.** Repository builds, full suite green, api-server still reports 36 tests including the 9 Assistant tests. `simulate8760()` produces byte-identical output from its new module, proven by a fixture comparison against pre-extraction output.
-
-### H2b — Spanish · set up during H2, enforced from H3 commit one
-
-**Fence.** In: i18n infrastructure, locale files, domain vocabulary. Out: translating screens that H3 has not built yet. Branch: `heatshield/h2b`.
-
-Every screen, label, PDF, error message and system prompt in this repository is in English. The buyer is a Spanish regional administration. This is a procurement precondition, not polish — retrofitting i18n after the UI is built costs several times what building with it costs.
-
-| # | Task |
-|---|---|
-| 2b.1 | i18n in place before H3 starts. Spanish is the default locale; English is the translation. |
-| 2b.2 | Salvaged `es.json` strings loaded (from C2) |
-| 2b.3 | Domain vocabulary from official usage — *pobreza energética*, *rehabilitación*, *parque de viviendas*, *viviendas difíciles de refrigerar*, *cribado*. Taken from the Andalusian heat-health plan and the CTE, not translated. |
-| 2b.4 | Assessment and screening PDFs in Spanish, with Spanish number and date formatting |
-| 2b.5 | Assistant system prompt in Spanish, if the Assistant survives into the HeatShield product |
-
-**Gate H2b.** A new string added anywhere fails the build if it has no Spanish entry. Demonstrated by adding one and showing the failure.
-
-### H3 — Layer 1 · weeks 5–10 · this is the product
-
-**Precondition.** H2b closed. Spanish from commit one — not retrofitted.
-
-**Fence.** In: 3.1–3.10. Out: `qsol;jul`, U-value checks, surveys, accounts — all H4. G11: no other track opens during H3.
-
-| # | Task |
-|---|---|
-| 3.1 | PostGIS. Ingest Catastro INSPIRE municipal WFS — parcels, buildings, addresses |
-| 3.2 | Derive façade orientation from geometry. Record as inferred, not sourced |
-| 3.3 | Resolve CTE climate zone per building via `cte-zones` (province + altitude) |
-| 3.4 | Join `solar-irradiation` July values by zone and derived orientation |
-| 3.5 | Ingest INE Censo 2021 section-level indicators |
-| 3.6 | Ingest IECA 250 m energy-efficiency grid as regional EPC prior |
-| 3.7 | Define the index. Climate severity × orientation exposure × age-band envelope proxy × EPC prior × vulnerability proxy. Every weight documented and justified |
-| 3.8 | Completeness model. Each building carries which inputs were present. Score renders with bands, never a bare number |
-| 3.9 | Portfolio view — ranking, filtering, aggregate gap, export |
-| 3.10 | Methodology document — inputs, weights, sources, limitations, what the index is not |
-
-**Specific constraints.**
-
-- Only `cte-zones` and `solar-irradiation` wire in here. `qsol-jul` and `cte-u-limits` need survey data that does not exist at portfolio scale — C5.
-- **NOT AVAILABLE** from any public register, at any price: glazed area, frame fraction, glazing solar factor, shading devices, window operation, night ventilation, internal gains, indoor temperature. If a task seems to need one of these, it belongs in H4. Refuse.
-- Uncertainty is a first-class output, not a footnote. Cadastral-only scores wide. EPC record narrows. Survey collapses to a computed `qsol;jul` in H4.
-- **P7 is absolute here.** Never "grade", "rating", or "compliance result" — in code, in the UI, in the PDF, in the methodology document.
-- 3.10 is not documentation-after-the-fact. It is the deliverable a public body evaluates. Write it alongside the code.
-- Design the methodology so it can be swapped, not assumed permanent. A national technical rule could arrive and define this thing.
-
-**Gate H3.** A municipality's building stock loads, ranks, and every score traces to its inputs and its uncertainty — demonstrated live on one named municipality, one named building, end to end.
-
-### H4 — Layer 2 and governance · weeks 10–14
-
-**Fence.** In: 4.1–4.9. Out: anything not in that list. Branch: `heatshield/h4`.
-
-| # | Task |
-|---|---|
-| 4.1 | Survey input form — openings, areas, frame fraction, glazing factor, shading, floor area |
-| 4.2 | Run `calculateQsolJul`. Surface `MissingIrradiationError` and siblings as real UI states — the refusal is the feature |
-| 4.3 | U-value check via `cte-u-limits` |
-| 4.4 | Assessment report PDF — inputs, computation, formula, citation, verdict, timestamp, data vintage |
-| 4.5 | Verify the irradiation tables against the ministry PDF. Record when, by whom |
-| 4.6 | `CONSTRUCTION_DEFAULTS` — fill, or require caller-supplied. Not a TODO |
-| 4.7 | Rebuild the Optimizer under P3 — grid search over `simulate8760()` computes; the LLM explains only. Requires 2.11 |
-| 4.8 | Governance layer — audit log, override record, feedback, token-gated audit endpoint, data-deletion path |
-| 4.9 | Accounts and roles |
-
-**Specific constraints.** 4.5 is the item a procurement process will actually test: *word geometry, two independent passes, 279 cells agreeing, nothing hand-typed* is specific and falsifiable, which is why it is credible. Verify it and it becomes the strongest sentence in the technical documentation. 4.7 closes the P3 violation flagged at C7. Resolve the TM59 licensing question (H1c) before any threshold reaches code.
-
-**Gate H4.** A surveyed dwelling produces a computed `qsol;jul` against the correct limit, with a PDF carrying formula and citation — and a dwelling with missing inputs produces a refusal state in the UI, not a number.
+**Split out under §14.1.** One file per block at `contracts/blocks/<block>.md`:
+
+| Block | File | Block | File |
+|---|---|---|---|
+| H-∅ | `h-groundwork.md` | H1c | `h1c.md` |
+| H-R | `h-r.md` | H2 | `h2.md` |
+| H0 | `h0.md` | H2b | `h2b.md` |
+| H1 | `h1.md` | H3 | `h3.md` |
+| H1b | `h1b.md` | H4 | `h4.md` |
+
+Session open reads: this file + the current block file + the latest ruling. Never all ten.
 
 ---
 
@@ -458,3 +257,51 @@ These belong to the operator. Do not resolve them by choosing.
 |---|---|---|
 | A6 | G8 requires executing the rollback at every gate; for H-∅ that meant deleting the branch holding the block's only output. Flagged rather than skipped silently. | Upheld — contract defect. G8 scoped to blocks that reach `main`. Pre-merge blocks demonstrate the rollback is available rather than executing it. Executing a destructive rollback for compliance breaches G8's purpose. |
 | A7 | R.4 demands live evidence of `-999`, but no location with a missing month is known, and a reachability proof is not a sighting. | Upheld — task defect. R.4 rewritten in three parts, live sighting dropped as unobtainable. The finding underneath it stands on the record: `-999` is latent because `irradianceYear` is hardcoded to 2022. C6 amended accordingly — 1.8 *activates* the defect, so the pairing is a safety ordering. |
+
+**v1.3 — 24 August 2026. Operator amendment.** Two turns produced two amendments and no product code; the process began consuming the capacity it exists to protect. §14 added. Applies retroactively: **Gate R3 is self-ruled under 14.2** — all eight of its criteria are mechanical, as are the two additions requested at v1.1.
+
+---
+
+## 14. Cost discipline
+
+**This section overrides any procedure above it that costs more than it protects.** Capacity is 3–5 hours a day and every session read is paid for twice — once by the executor, once by the operator reading the report.
+
+### 14.1 Split the contract
+
+- Root `HEATSHIELD_CONTRACT.md` keeps §0–§8 and §13–§14 — the invariants. Read every session.
+- `contracts/blocks/<block>.md` — §9 split, one file per block. Read only the block you are on.
+- Session open reads: invariants + current block + latest ruling. Nothing else. Never all nine blocks.
+
+> **Executor note, 25 Aug.** 14.1 names §0–§8 and §13–§14 but is silent on §10 (out of scope), §11 (open questions) and §12 (the standard). All three are short, invariant and read every session, so they were **kept in root**. Recorded in `contracts/AMENDMENTS.md`, trivially reversible.
+
+### 14.2 Gates self-rule
+
+A gate whose criteria are entirely mechanical — test counts, greps, diff stats, build results, live HTTP responses — is **ruled by the executor**. Write the ruling file, mark it `CLOSED (self-ruled)`, open the next block.
+
+The operator rules only on:
+
+- any merge to `main`
+- any block that deletes files
+- contract amendments
+- refusals under §5
+- a gate with a criterion requiring judgment rather than a check
+
+Everything else proceeds without asking. The contract exists so a session can run without its author. Asking for a ruling that the criteria already answer is a cost, not a courtesy.
+
+### 14.3 Reports live on disk
+
+The ruling file **is** the report. In chat, emit:
+
+```
+<block>.<gate> — CLOSED (self-ruled) | <commit> | next: <block>
+```
+
+Detail stays in the file. Do not reproduce a gate report in chat. A report written to be pasted is paid for twice.
+
+### 14.4 Amendments append
+
+`contracts/AMENDMENTS.md`, append-only, newest last. Never regenerate the contract for a two-line change. Fold an amendment into its block file only when that block next opens.
+
+### 14.5 One chat turn per session
+
+Batch. Three clean gates are three lines in one message at session end — not three messages. Interrupt mid-session only for a §5 refusal or an operator-only ruling under 14.2.
