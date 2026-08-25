@@ -57,9 +57,25 @@ export default defineConfig(async ({ command }) => {
   // Default to "/" so a production build at the domain root just works.
   const basePath = process.env.BASE_PATH ?? "/";
 
+  // Replit-only plugins: imported lazily, ONLY inside Replit's dev runtime.
+  const isReplitDev =
+    process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined;
+
+  const replitPlugins = [];
+  if (isReplitDev) {
+    const [overlay, cartographer, devBanner] = await Promise.all([
+      import("@replit/vite-plugin-runtime-error-modal").then((m) => m.default()),
+      import("@replit/vite-plugin-cartographer").then((m) =>
+        m.cartographer({ root: path.resolve(import.meta.dirname, "..") }),
+      ),
+      import("@replit/vite-plugin-dev-banner").then((m) => m.devBanner()),
+    ]);
+    replitPlugins.push(overlay, cartographer, devBanner);
+  }
+
   return {
     base: basePath,
-    plugins: [react(), buildShaPlugin(resolveBuildSha())],
+    plugins: [react(), buildShaPlugin(resolveBuildSha()), ...replitPlugins],
     css: {
       postcss: {
         plugins: [

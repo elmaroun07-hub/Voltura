@@ -1,0 +1,20 @@
+kind = "web"
+previewPath = "/greencalc"
+title = "GreenCalc"
+version = "1.0.0"
+
+[[services]]
+localPort = 8000
+name = "GreenCalc Flask"
+paths = ["/greencalc"]
+
+[services.development]
+run = "cd artifacts/greencalc && PORT=8000 python app.py"
+
+[services.production]
+
+[services.production.run]
+args = ["bash", "-c", "cd artifacts/greencalc && PORT=8000 gunicorn app:app --bind 0.0.0.0:8000"]
+
+[services.production.run.env]
+PORT = "8000"
