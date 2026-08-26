@@ -31,6 +31,39 @@ export function sessionFetch(
   return fetch(input, { ...init, headers });
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
+/**
+ * Download a calculation's PDF report.
+ *
+ * Both buttons used to call `window.open("/api/calculate/:id/pdf")`. A browser
+ * navigation cannot carry a custom header, which is why that route was left
+ * unscoped on the server and became an unauthenticated sequential-id oracle
+ * over every calculation ever made (finding F2). Scoping the route without
+ * changing this would have shipped a 400 behind both buttons.
+ *
+ * So: fetch through sessionFetch, then hand the blob to a synthetic anchor.
+ * The header rides on the request and the file still lands in Downloads.
+ *
+ * The object URL is revoked on the next frame rather than immediately —
+ * Firefox cancels an in-flight download if the blob is revoked in the same
+ * tick as the click.
+ */
+export async function downloadCalculationPdf(calcId: number): Promise<void> {
+  const res = await sessionFetch(`${API_BASE}/api/calculate/${calcId}/pdf`);
+  await throwIfResNotOk(res);
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `energy-report-${calcId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  requestAnimationFrame(() => URL.revokeObjectURL(url));
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;

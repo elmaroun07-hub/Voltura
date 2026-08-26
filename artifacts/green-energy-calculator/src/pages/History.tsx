@@ -1,5 +1,6 @@
 import { Shell } from "@/components/layout/Shell";
 import { useHistory } from "@/hooks/use-calculations";
+import { downloadCalculationPdf } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,7 @@ export default function History() {
                             variant="ghost"
                             size="sm"
                             className="text-primary hover:text-primary"
-                            onClick={() => window.open(`/api/calculate/${item.id}/pdf`, "_blank")}
+                            onClick={() => void downloadCalculationPdf(item.id)}
                           >
                             <Download className="w-4 h-4" />
                           </Button>

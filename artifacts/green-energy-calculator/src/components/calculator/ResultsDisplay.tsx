@@ -5,6 +5,7 @@ import {
   LineChart, Line, ReferenceLine, Area, AreaChart,
 } from "recharts";
 import { type CalculationResponse } from "@/lib/api";
+import { downloadCalculationPdf } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +15,6 @@ interface ResultsDisplayProps {
   results: CalculationResponse | null;
   calcId?: number | null;
 }
-
-// Same API base the data hooks use (VITE_API_URL); "" keeps same-origin behavior.
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 const PIE_COLORS = ["#10b981", "#f59e0b", "#e2e8f0"];
 
@@ -265,7 +263,7 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
           data-testid="button-download-pdf"
           variant="outline"
           className="w-full border-primary text-primary hover:bg-primary hover:text-white transition-colors"
-          onClick={() => window.open(`${API_BASE}/api/calculate/${calcId}/pdf`, "_blank")}
+          onClick={() => void downloadCalculationPdf(calcId)}
         >
           <Download className="mr-2 w-4 h-4" /> Download Full PDF Report
         </Button>

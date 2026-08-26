@@ -14,9 +14,13 @@ set -uo pipefail
 PKG="${PKG:-pnpm}"                       # pnpm | npm | yarn
 API_URL="${API_URL:-https://voltura-api.onrender.com}"
 WEB_URL="${WEB_URL:-https://voltura-web.onrender.com}"
-EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-108}"
-EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-36}"
+# Counts moved at H-S: +5 api-server tests for the F2 PDF scoping lock.
+# 108 -> 113 total, 36 -> 41 api. Deleting audio/ and image/ moved nothing:
+# chat/routes.test.ts was the only test file in that subtree.
+EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-113}"
+EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-41}"
 EXPECTED_ASSISTANT_TESTS="${EXPECTED_ASSISTANT_TESTS:-9}"
+EXPECTED_F2_TESTS="${EXPECTED_F2_TESTS:-5}"
 # G4 as narrowed by amendment A14 (26 Aug 2026): chat/ is the protected subtree,
 # not the parent. audio/, image/ and batch/ are deletable, so "parent exists" no
 # longer proves the Assistant survived — chat/ deleted with audio/ left standing
@@ -74,8 +78,17 @@ fi
 # ══ 4. tests + the counts that matter ═════════════════════════════════
 if have "$PKG"; then
   TOUT=$($PKG -r test 2>&1); T_RC=$?
-  TOTAL=$(printf '%s' "$TOUT" | grep -oE '[0-9]+ (passed|passing)' | grep -oE '^[0-9]+' \
-          | awk '{s+=$1} END {print s+0}')
+  # Strip ANSI before parsing: vitest colours its summary, and the escape bytes
+  # sit between the label and the number.
+  #
+  # Anchor on "Tests" specifically. The old pattern was a bare
+  # `[0-9]+ (passed|passing)`, which also matched the "Test Files N passed"
+  # line above it and silently added the file count to the test count — 2+72+
+  # 4+36 = 114 against an EXPECTED_TOTAL_TESTS of 108, so this row could never
+  # go green. Fixed at H-S.
+  TOTAL=$(printf '%s' "$TOUT" | sed -e 's/\x1b\[[0-9;]*m//g' \
+          | grep -oE '(^|[^[:alpha:]])Tests[[:space:]]+[0-9]+ (passed|passing)' \
+          | grep -oE '[0-9]+' | awk '{s+=$1} END {print s+0}')
   if [ "$T_RC" -eq 0 ]; then
     row PASS "suite green"   "exit 0"
   else
@@ -98,15 +111,38 @@ else
   row SKIP "tests"           "$PKG not found"
 fi
 
+# ══ 4b. F2 — the PDF route must reject a session-less request ═════════
+# Tests the property, not C8's trigger. C8 fires on "first external user OR
+# first real AVRA data", neither of which a script can observe; this asserts
+# the access control that made C8 deferrable in the first place.
+#
+# Local and offline: the test mocks ../db and ../storage and boots express on
+# port 0. No production, and no DB — index.ts runs DDL before listen (G3), so
+# booting the real server here would be a schema write.
+if have "$PKG"; then
+  F2OUT=$(cd artifacts/api-server && $PKG exec vitest run src/routes/pdf-session-scope.test.ts 2>&1)
+  F2_RC=$?
+  F2_PASS=$(printf '%s' "$F2OUT" | sed -e 's/\x1b\[[0-9;]*m//g' \
+            | grep -oE '(^|[^[:alpha:]])Tests[[:space:]]+[0-9]+ passed' \
+            | grep -oE '[0-9]+' | head -1)
+  if [ "$F2_RC" -eq 0 ] && [ "${F2_PASS:-0}" -ge "$EXPECTED_F2_TESTS" ]; then
+    row PASS "F2 pdf scoped"  "${F2_PASS} passed — no header 400, wrong session 404, no oracle"
+  else
+    row FAIL "F2 pdf scoped"  "exit $F2_RC, ${F2_PASS:-0} passed (expect $EXPECTED_F2_TESTS) — /api/calculate/:id/pdf may be enumerable again"
+  fi
+else
+  row SKIP "F2 pdf scoped"   "$PKG not found"
+fi
+
 # ══ 5. G5 — no numeric || defaults (comments excluded) ════════════════
 NUMDEF=$(grep -rnE '\|\|\s*-?[0-9]+(\.[0-9]+)?\b' \
           --include='*.ts' --include='*.tsx' \
           --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=artifacts/greencalc . 2>/dev/null \
         | grep -vE ':\s*(//|\*|/\*)' || true)
 if [ -z "$NUMDEF" ]; then
-  row PASS "G5 no || default" "none in code"
+  row PASS "G5 no numeric default" "none in code"
 else
-  row FAIL "G5 no || default" "$(printf '%s' "$NUMDEF" | wc -l | tr -d ' ') hit(s) — OPEN AND READ each, comments are excluded already"
+  row FAIL "G5 no numeric default" "$(printf '%s' "$NUMDEF" | wc -l | tr -d ' ') hit(s) — OPEN AND READ each, comments are excluded already"
   printf '%s\n' "$NUMDEF" | sed 's/^/        /' >&2
 fi
 
