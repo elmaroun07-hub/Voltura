@@ -285,10 +285,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   registerChatRoutes(app);
 
   // Enhanced PDF report
+  //
+  // Session-scoped since H-S (finding F2). This route previously read no header
+  // and took a sequential integer, so /api/calculate/1/pdf, /2/pdf, /3/pdf
+  // walked every calculation ever made and rendered location, usage, PV size,
+  // battery, tariff and roof angle for each. No id was needed at all - not a
+  // replay of someone's session, an enumeration oracle.
   app.get("/api/calculate/:id/pdf", async (req, res) => {
     try {
+      // Header only, same as every other session-carrying route. Absent means
+      // reject before any lookup: 400 says the request was malformed, and says
+      // nothing about whether the row exists.
+      // Header only, same as every other session-carrying route. Absent means
+      // reject before any lookup: 400 says the request was malformed, and says
+      // nothing about whether the row exists.
+      const sessionId = req.get("x-session-id");
+      if (!sessionId) { res.status(400).json({ message: "X-Session-Id header is required" }); return; }
+
       const id = parseInt(req.params.id);
-      const calc = await storage.getCalculationById(id);
+      // Scoped lookup. "Not yours" and "does not exist" collapse to the same
+      // undefined inside the query, so the 404 below cannot confirm a row
+      // exists. A 403 here would have re-opened exactly the oracle this closes.
+      const calc = await storage.getCalculationById(id, sessionId);
       if (!calc) { res.status(404).json({ message: "Calculation not found" }); return; }
 
       const doc = new PDFDocument({ margin: 50 });

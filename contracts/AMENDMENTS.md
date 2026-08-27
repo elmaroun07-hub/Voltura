@@ -202,3 +202,145 @@ instance actually going back, remains **unproven**.
 
 **Generalise:** the word "local" describes where a command ran, not where its effects land.
 On a branch that auto-deploys, those are different places, and only the second one matters.
+
+---
+
+## A14 · 2026-08-26 — G4 narrowed to `chat/`; `audio/`, `image/`, `batch/` are deletable
+
+**Operator ruling.** G4's delete exception was the whole subtree. It is now `chat/` only.
+
+**Was:** never delete `artifacts/api-server/src/replit_integrations/`.
+**Now:** never delete `artifacts/api-server/src/replit_integrations/chat/` — the shipped AI
+Assistant (`MISTRAL_API_KEY`, Mistral base URL, `POST /api/conversations/:id/messages`).
+`audio/`, `image/` and `batch/` are dead and **are** deletable.
+
+**Evidence, re-verified 26 Aug 2026 rather than recalled:**
+
+| Claim | Check |
+|---|---|
+| `registerAudioRoutes` / `registerImageRoutes` never imported | absent from `app.ts`, `index.ts`, `routes/index.ts`, `routes/routes.ts`; the only references are their own definitions and barrels |
+| Never bundled | `AI_INTEGRATIONS`, `gpt-audio`, `gpt-image-1`, `gpt-4o-mini-transcribe` each appear **0 times** in `dist/index.mjs`; esbuild traces from `src/index.ts` |
+| Deletion cannot break the Assistant | `chat/` imports only `express`, `openai`, `express-rate-limit`, `./storage`, `../../db`, `@workspace/db`, `drizzle-orm` — nothing from the three |
+| Deletion moves no gate count | `chat/routes.test.ts` is the **only** test file in the subtree. `EXPECTED_API_TESTS=36` and `EXPECTED_ASSISTANT_TESTS=9` are unaffected |
+
+**Consequence.** Architecture-v2 task 2.3 becomes permissible. Deleting `audio/` and
+`image/` removes the OpenAI-fallthrough route permanently: both construct an `OpenAI` client
+from `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL`, and
+`openai@6.35.0` fills an `undefined` argument from its own default parameters —
+`OPENAI_API_KEY`, `OPENAI_BASE_URL`, then the literal `https://api.openai.com/v1`
+(`client.js:71`, `client.js:142`). Wiring either module up with `AI_INTEGRATIONS_*` unset
+would have silently routed to OpenAI with no code change and no log line. Deletion is the
+only fix that cannot regress.
+
+**`batch/`.** The ruling text names `audio/`, `image/` and `batch/` as deletable; the
+consequence line names only `audio/` and `image/`. Recorded per the ruling text — all three
+deletable. `batch/utils.ts` reads no environment variable and is imported by nothing outside
+its own barrel, so it carries no fallthrough risk either way. Flagged for the operator in
+case the omission was deliberate.
+
+**Supersedes.** `contracts/rulings/block-r-gate-r3.md` rows 66–68 classify
+`audio/client.ts`, `batch/utils.ts` and `image/client.ts` as **G4**. That ruling is closed
+and is left standing as a record; those three rows no longer bind. `00-backfill-index.md:66`
+("`replit_integrations/` excluded as shipped application code — now G4") reads the same way
+and is likewise superseded, not rewritten.
+
+**Mechanical guard narrowed with the rule.** `gate-check.sh` tested `[ -d "$PROTECTED_DIR" ]`
+against the **parent**. While the whole subtree was protected that was a faithful proxy for
+"nothing here was deleted". Once subdirectories are sanctioned deletion targets it stops
+being one: deleting `chat/` and keeping `audio/` would have printed **PASS**. The hole
+pre-dated this amendment but was unreachable, exactly the *latent, not live* shape C6
+records for `-999` — and this amendment is what makes it reachable. `PROTECTED_DIR` now
+points at `.../replit_integrations/chat`, which is strictly stronger and one line.
+
+---
+
+## A15 · 2026-08-26 — Session identity is unauthenticated (findings F1, F2)
+
+**F-numbering starts here.** No F-register existed. Findings had been raised inside gate
+rulings (`h-groundwork-gate.md:77`, "FINDINGS RAISED AT THIS GATE") and never carried
+forward. They are numbered in this file rather than in a new one — a separate register is a
+file the session-open read list does not include (§14.1).
+
+### F1 · X-Session-Id is possession, not authentication — RULED
+
+**Operator finding.** `X-Session-Id` is client-supplied, required, never defaulted, **never
+verified**. H0 established there is no enumeration oracle: ids cannot be *discovered*. It did
+not establish they cannot be *replayed*. **Possession of an id is possession of the session.**
+
+**Severity:** low while there are no real users. **BLOCKING before any AVRA pilot carrying
+occupant data.**
+
+**Ruling:** out of scope for H1 — H1 is provenance, this is access control. Gated on **first
+external user OR first real AVRA data, whichever comes first.** Recorded as **C8** in §8.
+
+**Verified 26 Aug 2026, and wider than the citation.** The finding cites
+`replit_integrations/chat/routes.ts:38-45`. The property holds at **three** live read sites,
+all `req.get("x-session-id")` with no verification step:
+
+| Site | Scope |
+|---|---|
+| `replit_integrations/chat/routes.ts:39` | Assistant — conversation list, read, create, delete, messages |
+| `routes/routes.ts:444` | `POST /api/calculate` |
+| `routes/routes.ts:638` | `GET /api/history` |
+
+A fourth, `replit_integrations/audio/routes.ts:12`, is dead code and is deleted under A14.
+
+**Three things that sharpen it.**
+
+1. **The property is intentional and already documented at the call site.**
+   `artifacts/green-energy-calculator/src/lib/queryClient.ts:14-16`: *"It is forgeable by
+   design: it closes accidental cross-visitor exposure, it is not authorization."* F1 is not
+   new information to the code. It is new information to the **contract**, which had no gate
+   stopping an AVRA pilot from shipping on top of it. That is the gap C8 closes.
+2. **Possession is permanent.** The id is `crypto.randomUUID()` — 122 bits of CSPRNG, so
+   "cannot be discovered" is well-founded — persisted in `localStorage` under
+   `voltura.sessionId`. There is no rotation, no expiry, no logout, and **no revocation
+   path**. A leaked id is leaked for the lifetime of the row. Any XSS on the web origin is
+   therefore full session takeover in one step, with no server-side means to invalidate.
+3. **H0's own ruling contains a working demonstration, unremarked.**
+   `h0-gate-h0.md` publishes two live session ids (`aaaa1111-…`, `bbbb2222-…`) and its
+   RESIDUE section records that conversations **28** and **29** and two calculations were
+   created on **production** and never cleaned up. Anyone with repository access can replay
+   those headers and read or delete those rows. The content is probe data, so the harm is
+   nil — but it is a concrete instance of F1 already on the record, and it means that
+   residue is a **published-credential** residue, not merely an uncleaned-rows one. Not
+   re-probed here: production is outside any open fence.
+
+### F2 · The PDF route requires no session id at all — UNRULED, operator decision needed
+
+**Raised by the executor while verifying F1. Not covered by F1's ruling, and it breaks the
+premise F1's severity rests on.**
+
+`GET /api/calculate/:id/pdf` (`routes/routes.ts:288`) reads **no session header**, applies
+**no session filter**, and takes a **sequential integer**:
+
+```
+const id = parseInt(req.params.id);
+const calc = await storage.getCalculationById(id);
+```
+
+`getCalculationById` is deliberately not session-scoped, and says so —
+`storage.ts:17-20`: *"Its only caller is the PDF route, which is reached by `window.open`
+and therefore cannot carry an `X-Session-Id` header at all."* The reasoning is recorded and
+the exposure was accepted knowingly; what is missing is any gate that revisits it.
+
+**Why this is not F1.** F1 says possession of an id is possession of the session. F2 needs
+**no id**: `/api/calculate/1/pdf`, `/2/pdf`, `/3/pdf` walks every calculation ever made.
+That **is** an enumeration oracle — over calculations rather than conversations. H0
+Criterion 1 tested `/api/conversations/:id` and established byte-identical 404s there; it
+never probed this route, and H0's OUT OF SCOPE section does not name it.
+
+**Payload.** The PDF renders `calc.location`, annual energy usage, PV size, battery
+capacity, tariff, panel orientation and roof angle (`routes.ts:313-320`) — a property-level
+profile of a building. For AVRA occupant data that is the sensitive payload itself, not
+metadata about it.
+
+**Not mitigated by CORS.** `app.ts` restricts browser origins; CORS is not access control
+and `curl` ignores it. The route carries no rate limiter either, so enumeration is
+unthrottled — the limiters at `routes.ts:276` and `chat/routes.ts:58` do not cover it.
+
+**Deliberately not ruled here.** F1's disposition — defer, gated on first external user or
+first AVRA data — was made against replay. It may or may not be the right disposition for
+an unauthenticated sequential-id document endpoint, and that is the operator's call. F2 is
+recorded, gated with F1 under C8 as the conservative default, and flagged for a decision of
+its own.
