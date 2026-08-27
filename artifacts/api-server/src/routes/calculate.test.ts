@@ -137,7 +137,11 @@ describe("A3.1 regression pair — Fuengirola vs Tétouan", () => {
     const { base, close } = await serve();
     const fuen = await calculate(base, FUENGIROLA);
 
-    expect(fuen.body.resolution.irradianceMonthly[0]).toBeCloseTo(2.6544, 4);
+    // The 2019-2023 January mean for Fuengirola. 2022 alone was 2.6544; the
+    // five-year mean is 2.7288, a 2.8% move on one month from widening the
+    // period. That gap is the whole argument for H1.8 - a single year is not
+    // a climate normal, and the difference reaches a euro figure.
+    expect(fuen.body.resolution.irradianceMonthly[0]).toBeCloseTo(2.7288, 4);
     expect(fuen.body.resolution.irradianceMonthly.every((v: number) => v === 4)).toBe(false);
     await close();
   });
@@ -170,23 +174,30 @@ describe("A3.3 array length — the 202213 guard", () => {
     await close();
   });
 
-  it("the fixtures really do carry the thirteenth annual-mean key", async () => {
+  it("the fixtures really do carry the thirteenth annual-mean key, every year", async () => {
     // If this ever fails, NASA changed shape and the guard above is untested.
+    // Five years x (12 months + the YYYY13 annual mean) = 65. The annual mean
+    // is present for EVERY year now, so the 202213 guard has to hold five
+    // times over, not once.
     for (const loc of [FUENGIROLA, TETOUAN, TROMSO, ALMERIA]) {
       const keys = Object.keys(fixtures[loc].nasa.properties.parameter.ALLSKY_SFC_SW_DWN);
-      expect(keys).toHaveLength(13);
-      expect(keys).toContain("202213");
+      expect(keys).toHaveLength(65);
+      for (const year of [2019, 2020, 2021, 2022, 2023]) {
+        expect(keys).toContain(`${year}13`);
+      }
     }
   });
 });
 
 describe("A3.4 provenance", () => {
-  it("reports nasa-live and a concrete year for a known-good location", async () => {
+  it("reports nasa-live and the concrete period for a known-good location", async () => {
     const { base, close } = await serve();
     const r = await calculate(base, ALMERIA);
 
     expect(r.body.resolution.irradianceSource).toBe("nasa-live");
-    expect(r.body.resolution.irradianceYear).toBe(2022);
+    // The period the mean was actually computed over, not the one requested.
+    // H1.8: a mean without its period is not a citation.
+    expect(r.body.resolution.irradiancePeriod).toEqual({ start: 2019, end: 2023 });
     expect(r.body.resolution.nasaHttpStatus).toBe(200);
     expect(r.body.resolution.geocodeStatus).toBe("resolved");
     // Requested and present key sets agree - the A1 mismatch is closed.
@@ -196,9 +207,15 @@ describe("A3.4 provenance", () => {
 });
 
 describe("A3.5 fallback honesty", () => {
+  // These two pin the NON-FINITE case: the key is present and the value is
+  // garbage. They used to produce it by deleting the key, which reached the
+  // same NaN because the old code could not tell an absent key from a bad
+  // value. H1.8 separates them - an absent key is partial coverage and is now
+  // a hard error, tested below - so the mechanism here is now an actual
+  // non-finite value, which is what the test always claimed to be about.
   it("one non-finite month fails the whole read and says fallback-lat", async () => {
     nasaTransform = (nasa) => {
-      delete nasa.properties.parameter.ALLSKY_SFC_SW_DWN["202207"];
+      nasa.properties.parameter.ALLSKY_SFC_SW_DWN["202207"] = null;
       return nasa;
     };
     const { base, close } = await serve();
@@ -206,7 +223,7 @@ describe("A3.5 fallback honesty", () => {
 
     expect(r.status).toBe(200);
     expect(r.body.resolution.irradianceSource).toBe("fallback-lat");
-    expect(r.body.resolution.irradianceYear).toBeNull();
+    expect(r.body.resolution.irradiancePeriod).toBeNull();
     // No partial-NASA state: not 11 real months plus one invented one.
     expect(r.body.resolution.irradianceMonthly).toHaveLength(12);
     expect(r.body.resolution.irradianceMonthly[0]).not.toBeCloseTo(2.6544, 4);
@@ -217,13 +234,109 @@ describe("A3.5 fallback honesty", () => {
 
   it("a non-finite temperature month fails the read too", async () => {
     nasaTransform = (nasa) => {
-      delete nasa.properties.parameter.T2M["202203"];
+      nasa.properties.parameter.T2M["202203"] = "";
       return nasa;
     };
     const { base, close } = await serve();
     const r = await calculate(base, FUENGIROLA);
 
     expect(r.body.resolution.irradianceSource).toBe("fallback-lat");
+    await close();
+  });
+});
+
+/**
+ * H1.0 and H1.8 — the parse boundary rejects rather than substitutes.
+ *
+ * Both of these are DATA defects: NASA answered, and the answer cannot carry a
+ * number. The request fails with a typed error and produces no figure at all.
+ * That is the difference from A3.5 above, where NASA's answer was malformed
+ * and the labelled latitude fallback still applies.
+ */
+describe("A3.6 — the -999 fill value is rejected, never consumed", () => {
+  it("returns a typed 422 and no number when NASA fills a month with -999", async () => {
+    nasaTransform = (nasa) => {
+      nasa.properties.parameter.ALLSKY_SFC_SW_DWN["202108"] = -999;
+      return nasa;
+    };
+    const { base, close } = await serve();
+    const r = await calculate(base, FUENGIROLA);
+
+    expect(r.status).toBe(422);
+    expect(r.body.code).toBe("nasa_fill_value");
+    expect(r.body.message).toContain("-999");
+    expect(r.body.message).toContain("ALLSKY_SFC_SW_DWN");
+    // No figure of any kind came back.
+    expect(r.body.savingsKwh).toBeUndefined();
+    expect(r.body.resolution.irradianceMonthly).toEqual([]);
+    expect(r.body.resolution.irradiancePeriod).toBeNull();
+    expect(r.body.resolution.irradianceSource).toBe("not-reached");
+    await close();
+  });
+
+  it("rejects -999 in temperature too, not just irradiance", async () => {
+    nasaTransform = (nasa) => {
+      nasa.properties.parameter.T2M["202002"] = -999;
+      return nasa;
+    };
+    const { base, close } = await serve();
+    const r = await calculate(base, FUENGIROLA);
+
+    expect(r.status).toBe(422);
+    expect(r.body.code).toBe("nasa_fill_value");
+    expect(r.body.message).toContain("T2M");
+    await close();
+  });
+
+  it("does not fall back to latitude on a fill value — that would be a substitution", async () => {
+    nasaTransform = (nasa) => {
+      nasa.properties.parameter.ALLSKY_SFC_SW_DWN["202108"] = -999;
+      return nasa;
+    };
+    const { base, close } = await serve();
+    const r = await calculate(base, FUENGIROLA);
+
+    expect(r.body.resolution.irradianceSource).not.toBe("fallback-lat");
+    expect(r.body.resolution.irradianceSource).not.toBe("nasa-live");
+    await close();
+  });
+});
+
+describe("A3.7 — partial coverage is an error, not a shorter mean", () => {
+  it("returns a typed 422 when a requested month is absent from the response", async () => {
+    nasaTransform = (nasa) => {
+      delete nasa.properties.parameter.ALLSKY_SFC_SW_DWN["202007"];
+      return nasa;
+    };
+    const { base, close } = await serve();
+    const r = await calculate(base, FUENGIROLA);
+
+    expect(r.status).toBe(422);
+    expect(r.body.code).toBe("nasa_partial_coverage");
+    // The message states what was actually covered, so the reader is not left
+    // guessing which years the missing figure would have spanned.
+    expect(r.body.message).toContain("59 of 60 months");
+    expect(r.body.resolution.irradiancePeriod).toBeNull();
+    await close();
+  });
+
+  it("does not silently average the years it did get", async () => {
+    // A whole year absent. The tempting bug is a four-year mean reported as
+    // five - the 4.0 defect's exact shape, a missing input quietly becoming a
+    // plausible number.
+    nasaTransform = (nasa) => {
+      for (const mm of ["01","02","03","04","05","06","07","08","09","10","11","12"]) {
+        delete nasa.properties.parameter.ALLSKY_SFC_SW_DWN[`2021${mm}`];
+      }
+      return nasa;
+    };
+    const { base, close } = await serve();
+    const r = await calculate(base, FUENGIROLA);
+
+    expect(r.status).toBe(422);
+    expect(r.body.code).toBe("nasa_partial_coverage");
+    expect(r.body.message).toContain("48 of 60 months");
+    expect(r.body.savingsKwh).toBeUndefined();
     await close();
   });
 

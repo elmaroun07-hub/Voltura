@@ -23,9 +23,11 @@ const PIE_COLORS = ["#10b981", "#f59e0b", "#e2e8f0"];
  * asserted in the test suite, and a production watch reads it. It must never be
  * printed raw to a person, which is what this maps.
  *
- * The year is taken from the response, never written as a literal here: a
+ * The period is taken from the response, never written as a literal here: a
  * hardcoded "2022" in the UI would be a second source of truth for one fact,
  * and would keep saying 2022 the day the server starts sending something else.
+ * It says the years the mean actually spans, because a multi-year mean without
+ * its period is not a citation.
  *
  * No default branch. The switch is exhaustive over the union, so TypeScript
  * fails the build if the enum grows; an impossible state throws rather than
@@ -34,10 +36,12 @@ const PIE_COLORS = ["#10b981", "#f59e0b", "#e2e8f0"];
 function irradianceLabel(resolution: CalculationResponse["resolution"]): string {
   switch (resolution.irradianceSource) {
     case "nasa-live": {
-      if (resolution.irradianceYear === null) {
-        throw new Error("nasa-live carries no irradianceYear");
+      if (resolution.irradiancePeriod === null) {
+        throw new Error("nasa-live carries no irradiancePeriod");
       }
-      return `NASA POWER satellite data, ${resolution.irradianceYear}`;
+      const { start, end } = resolution.irradiancePeriod;
+      const span = start === end ? `${start}` : `${start}–${end}`;
+      return `NASA POWER satellite data, ${span} mean`;
     }
     case "fallback-lat":
       return "Estimated from latitude — NASA data unavailable";

@@ -77,7 +77,12 @@ const resolutionSchema = z.object({
   lat: z.number().nullable(),
   lon: z.number().nullable(),
   irradianceSource: z.enum(['nasa-live', 'fallback-lat', 'not-reached']),
-  irradianceYear: z.number().nullable(),
+  // H1.8: the period the figure was actually computed over, not the period
+  // that was requested. Null whenever no NASA figure was used at all.
+  // A mean is meaningless without the years it spans, so this travels with it.
+  irradiancePeriod: z
+    .object({ start: z.number(), end: z.number() })
+    .nullable(),
   nasaHttpStatus: z.union([
     z.number(),
     z.literal('not-called'),

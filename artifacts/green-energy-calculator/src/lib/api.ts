@@ -89,7 +89,9 @@ const resolutionSchema = z.object({
   lat: z.number().nullable(),
   lon: z.number().nullable(),
   irradianceSource: z.enum(["nasa-live", "fallback-lat", "not-reached"]),
-  irradianceYear: z.number().nullable(),
+  irradiancePeriod: z
+    .object({ start: z.number(), end: z.number() })
+    .nullable(),
   nasaHttpStatus: z.union([
     z.number(),
     z.literal("not-called"),

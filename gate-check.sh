@@ -17,8 +17,10 @@ WEB_URL="${WEB_URL:-https://voltura-web.onrender.com}"
 # Counts moved at H-S: +5 api-server tests for the F2 PDF scoping lock.
 # 108 -> 113 total, 36 -> 41 api. Deleting audio/ and image/ moved nothing:
 # chat/routes.test.ts was the only test file in that subtree.
-EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-113}"
-EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-41}"
+# Moved again at H1: +5 for the -999 and partial-coverage locks (A3.6, A3.7),
+# +4 for /api/version. 113 -> 122 total, 41 -> 50 api.
+EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-122}"
+EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-50}"
 EXPECTED_ASSISTANT_TESTS="${EXPECTED_ASSISTANT_TESTS:-9}"
 EXPECTED_F2_TESTS="${EXPECTED_F2_TESTS:-5}"
 # G4 as narrowed by amendment A14 (26 Aug 2026): chat/ is the protected subtree,
