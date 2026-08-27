@@ -8,7 +8,8 @@ import OpenAI from "openai";
 import PDFDocument from "pdfkit";
 import rateLimit from "express-rate-limit";
 import { parseOptimizePayload, OPTIMIZE_FAILURE_MESSAGE } from "./optimize-payload";
-import { CARBON_INTENSITY_BY_COUNTRY, type MonthlyEntry } from "@workspace/db";
+import { type MonthlyEntry } from "@workspace/db";
+import { lookupCarbonIntensity } from "../lib/carbon-intensity";
 
 // Mistral exposes an OpenAI-compatible API, so we reuse the openai SDK
 // pointed at api.mistral.ai. Lazy init: server boots even if the key is
@@ -69,13 +70,23 @@ function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
   return Math.max(0.4, oFactor * tiltFactor);
 }
 
-// Detect carbon intensity from location string
-function detectCarbonIntensity(location: string): number {
-  const loc = location.toLowerCase();
-  for (const [country, intensity] of Object.entries(CARBON_INTENSITY_BY_COUNTRY)) {
-    if (loc.includes(country)) return intensity;
-  }
-  return 0.4; // global average fallback
+/**
+ * Grid carbon intensity for a location. H1.5 fixed the substring match that
+ * resolved "Indianapolis" to India; the lookup now lives in ./lib/carbon-intensity
+ * with the table (H1.9, out of the schema package).
+ *
+ * The 0.4 fallback is NOT fixed here. It is a fabricated global average with no
+ * source and no date, reaching a displayed CO2 figure — a live P1/P2 violation,
+ * and it is H1b's (`lib/emissions`). Fixing it early means deciding what an
+ * unknown country should do to a user-facing number, which is that block's
+ * decision to make. The lookup below now returns null rather than a number, so
+ * the substitution happens in exactly one visible place instead of being buried
+ * in the table walk.
+ */
+function detectCarbonIntensity(geocodedCountry: string, locationInput: string): number {
+  const found = lookupCarbonIntensity(geocodedCountry, locationInput);
+  if (found !== null) return found;
+  return 0.4; // H1b: fabricated global average, no source, no date.
 }
 
 // Geocode location string to lat/lon via Nominatim
@@ -669,7 +680,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const countryFromGeo = geo.country;
 
       // Detect carbon intensity from location
-      const carbonIntensity = detectCarbonIntensity(countryFromGeo + " " + input.location);
+      const carbonIntensity = detectCarbonIntensity(countryFromGeo, input.location);
 
       // Fetch NASA POWER data (fall back to lat-based estimate)
       const nasaProbe = await fetchNasaPower(lat, lon);

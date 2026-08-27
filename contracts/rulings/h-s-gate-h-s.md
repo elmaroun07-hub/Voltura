@@ -158,18 +158,37 @@ make it permanent.
 git revert -m 1 <merge-sha>
 ```
 
-**Not executed. This is an open G8 obligation, and it is deliberately open.** G8 requires
-the rollback to be *executed* for any block that reaches `main`. A13 then established that a
-revert on an auto-deploying branch **is a production deploy** and must be declared as such
-with the window stated. The operator authorised a merge, a push, and read-only GET probes.
-Two further production deploys were not authorised, and executing them on my own reading of
-G8 is the exact failure A13 corrected. **Flagged for an operator ruling, not silently
-skipped and not silently performed.**
+**Satisfied under G8 Tier B (A16, 27 Aug 2026).** The drill was flagged rather than
+performed at first writing: the operator authorised a merge, a push and read-only probes,
+and two further production deploys were not authorised. A16 resolved the conflict — G8 plus
+A13 had obliged the executor to deploy without authorisation to close any gate — and this
+block is Tier B: code shipped, merge authorised, drill not.
+
+**Tier B proof, computed on a scratch ref at `b405cfa`, never pushed, ref deleted after:**
+
+```
+git revert -m 1 --no-commit b405cfa     exit 0, applies cleanly, no conflicts
+
+merge  100cfdd..b405cfa   16 files changed, 796 insertions(+), 551 deletions(-)
+revert                    16 files changed, 551 insertions(+), 796 deletions(-)
+```
+
+An exact mirror: same sixteen files, insertions and deletions transposed. The revert
+restores all six `audio/` and `image/` files and re-opens the PDF route, which is what
+rolling this block back means. Files touched outside the block's own paths: **none**.
+
+**THE DEPLOY PATH IS UNPROVEN.** This is the standing debt A16 requires every Tier-B ruling
+to carry, and it is not a formality. What is proven is that `git revert -m 1` produces
+exactly the inverse of this merge. What is *not* proven is that a production instance
+actually goes back when that revert is pushed — the same gap A13 recorded against Block R,
+still open, now on this block too. It stands until one deploy-path rollback is executed
+deliberately under Tier C.
 
 ## RESIDUE
 
-- G8 drill outstanding, above.
-- `old figures` row left failing, above.
+- **G8 deploy path unproven** (Tier B, above). Carried, not closed.
+- `old figures` row: resolved by A17, which added G5's comment-line filter. The named hole
+  is markdown bullets — the checker includes `*.md` and a `* 4,203` bullet now slips past.
 - `mockup-sandbox` build broken by a missing native binary — environment, not repository.
 - H0's production residue is unchanged and now has a second reading: `h0-gate-h0.md`
   publishes two working session ids, and F2's fix does **not** retroactively protect the

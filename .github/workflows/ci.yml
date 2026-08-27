@@ -1,0 +1,112 @@
+# H1.7 — the TypeScript suites run on every push.
+#
+# 122 tests existed and nothing ran them automatically. A suite that only runs
+# when someone remembers is a suite that goes red quietly.
+#
+# Scope is deliberately the TS workspaces only. The Python suite in
+# artifacts/greencalc/ is not run here: H2 archives that application, and
+# standing up a Python job for code scheduled for deletion spends CI on
+# something the repository is trying to lose (§14).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+# A second push to the same branch cancels the first. The interesting answer is
+# always about the tip.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm 11 and node 24 — matched to the local toolchain that produced the
+      # lockfile. pnpm 11 no longer reads `pnpm.onlyBuiltDependencies` from
+      # package.json, which is why pnpm-workspace.yaml carries `allowBuilds:
+      # esbuild: true`; without it the install fails ERR_PNPM_IGNORED_BUILDS.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # --frozen-lockfile: CI installs what the lockfile says or fails. A CI
+      # run that silently resolves different versions than the developer had is
+      # testing something nobody has on disk.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r exec tsc --noEmit
+
+      - name: Test
+        run: pnpm -r test
+
+      # G10 — no network in tests.
+      #
+      # The naive form of this check greps test files for live hostnames, and
+      # it is WRONG: calculate.test.ts names both hosts inside its fetch stub,
+      # which is the code that PREVENTS the network call. That check fails on
+      # the thing enforcing the rule — the same false positive the P7 and
+      # old-figures rows hit on prose that forbids a phrase.
+      #
+      # Inverted instead: a test file may name a live host only if it also
+      # stubs fetch. A file naming NASA without stubbing is a file that will
+      # really call NASA.
+      #
+      # What this proves: no test file reaches the network THROUGH AN UNSTUBBED
+      # global fetch. What it does not prove: that no transitive dependency
+      # opens a socket by another route. Stated rather than implied.
+      - name: G10 — a test naming a live host must stub fetch
+        run: |
+          status=0
+          for f in $(grep -rlE 'power\.larc\.nasa\.gov|nominatim\.openstreetmap\.org' \
+                       --include='*.test.ts' artifacts lib 2>/dev/null || true); do
+            if ! grep -qE 'stubGlobal\(\s*["'"'"']fetch|vi\.mock' "$f"; then
+              echo "FAIL $f names a live host and does not stub fetch."
+              status=1
+            else
+              echo "ok   $f (host named, fetch stubbed)"
+            fi
+          done
+          if [ "$status" -ne 0 ]; then
+            echo "G10 forbids network in tests. Use a fixture."
+          fi
+          exit $status
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # The two SHIPPED artifacts only. artifacts/mockup-sandbox is excluded on
+      # purpose: it fails locally on a missing lightningcss native binary and it
+      # deploys nowhere, so gating merges on it would block real work for a
+      # package no user reaches.
+      - name: Build api-server
+        run: pnpm --filter @workspace/api-server build
+
+      - name: Build web
+        run: pnpm --filter @workspace/green-energy-calculator build

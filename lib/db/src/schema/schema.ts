@@ -4,41 +4,6 @@ import { z } from "zod/v4";
 
 export * from "./models/chat";
 
-export const CARBON_INTENSITY_BY_COUNTRY: Record<string, number> = {
-  australia: 0.656,
-  austria: 0.158,
-  belgium: 0.167,
-  brazil: 0.074,
-  canada: 0.150,
-  china: 0.555,
-  denmark: 0.165,
-  finland: 0.085,
-  france: 0.083,
-  germany: 0.401,
-  greece: 0.393,
-  india: 0.708,
-  ireland: 0.295,
-  italy: 0.351,
-  japan: 0.471,
-  mexico: 0.436,
-  morocco: 0.543,
-  maroc: 0.543,
-  netherlands: 0.283,
-  norway: 0.026,
-  poland: 0.773,
-  portugal: 0.212,
-  romania: 0.263,
-  "south korea": 0.436,
-  spain: 0.244,
-  sweden: 0.045,
-  switzerland: 0.047,
-  turkey: 0.481,
-  "united kingdom": 0.248,
-  uk: 0.248,
-  "united states": 0.386,
-  usa: 0.386,
-  us: 0.386,
-};
 
 export type MonthlyEntry = {
   month: number;
