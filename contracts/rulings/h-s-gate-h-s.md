@@ -121,8 +121,36 @@ broke the output table's own field splitting.
 
 ## LIVE EVIDENCE
 
-None at the time of writing. The merge is operator-directed and the live probe follows it;
-results are appended to this ruling once Render has deployed.
+Merged `b405cfa` (`--no-ff`), pushed `100cfdd..b405cfa` at **2026-08-27T15:13:29Z**. One
+push, therefore one deploy per service. Probes at **15:14:52Z**, all GET, no writes.
+
+```
+GET https://voltura-web.onrender.com/            200   build-sha b405cfa
+GET https://voltura-api.onrender.com/api/healthz 200   {"status":"ok"}
+GET https://voltura-api.onrender.com/api/calculate/1/pdf
+     (no X-Session-Id)                           400   {"message":"X-Session-Id header is required"}
+```
+
+No-oracle probe, one fabricated session id owning none of these rows:
+
+```
+GET /api/calculate/1/pdf        404  {"message":"Calculation not found"}
+GET /api/calculate/2/pdf        404  {"message":"Calculation not found"}
+GET /api/calculate/3/pdf        404  {"message":"Calculation not found"}
+GET /api/calculate/999999/pdf   404  {"message":"Calculation not found"}
+```
+
+Bodies for id 1 (exists) and id 999999 (does not) compared and **byte-identical**. Ids 1–3
+are rows H0 and earlier probes created, so these are real rows returning the same answer as
+an absent one. **F2 is closed in production**, not merely in the suite.
+
+**This also closes A12's gap, for this deploy only.** A12 recorded that `voltura-api`
+exposes no version or build-sha endpoint, so no coding session could prove the API container
+had redeployed — only the web could be proven. The 400 above is *new code*: before this
+merge that request returned a PDF. It is therefore positive proof the API container picked
+up `b405cfa`. The proof is incidental to this change and does not generalise — a deploy that
+alters no observable response is still unprovable. `/api/version` is scheduled into H1 to
+make it permanent.
 
 ## ROLLBACK
 
