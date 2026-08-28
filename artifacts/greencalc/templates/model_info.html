@@ -55,19 +55,42 @@
             {% elif f == 'current_consumption_kwh' %}Annual household energy consumption
             {% else %}{{ f }}{% endif %}
           </td>
+          {# H1.1 / C4-C7: this column claimed ranges the training data does not
+             contain. Every figure below is now the OBSERVED range, obtained by
+             executing _generate_pv_training_data (ml_model.py:130-144) with its
+             own seed (numpy default_rng(42), n=2000) and taking min/max — not
+             read off the clip bounds, which is how the old numbers were wrong.
+
+             Corrected:  irradiance  3.0-7.0      -> 2.10-5.24
+                         avg_temp_c  -10-35       -> -0.5-34.1
+                         household   1-8          -> 1-6  (rng.integers(1,7)
+                                                     excludes the high bound)
+                         consumption 500-50,000   -> 500-9,681  (the 50,000 clip
+                                                     never binds; the generator
+                                                     is normal(4500, 1500))
+
+             This table is Article 10 training-data documentation. Its only job
+             is to let a reader decide whether their case is in distribution, so
+             an overstated range defeats the purpose of printing it. #}
           <td>
             {% if f == 'month' %}1–12
-            {% elif f == 'latitude' %}28°–60°
-            {% elif f == 'irradiance_kwh_m2_day' %}3.0–7.0 kWh/m²/day
-            {% elif f == 'avg_temp_c' %}-10°–35°C
-            {% elif f == 'household_size' %}1–8
-            {% elif f == 'current_consumption_kwh' %}500–50,000 kWh/yr
+            {% elif f == 'latitude' %}28.0°–60.0°
+            {% elif f == 'irradiance_kwh_m2_day' %}2.10–5.24 kWh/m²/day
+            {% elif f == 'avg_temp_c' %}−0.5°–34.1°C
+            {% elif f == 'household_size' %}1–6
+            {% elif f == 'current_consumption_kwh' %}500–9,681 kWh/yr
             {% else %}—{% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    <p style="font-size:0.8rem; color:#6b7280; margin-top:0.75rem;">
+      Ranges are the <strong>observed minimum and maximum of the actual training
+      set</strong> (2,000 synthetic samples, NumPy seed 42), not the bounds the
+      generator clips to. A value outside these ranges is extrapolation, and the
+      model has seen nothing like it.
+    </p>
   </div>
 
   <!-- Training data -->
@@ -119,7 +142,12 @@
   <div class="card">
     <div class="card-title">⚠️ Known Limitations</div>
     <ul style="color:#374151; font-size:0.9rem; line-height:1.8;">
-      <li>Calibrated for <strong>residential PV only</strong> (100W–20,000W). Do not use for commercial or industrial systems.</li>
+      {# H1.1 / U4: was "Calibrated for residential PV only (100W-20,000W)".
+         Those figures are a CLIP on the output (ml_model.py:143), not a
+         calibration range. Training targets span 219-8,344 W, so above ~8.3 kW
+         the model is extrapolating and the clip is the only thing holding the
+         number down. Saying what clipping does, instead. #}
+      <li><strong>Residential PV only.</strong> Predictions are <strong>clipped</strong> to 100–20,000&nbsp;W, so a value inside that range is not evidence the model was trained there — training targets span roughly <strong>219–8,344&nbsp;W</strong>, and above that the output is extrapolation held down by the clip. Do not use for commercial or industrial systems.</li>
       <li>Accuracy <strong>degrades outside lat 28°–60°</strong>. Nordic countries and North Africa are underrepresented in training data.</li>
       <li>Wind generation uses a simplified capacity-factor model, not a full meteorological simulation.</li>
       <li>Does not account for local shading, roof orientation variation, or grid connection constraints.</li>
