@@ -324,3 +324,57 @@ need a reader on Houssain's own machine: the Claude Desktop config's existence a
 verbatim server entry with values redacted, `~/.claude-server-commander/config.json` in full,
 and `tools/list` against the live server. The last of those is unavoidably the tool describing
 itself; when it is run, it is **single-sourced** and must be written down as such.
+
+---
+
+## §5 — Re-verification, 2026-08-30 23:15 UTC
+
+Recorded because a locator in this ruling went stale, not because a finding changed.
+
+**Why this section exists.** The container's agent process restarted between the first pass
+(17:57 UTC) and this one (23:15 UTC). `ls -d /proc/558` → `No such file or directory`. The
+PID cited as the locator in S1.2 and S1.3 no longer resolves, so under C5 those findings were
+resting on an evidence path that a reader can no longer walk. The live process is now
+**PID 499** (`ps -o pid,lstart,uid -p 499` → `499  Sun Aug 30 23:15:11 2026  0`). PIDs here
+are session-scoped; the durable locator is *the argv of whichever process is currently
+`claude --output-format=stream-json`*, not the number.
+
+**Re-run against PID 499 — every S1.2/S1.3 result reproduced identically.**
+
+| Check | Command | Result |
+|---|---|---|
+| MCP tool bindings in argv | `tr '\0' '\n' < /proc/499/cmdline \| tr ',' '\n' \| grep '^mcp' \| sort -u` | 13 tokens: `mcp__github__*`, six `mcp__Gmail__*`, six `mcp__Google_Calendar__*`. **Nothing else.** |
+| Any Desktop-Commander-shaped token in argv | case-insensitive count of the vendor string over the same token stream | **0 matches** |
+| Workspace scope declaration | `grep -o -- '--add-dir [^ ]*'` over `/proc/499/cmdline` | `--add-dir /home/user/Green-Energy-Calc` — unchanged |
+| MCP manifest | `jq` over `/tmp/mcp-config-cse_01Ea1L72Ya2132hJukK3d1Gb.json` (3826 B, mtime `2026-08-30 23:15`) | four servers — `github`, `Gmail`, `Google_Calendar`, `Claude_Code_Remote` — all `type=http`, all `command=none`, all `args=0`, all `envKeys=` empty. No stdio server, no runner. |
+| Running MCP subprocesses | `ps -eo pid,args \| grep -iE 'mcp\|commander\|npx'` | one match, PID 499, the agent itself |
+| Package-runner cache | `ls -la /root/.npm/_npx` | `No such file or directory` |
+| `Desktopdev/` and the four deploy files | `ls -d /home/user/Desktopdev`; `find / -xdev -name '*_deploy.md'` | both absent; **zero** results. Nothing opened. |
+| Repo parent directory | `ls -la /home/user` | one entry, `Green-Energy-Calc` |
+| Synced skills | `jq` over `/root/.claude/skills/synced/2c33c76e-…/manifest.json` | same ten: `docx`, `houssain-os`, `import-memory`, `learn`, `morning`, `pd-ai-business-idea-generator`, `pdf`, `pptx`, `skill-creator`, `xlsx`. No `desktop-commander:*`, no `desktop-commander-overview`. |
+| Plugins | `find /root/.claude/plugins -maxdepth 3` | two paths, both empty buckets; no manifest, no plugin |
+
+**A false positive was generated and discarded — recorded because discarding it silently
+would be the laundering §0 forbids.** A first re-run looped `pgrep -f claude` over every
+matching PID and grepped their argv for `mcp__*`. It returned `mcp__desktop` and a bare
+`mcp__`. Those came from the argv of the **bash subprocess running my own audit script**,
+whose command line contained the pattern text I had echoed — the search matching its own
+query. Re-run against PID 499 alone, with the pattern never echoed into the command line, the
+count is **0**. **No Desktop Commander binding exists.** The lesson is the same one §0 states
+in a different register: a tool that can observe itself will hand you its own reflection.
+
+**One config surface changed, harmlessly.** `/root/.claude.json` is now 38910 B, mtime
+`2026-08-30 23:15:15` (was 38911 B / `17:57:38`) — it is rewritten at session start. Re-read
+as key names only per C2: still **no top-level `mcpServers` key**, and the single project
+entry `/home/user/Green-Energy-Calc` still has an **empty** `mcpServers`. No value printed.
+
+**Write discipline at re-verification.** `git status --porcelain` before this append →
+**empty**. Commit `20df9d9` → `1 file changed`, `contracts/rulings/s1-desktop-commander.md`
+only. `git branch --contains 20df9d9` → the block branch alone; **`main` does not contain
+it** (G1 holds). No `rm`, `mv`, `chmod`, or edit outside this file. No process signalled — the
+stale PID 558 was *observed* absent, never terminated. No SSH, no remote session, no install,
+no network call for the audit.
+
+**Gate S1 — unchanged, seven of seven.** No finding moved. Criterion 2's evidence is now
+anchored to a locator a reader can re-walk, and criterion 3 gains an explicit discarded
+false positive rather than a silent one. **RULING REMAINS CLOSED.**
