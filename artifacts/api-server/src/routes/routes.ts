@@ -8,7 +8,8 @@ import OpenAI from "openai";
 import PDFDocument from "pdfkit";
 import rateLimit from "express-rate-limit";
 import { parseOptimizePayload, OPTIMIZE_FAILURE_MESSAGE } from "./optimize-payload";
-import { CARBON_INTENSITY_BY_COUNTRY, type MonthlyEntry } from "@workspace/db";
+import { type MonthlyEntry } from "@workspace/db";
+import { lookupCarbonIntensity } from "../lib/carbon-intensity";
 
 // Mistral exposes an OpenAI-compatible API, so we reuse the openai SDK
 // pointed at api.mistral.ai. Lazy init: server boots even if the key is
@@ -69,13 +70,23 @@ function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
   return Math.max(0.4, oFactor * tiltFactor);
 }
 
-// Detect carbon intensity from location string
-function detectCarbonIntensity(location: string): number {
-  const loc = location.toLowerCase();
-  for (const [country, intensity] of Object.entries(CARBON_INTENSITY_BY_COUNTRY)) {
-    if (loc.includes(country)) return intensity;
-  }
-  return 0.4; // global average fallback
+/**
+ * Grid carbon intensity for a location. H1.5 fixed the substring match that
+ * resolved "Indianapolis" to India; the lookup now lives in ./lib/carbon-intensity
+ * with the table (H1.9, out of the schema package).
+ *
+ * The 0.4 fallback is NOT fixed here. It is a fabricated global average with no
+ * source and no date, reaching a displayed CO2 figure — a live P1/P2 violation,
+ * and it is H1b's (`lib/emissions`). Fixing it early means deciding what an
+ * unknown country should do to a user-facing number, which is that block's
+ * decision to make. The lookup below now returns null rather than a number, so
+ * the substitution happens in exactly one visible place instead of being buried
+ * in the table walk.
+ */
+function detectCarbonIntensity(geocodedCountry: string, locationInput: string): number {
+  const found = lookupCarbonIntensity(geocodedCountry, locationInput);
+  if (found !== null) return found;
+  return 0.4; // H1b: fabricated global average, no source, no date.
 }
 
 // Geocode location string to lat/lon via Nominatim
@@ -109,39 +120,213 @@ async function geocode(location: string): Promise<{ lat: number; lon: number; co
  * YYYY13 as the annual mean, so Object.keys() would yield thirteen entries and
  * a wrong annual figure.
  */
-const NASA_YEAR = 2022;
 const NASA_MONTH_KEYS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+
+/**
+ * NASA POWER's documented fill value for a month it has no data for.
+ *
+ * It is FINITE, so `Number.isFinite` — the only guard this code had — accepts
+ * it, and -999 flows through as though it were an irradiance reading. H1.0.
+ *
+ * Compared exactly, not by threshold. A threshold like `v < -900` would be a
+ * guess about values NASA has never documented, and P2 forbids guessing.
+ * Physically impossible readings are rejected separately below, by physics
+ * rather than by sentinel-hunting.
+ */
+const NASA_FILL_VALUE = -999;
+
+/**
+ * The irradiance period. 2022 alone is a single year, not a climate normal,
+ * and a single anomalous year moves a euro figure a user reads. H1.8.
+ *
+ * A parameter with a stated default, per the block's own constraint — never
+ * hardcoded at a call site. The period actually used is reported in the
+ * response, because the number means nothing without it.
+ */
+const NASA_PERIOD_START = 2019;
+const NASA_PERIOD_END = 2023;
+
+/**
+ * Why a read fails, in the caller's terms.
+ *
+ * `fill-value` and `partial-coverage` are DATA defects: NASA answered, and the
+ * answer cannot support a number. They become a typed error and no figure at
+ * all — never a substitution, which is the whole of H1.0.
+ *
+ * `http`, `request-failed` and `malformed` are TRANSPORT defects: NASA did not
+ * answer. Those keep the existing labelled latitude fallback, which is not a
+ * silent default — it is reported as `fallback-lat` and rendered as such.
+ * H1.0 is about the fill value; widening it to kill the transport fallback
+ * would be a different change and is not taken here.
+ */
+type NasaFailure =
+  | { kind: "http"; status: number }
+  | { kind: "request-failed" }
+  | { kind: "malformed"; status: number }
+  | { kind: "non-finite-value"; parameter: string; keys: string[] }
+  | { kind: "fill-value"; parameter: string; keys: string[] }
+  | {
+      kind: "partial-coverage";
+      parameter: string;
+      missing: string[];
+      yearsRequested: number;
+      monthsExpected: number;
+      monthsPresent: number;
+    };
 
 type NasaProbe = {
   httpStatus: number | "not-called" | "request-failed";
   keysRequested: string[];
   keysPresent: string[];
-  year: number | null;
+  period: { start: number; end: number } | null;
   data: { irradiance: number[]; temperature: number[] } | null;
+  failure: NasaFailure | null;
 };
 
-async function fetchNasaPower(lat: number, lon: number): Promise<NasaProbe> {
-  const monthKeys = NASA_MONTH_KEYS.map((mm) => `${NASA_YEAR}${mm}`);
-  const keysRequested = monthKeys.slice(0, 3);
+/**
+ * Read one NASA parameter across the whole period and return the twelve
+ * monthly means — or the reason it cannot.
+ *
+ * This is THE parse boundary (A11). Every value NASA sends is filtered here,
+ * once, on the way in. Guarding at a call site was the rejected design: it
+ * leaves every other call site open, which is exactly how `-999` survived.
+ *
+ * Three rejections, all typed and none substituting. Two are FATAL to the
+ * request; the third is not, and the difference is deliberate:
+ *
+ *   1. absent key   -> partial coverage. FATAL. A mean over three years when
+ *                      five were requested, reported as five, is the `4.0`
+ *                      defect wearing a different constant. A11's named
+ *                      failure mode for 1.8, and the likelier one.
+ *   2. the fill value -> FATAL. H1.0. NASA answered "I have no data for this
+ *                      month" in a finite number, and no figure can be built
+ *                      on it.
+ *   3. non-finite   -> NOT fatal. null, "", {} and friends: the key is there
+ *                      and the value is garbage. That is a malformed response,
+ *                      which the existing design already answers with the
+ *                      labelled latitude fallback and reports as
+ *                      `fallback-lat`. Gate A3.5 pins that behaviour and it is
+ *                      not H1.0's to change - H1.0 is about the fill value.
+ *                      Promoting this to a hard error would silently retire a
+ *                      tested honesty guarantee under cover of a different task.
+ */
+function readNasaSeries(
+  raw: Record<string, unknown>,
+  parameter: string,
+  years: number[],
+): { values: number[] } | { failure: NasaFailure } {
+  const monthlyMeans: number[] = [];
+  const missing: string[] = [];
+  const fillHits: string[] = [];
+  const nonFinite: string[] = [];
+  let monthsPresent = 0;
+
+  for (const mm of NASA_MONTH_KEYS) {
+    const perYear: number[] = [];
+
+    for (const year of years) {
+      const key = `${year}${mm}`;
+      if (!(key in raw)) { missing.push(key); continue; }
+
+      // Type first, and NEVER Number() before this check.
+      //
+      // Number(null) === 0 and Number("") === 0. Both are finite, so a
+      // Number.isFinite guard accepts them and a month NASA sent as null
+      // becomes 0 kWh/m2/day - a plausible-looking winter reading that no
+      // instrument produced. The old code only escaped this because its test
+      // deleted keys, making Number(undefined) NaN; a null in a live response
+      // would have sailed straight through.
+      //
+      // This is the same defect as `|| 4.0`, one coercion further down.
+      const rawValue = raw[key];
+      const isNumeric =
+        typeof rawValue === "number" ||
+        (typeof rawValue === "string" && rawValue.trim() !== "");
+      if (!isNumeric) { nonFinite.push(key); continue; }
+
+      const value = Number(rawValue);
+      if (value === NASA_FILL_VALUE) { fillHits.push(key); continue; }
+      if (!Number.isFinite(value)) { nonFinite.push(key); continue; }
+
+      perYear.push(value);
+      monthsPresent++;
+    }
+
+    // Only reached when nothing was rejected; the guards below fire first.
+    if (perYear.length > 0) {
+      monthlyMeans.push(perYear.reduce((a, b) => a + b, 0) / perYear.length);
+    }
+  }
+
+  // Fill value first: it is the most specific diagnosis, and a response
+  // carrying -999 usually carries missing keys too. Reporting "partial
+  // coverage" for what is really a fill value would send the next reader
+  // hunting the wrong defect.
+  if (fillHits.length > 0) {
+    return { failure: { kind: "fill-value", parameter, keys: fillHits.slice(0, 6) } };
+  }
+
+  // Non-finite before partial coverage, for the same reason: "the value is
+  // garbage" is a sharper finding than "some months are absent", and this one
+  // is not fatal.
+  if (nonFinite.length > 0) {
+    return { failure: { kind: "non-finite-value", parameter, keys: nonFinite.slice(0, 6) } };
+  }
+
+  const monthsExpected = NASA_MONTH_KEYS.length * years.length;
+  if (missing.length > 0 || monthsPresent !== monthsExpected) {
+    return {
+      failure: {
+        kind: "partial-coverage",
+        parameter,
+        missing: missing.slice(0, 6),
+        yearsRequested: years.length,
+        monthsExpected,
+        monthsPresent,
+      },
+    };
+  }
+
+  return { values: monthlyMeans.map((v) => parseFloat(v.toFixed(4))) };
+}
+
+async function fetchNasaPower(
+  lat: number,
+  lon: number,
+  period: { start: number; end: number } = { start: NASA_PERIOD_START, end: NASA_PERIOD_END },
+): Promise<NasaProbe> {
+  const years: number[] = [];
+  for (let y = period.start; y <= period.end; y++) years.push(y);
+
+  // The first three month keys of the period, in the order NASA returns them.
+  // Compared against keysPresent to prove our YYYYMM format still matches the
+  // response shape - that comparison is what caught the YYYYMON mismatch, so
+  // the two lists must stay directly comparable.
+  const keysRequested = NASA_MONTH_KEYS.slice(0, 3).map((mm) => `${period.start}${mm}`);
   const miss = (
     httpStatus: number | "not-called" | "request-failed",
+    failure: NasaFailure,
     keysPresent: string[] = [],
-  ): NasaProbe => ({ httpStatus, keysRequested, keysPresent, year: null, data: null });
+  ): NasaProbe => ({ httpStatus, keysRequested, keysPresent, period: null, data: null, failure });
 
   try {
     const url =
       `https://power.larc.nasa.gov/api/temporal/monthly/point` +
       `?parameters=ALLSKY_SFC_SW_DWN,T2M&community=RE` +
       `&longitude=${lon.toFixed(4)}&latitude=${lat.toFixed(4)}` +
-      `&start=${NASA_YEAR}&end=${NASA_YEAR}&format=JSON`;
+      `&start=${period.start}&end=${period.end}&format=JSON`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return miss(res.status);
+    // An out-of-range period is rejected rather than filled - the monthly
+    // endpoint answers "Your end date out of range". That arrives here as a
+    // non-2xx and stays a transport failure, which is correct: we asked for
+    // something that does not exist, so there is nothing to report a period on.
+    if (!res.ok) return miss(res.status, { kind: "http", status: res.status });
     const data: any = await res.json();
     const param = data?.properties?.parameter;
-    if (!param) return miss(res.status);
+    if (!param) return miss(res.status, { kind: "malformed", status: res.status });
     const irr = param["ALLSKY_SFC_SW_DWN"];
     const temp = param["T2M"];
-    if (!irr || !temp) return miss(res.status);
+    if (!irr || !temp) return miss(res.status, { kind: "malformed", status: res.status });
 
     // Object.keys is deliberate and must NOT be rewritten to
     // monthKeys.filter((k) => k in irr). This field's job is to report the
@@ -151,27 +336,24 @@ async function fetchNasaPower(lat: number, lon: number): Promise<NasaProbe> {
     // found that defect. Diagnostic only - never feeds a calculated number.
     const keysPresent = Object.keys(irr).slice(0, 3);
 
-    const irrArr = monthKeys.map((k) => Number(irr[k]));
-    const tempArr = monthKeys.map((k) => Number(temp[k]));
-
-    // No partial-NASA state. One non-finite month and the entire read is a
-    // miss; the caller runs the latitude fallback and reports it as such. A
-    // figure that is eleven twelfths real and one twelfth invented, labelled
-    // live, is the defect this block removes.
-    if (!irrArr.every(Number.isFinite) || !tempArr.every(Number.isFinite)) {
-      return miss(res.status, keysPresent);
-    }
+    // Every parameter through the same boundary. Guarding irradiance and not
+    // temperature would leave -999 reaching the consumption model.
+    const irrRead = readNasaSeries(irr, "ALLSKY_SFC_SW_DWN", years);
+    if ("failure" in irrRead) return miss(res.status, irrRead.failure, keysPresent);
+    const tempRead = readNasaSeries(temp, "T2M", years);
+    if ("failure" in tempRead) return miss(res.status, tempRead.failure, keysPresent);
 
     return {
       httpStatus: res.status,
       keysRequested,
       keysPresent,
-      year: NASA_YEAR,
-      data: { irradiance: irrArr, temperature: tempArr },
+      period: { start: period.start, end: period.end },
+      data: { irradiance: irrRead.values, temperature: tempRead.values },
+      failure: null,
     };
   } catch {
     // A request was issued and no HTTP response came back.
-    return miss("request-failed");
+    return miss("request-failed", { kind: "request-failed" });
   }
 }
 
@@ -484,7 +666,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             lat: null,
             lon: null,
             irradianceSource: "not-reached" as const,
-            irradianceYear: null,
+            irradiancePeriod: null,
             nasaHttpStatus: "not-called" as const,
             nasaKeysRequested: [],
             nasaKeysPresent: [],
@@ -498,15 +680,49 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const countryFromGeo = geo.country;
 
       // Detect carbon intensity from location
-      const carbonIntensity = detectCarbonIntensity(countryFromGeo + " " + input.location);
+      const carbonIntensity = detectCarbonIntensity(countryFromGeo, input.location);
 
       // Fetch NASA POWER data (fall back to lat-based estimate)
       const nasaProbe = await fetchNasaPower(lat, lon);
+
+      // H1.0 / H1.8. A data defect is fatal to the request: NASA answered and
+      // the answer cannot carry a number, so no number is produced. Not a
+      // fallback, not a shorter mean quietly relabelled - a typed error and
+      // nothing else. Substituting here is the defect this block removes.
+      const f = nasaProbe.failure;
+      if (f && (f.kind === "fill-value" || f.kind === "partial-coverage")) {
+        const detail =
+          f.kind === "fill-value"
+            ? `NASA POWER returned its ${NASA_FILL_VALUE} fill value for ${f.parameter} at ${f.keys.join(", ")}. No irradiance figure can be computed for this location.`
+            : `NASA POWER covered ${f.monthsPresent} of ${f.monthsExpected} months for ${f.parameter} over ${f.yearsRequested} year(s)${f.missing.length ? ` (missing ${f.missing.join(", ")})` : ""}. A mean over fewer years than requested would misstate the period.`;
+
+        return res.status(422).json({
+          message: detail,
+          code: f.kind === "fill-value" ? "nasa_fill_value" : "nasa_partial_coverage",
+          field: "location",
+          resolution: {
+            locationInput: input.location,
+            geocodeStatus: "resolved" as const,
+            lat,
+            lon,
+            irradianceSource: "not-reached" as const,
+            irradiancePeriod: null,
+            nasaHttpStatus: nasaProbe.httpStatus,
+            nasaKeysRequested: nasaProbe.keysRequested,
+            nasaKeysPresent: nasaProbe.keysPresent,
+            irradianceMonthly: [],
+          },
+        });
+      }
+
       let nasaData = nasaProbe.data;
+      let irradiancePeriod = nasaProbe.period;
       let irradianceSource: "nasa-live" | "fallback-lat" = "nasa-live";
       if (!nasaData) {
+        // Transport failure only - NASA did not answer. Labelled, never silent.
         nasaData = fallbackIrradiance(lat);
         irradianceSource = "fallback-lat";
+        irradiancePeriod = null;
       }
 
       const { irradiance: irrMonthly, temperature: tempMonthly } = nasaData;
@@ -595,7 +811,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         lat: parseFloat(lat.toFixed(4)),
         lon: parseFloat(lon.toFixed(4)),
         irradianceSource,
-        irradianceYear: nasaProbe.year,
+        irradiancePeriod,
         nasaHttpStatus: nasaProbe.httpStatus,
         nasaKeysRequested: nasaProbe.keysRequested,
         nasaKeysPresent: nasaProbe.keysPresent,

@@ -344,3 +344,127 @@ first AVRA data — was made against replay. It may or may not be the right disp
 an unauthenticated sequential-id document endpoint, and that is the operator's call. F2 is
 recorded, gated with F1 under C8 as the conservative default, and flagged for a decision of
 its own.
+
+---
+
+## A16 · 2026-08-27 — G8 amended: the drill may not require unauthorised deploys
+
+**Operator ruling, with an executor amendment to the framing that was accepted in
+substance and is recorded here rather than argued twice.**
+
+**The problem.** G8 requires the rollback to be *executed* for any block reaching `main`.
+A13 then established that a revert on an auto-deploying branch **is a production deploy**.
+Together they oblige the executor to perform two unauthorised production deploys to close
+any gate — which is not a thing a coding session may decide to do.
+
+**The executor's objection, upheld.** The operator's framing — blocks authorised only for a
+merge satisfy G8 without further deploys — is right about authorisation and incomplete
+about consequence. "Authorised only for a merge" describes almost every block. A plain
+exemption therefore retires G8's executed-rollback clause permanently and amends away
+A13's still-open finding, that *"the rollback works in the sense that matters, a production
+instance actually going back, remains unproven."* That is the shape of the original G8
+failure: a gate closed with the rollback step skipped.
+
+**Resolution: relief plus a substitute obligation plus a standing debt.** Three tiers,
+replacing G8's single executed/demonstrated split.
+
+| Tier | When | What satisfies G8 |
+|---|---|---|
+| **A** | The block ships no code to production — docs, contracts, rulings, tests only | Rollback **demonstrated available**. Nothing was deployed, so there is nothing to revert. No deploy. |
+| **B** | The block ships code, merge authorised, **drill not authorised** | Rollback **proven to apply**, without pushing: compute the revert on a scratch ref, verify it targets exactly the block's diff and leaves everything else standing, record the file and line counts. Then record the deploy path as **UNPROVEN** in the ruling. No deploy. |
+| **C** | The drill is authorised | **Execute it**, and declare it in the ruling as production deploys with the window stated, per A13. Never described as local. |
+
+**The standing debt is the point.** Tier B is not a pass. Every Tier-B ruling must carry
+the line that the deploy path is unproven, and that debt stands until one deploy-path
+rollback is executed deliberately under Tier C. A13's finding survives this amendment
+instead of being dissolved by it. **If a ruling ever omits the unproven line, the gate is
+not closed** — the omission, not the missing drill, is the breach.
+
+Tier B is what A13 already called *"real and worth having"*: it proved `git revert -m 1`
+targets exactly Block R's 6,967 deletions and leaves `contracts/` standing. It is the git
+half. It is not the deploy half, and it must never be written up as though it were.
+
+## A17 · 2026-08-27 — old-figures checker gains a comment-line filter
+
+**Operator ruling.** The retired figures check now excludes comment lines, matching G5's
+existing filter exactly: `grep -vE ':\s*(//|\*|/\*)'`.
+
+This changes **what** the check matches, not only where, and is recorded as such. A16's
+sibling ruling on P7 was location-only; this one is not, and the difference is deliberate:
+the surviving hit (`calculate.test.ts:18`) is in shipped source, so no location exclusion
+could reach it.
+
+**Exactly what can now slip past, stated rather than discovered later:**
+
+1. A retired figure inside a `//` line comment, a `/*` block comment, or any JSDoc
+   continuation line beginning `*`. This is the intended relief — the figures survive
+   legitimately in docstrings describing the defect that produced them.
+2. **Markdown bullets.** The checker includes `*.md`, and a markdown list item written
+   `* 4,203 kWh` begins with `*` and is now skipped. A `-` bullet is still caught. This is
+   an unintended widening of a legal-exposure-adjacent check into prose, and it is real:
+   a claims document could carry the overstated figure in a starred bullet and pass.
+3. A figure in a **string literal** on a line that happens to begin with `*` — rare in
+   practice, possible in a wrapped template literal.
+
+**What is still caught, which is the part that matters:** any retired figure in executing
+code, because `const x = 4203;` does not begin with a comment marker even when a trailing
+`// note` follows it. Rendered UI strings, fixtures, and JSON are untouched by the filter.
+
+Accepted with (2) named as a known hole rather than silently inherited from G5.
+
+## A18 · 2026-08-27 — Gate H1's live-probe criterion rewritten, as R.4 was
+
+**Operator ruling. Task-defect class, identical to A7.**
+
+Gate H1 demanded: *"A live request against a location with a known missing month returns a
+typed error and no number."* **That evidence cannot be obtained.** A11 already established
+why: the monthly endpoint *rejects* an out-of-range period rather than filling it —
+`"Please provide a correct end date. Your end date out of range."` — so a monthly `-999` is
+not reachable through any user-controlled input. A criterion requiring evidence that cannot
+exist is a defect in the criterion, not a blocked task. A7 settled this once for R.4; the
+same reasoning applies here and the same remedy is taken.
+
+**Rewritten in four parts, each provable:**
+
+| # | Demands | Why it is provable |
+|---|---|---|
+| i | **Static + fixture proof** that the fill value is rejected at the parse boundary, mutation-tested: reintroduce acceptance, prove the test fails, restore | Done. Disabling the check fails all three A3.6 tests and the third reports `irradianceSource: "nasa-live"` — `-999` consumed and presented as live data |
+| ii | The guard runs against a **real NASA fill value**, not a synthetic one | `contracts/fixtures/nasa-power-daily-fillvalue-20260813-20260823.json` is an unedited live response carrying `-999`. G10 holds: the test consumes the fixture, never the network |
+| iii | **Live proof the guarded code is the deployed code** — `/api/version` reports the sha of the commit carrying the guard | Newly obtainable. This is what A12's gap prevented and what H1 builds; before `/api/version`, "the guard shipped" was an assertion |
+| iv | **Live proof the multi-year path works** — a live request against Fuengirola returns `nasa-live` with `irradiancePeriod {2019, 2023}` and twelve months | Ordinary 200 response, fully observable |
+
+**Live sighting of a monthly `-999` is dropped as unobtainable.** Do not present a
+reachability proof as a sighting — the standing rule from A7. The reachability condition is
+written instead: a fill value enters through recent unprocessed periods, which the daily
+endpoint fills and the monthly endpoint refuses, so the monthly path cannot produce one
+today.
+
+**Part (v), carried from A19 below:** the PDF half of the period statement is DEFERRED and
+must be shown as deferred at the gate, never as met.
+
+## A19 · 2026-08-27 — H1.8's PDF half is DEFERRED, not done
+
+**Operator ruling.** Task 1.8 requires the irradiance period stated *"in the output and in
+the PDF."* The output half is done. **The PDF half is deferred and must not be marked
+complete at Gate H1.**
+
+**Why it is blocked, not skipped.** The PDF renders a persisted `calculations` row. That
+table carries no provenance column at all — no source, no year, no period
+(`lib/db/src/schema/schema.ts`). Stating the period there requires a new column, and every
+fence in this session has forbidden migrations.
+
+**Why the obvious workaround is worse than the gap.** Rendering the period from the current
+server constant would print `2019–2023` on a PDF generated from a row computed under a
+different period — including every row already in production, all of which predate this
+change. The PDF footer already reasons this out for the irradiance source itself: the row
+*"carries no provenance — no source, no year — so the PDF cannot know whether the figures
+came from NASA or from the latitude fallback,"* and naming a year it cannot verify *"would
+read as a verified fact on the artefact most likely to be forwarded onward."* Printing an
+unverifiable period is the same defect with a wider range.
+
+**Carried to:** the first block whose fence grants a migration. The column, not the
+renderer, is the work. Until then the PDF stays silent on provenance, which is the honest
+state.
+
+**Gate H1 shows this as DEFERRED with this ruling cited.** A silent completion here would
+be a claim that a user-facing artefact states its period when it does not.

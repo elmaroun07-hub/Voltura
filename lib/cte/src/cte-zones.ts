@@ -68,14 +68,22 @@ export function parseZone(code: string): ClimateZone | null {
 /**
  * Province + altitude → climate zone (DB-HE Anejo B).
  *
- * DELIBERATELY NOT IMPLEMENTED.
+ * IMPLEMENTED. H1.6 corrected this comment, which still read "DELIBERATELY NOT
+ * IMPLEMENTED" and instructed the reader to populate the table — long after it
+ * had been populated. `ZONE_BY_PROVINCE_ALTITUDE` is built below from
+ * `climate-zones.json`, transcribed from the official source, and is covered by
+ * the 72 tests in this package.
  *
- * Anejo B is a large table mapping each provincial capital to a base zone,
- * then applying an altitude correction. It must be transcribed from the
- * official PDF, not reconstructed from memory — a wrong zone invalidates
- * every calculation built on top of it.
+ * A comment telling the next reader that a live table is a stub is not a
+ * cosmetic defect: it invites someone to "finish" work that is already done, or
+ * to distrust a table the tests already prove.
  *
- * Populate ZONE_BY_PROVINCE_ALTITUDE from:
+ * Anejo B maps each provincial capital to a base zone, then applies an altitude
+ * correction. It was transcribed from the official PDF, not reconstructed from
+ * memory — a wrong zone invalidates every calculation built on top of it. That
+ * requirement still holds for any future edit.
+ *
+ * Source:
  *   https://www.codigotecnico.org/pdf/Documentos/HE/DccHE.pdf  (Anejo B)
  */
 export type ProvinceCode = string; // e.g. "MU" (Murcia), "MA" (Málaga)

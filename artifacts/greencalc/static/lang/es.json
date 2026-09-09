@@ -6,7 +6,7 @@
   "nav_compliance": "Cumplimiento IA",
   "hero_title": "GreenCalc",
   "hero_subtitle": "Calculadora de Ahorro Energético Solar con IA",
-  "hero_description": "Calcula tus ahorros de energía solar con datos de irradiancia de la NASA, estimaciones optimizadas por IA y transparencia total según la Ley de IA de la UE.",
+  "hero_description": "Calcula tus ahorros de energía solar con datos de irradiancia de la NASA, estimaciones optimizadas por IA y documentación del modelo publicada.",
   "btn_start": "Comenzar Cálculo",
   "btn_dashboard": "Ver Panel",
   "form_location": "Ubicación",
@@ -26,5 +26,5 @@
   "results_payback": "Período de Retorno",
   "results_net_25yr": "Ganancia Neta a 25 Años",
   "export_pdf": "Exportar Informe PDF",
-  "footer": "GreenCalc — Conforme a la Ley de IA de la UE | Datos: NASA POWER"
+  "footer": "GreenCalc — Salidas de IA etiquetadas, ficha del modelo publicada | Datos: NASA POWER"
 }

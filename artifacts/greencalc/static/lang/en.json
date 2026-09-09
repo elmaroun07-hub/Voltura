@@ -6,7 +6,7 @@
   "nav_compliance": "AI Compliance",
   "hero_title": "GreenCalc",
   "hero_subtitle": "AI-Powered Solar Energy Savings Calculator",
-  "hero_description": "Calculate your solar energy savings with NASA irradiance data, AI-optimized estimates, and full EU AI Act compliance transparency.",
+  "hero_description": "Calculate your solar energy savings with NASA irradiance data, AI-optimized estimates, and published model documentation.",
   "btn_start": "Start Calculating",
   "btn_dashboard": "View Dashboard",
   "form_location": "Location",
@@ -26,5 +26,5 @@
   "results_payback": "Payback Period",
   "results_net_25yr": "25-Year Net Gain",
   "export_pdf": "Export PDF Report",
-  "footer": "GreenCalc — EU AI Act Compliant | Data: NASA POWER"
+  "footer": "GreenCalc — AI outputs labelled, model card published | Data: NASA POWER"
 }

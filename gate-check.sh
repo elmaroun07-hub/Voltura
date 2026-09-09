@@ -17,8 +17,11 @@ WEB_URL="${WEB_URL:-https://voltura-web.onrender.com}"
 # Counts moved at H-S: +5 api-server tests for the F2 PDF scoping lock.
 # 108 -> 113 total, 36 -> 41 api. Deleting audio/ and image/ moved nothing:
 # chat/routes.test.ts was the only test file in that subtree.
-EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-113}"
-EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-41}"
+# Moved again at H1: +5 for the -999 and partial-coverage locks (A3.6, A3.7),
+# +4 for /api/version. 113 -> 122 total, 41 -> 50 api. Then +9 for H1.5s
+# carbon-intensity lock: 122 -> 131 total, 50 -> 59 api.
+EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-131}"
+EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-59}"
 EXPECTED_ASSISTANT_TESTS="${EXPECTED_ASSISTANT_TESTS:-9}"
 EXPECTED_F2_TESTS="${EXPECTED_F2_TESTS:-5}"
 # G4 as narrowed by amendment A14 (26 Aug 2026): chat/ is the protected subtree,
@@ -178,19 +181,31 @@ else
 fi
 
 # ══ 8. the retired figures must not reappear ══════════════════════════
-# Same location-only exclusion as P7.
+# Location exclusions as P7, PLUS a comment-line filter — A17, 27 Aug 2026.
 #
-# KNOWN RESIDUAL, deliberately left failing: calculate.test.ts:18 carries
-# "4203 kWh / EUR 1050.70" in the docstring describing the defect that
-# produced them. That is the record of what was fixed, not a reappearance —
-# but it is in shipped source, not in docs/ or the contract, so no location
-# exclusion reaches it. Suppressing it needs a comment-line filter, which is
-# a change to WHAT this checks rather than where, and that is the operator's
-# call. G5 already sets the precedent if it is wanted.
+# The filter is byte-identical to G5's below, deliberately: one idiom, not two.
+# It changes WHAT this row matches, not only where it looks, which is why it
+# needed a ruling of its own.
+#
+# WHAT NOW SLIPS PAST, stated rather than discovered later:
+#   1. A retired figure in a // comment, a /* block, or a JSDoc continuation
+#      line beginning *. This is the intended relief - calculate.test.ts:18
+#      documents the defect that produced these figures.
+#   2. MARKDOWN BULLETS. This checker includes *.md, and a list item written
+#      "* 4,203 kWh" begins with * and is skipped. A "-" bullet is still
+#      caught. A claims document could therefore carry the overstated figure
+#      in a starred bullet and pass this row. Known hole, named in A17, not
+#      inherited silently from G5.
+#   3. A figure in a string literal on a line that happens to begin with *.
+#
+# WHAT IS STILL CAUGHT, which is the part that matters: any retired figure in
+# executing code. `const x = 4203;` does not begin with a comment marker even
+# with a trailing `// note`. Rendered UI strings, fixtures and JSON untouched.
 OLD=$(grep -rnE '4203|4,203|1050\.70|1,050\.70' \
        --include='*.ts' --include='*.tsx' --include='*.json' --include='*.md' \
        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=contracts \
-       --exclude-dir=docs --exclude=HEATSHIELD_CONTRACT.md . 2>/dev/null || true)
+       --exclude-dir=docs --exclude=HEATSHIELD_CONTRACT.md . 2>/dev/null \
+     | grep -vE ':\s*(//|\*|/\*)' || true)
 if [ -z "$OLD" ]; then
   row PASS "old figures"     "absent"
 else
