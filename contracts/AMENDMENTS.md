@@ -468,3 +468,67 @@ state.
 
 **Gate H1 shows this as DEFERRED with this ruling cited.** A silent completion here would
 be a claim that a user-facing artefact states its period when it does not.
+
+---
+
+## A20 · 2026-09-10 — Gate H1 criterion (ii), corrected premise
+
+**Operator ruling. Task-defect class — the third in the series: A7 for R.4, A18 for H1's
+live probe, this one for a criterion A18 itself wrote.**
+
+A18 recorded (ii) as satisfied on the stated fact that a test consumes
+`contracts/fixtures/nasa-power-daily-fillvalue-20260813-20260823.json`. **No test ever
+has.** Found at the H1 merge, by grep rather than by recollection: five references to that
+path exist in the repository and all five are contract prose — this file, `h1.md`,
+`h-r-gate-r.md`. Zero in `artifacts/`, `lib/` or `scripts/`. What A3.6 actually rejects is
+a `-999` the test itself writes into a monthly fixture at run time
+(`calculate.test.ts:259`) — synthetic, which is the one thing (ii) exists to exclude.
+
+**Why it was never wired, which is the substantive part.** The fixture is a **daily** NASA
+POWER response, keyed `20260821`. The parse boundary calls the **monthly** endpoint,
+keyed `202608` (`routes.ts:314`). No production path can consume the file unedited, and
+editing it to fit destroys the property (ii) is about. Building a daily parse to close the
+gap would add a surface the `-999` family can re-enter through — the opposite of what the
+H-series exists to do.
+
+**(ii) is amended to:** the parse-boundary guard MUST be exercised **directly, as a pure
+function**, against the **unedited bytes** of that fixture — read from disk, not inlined,
+not reshaped — asserting every `-999` parameter is filtered and the result is a typed 422.
+**Production remains monthly-only.** The synthetic injection at `calculate.test.ts:259`
+stays as an additional case, not as (ii)'s evidence.
+
+### Implementation, at the H1 merge
+
+Two pure functions extracted from code that already existed, behaviour unchanged, so the
+test exercises **the production guard** and not a copy of it:
+
+| | |
+|---|---|
+| `classifyNasaValue(rawValue)` | `routes.ts:200` — the three checks, in their original order, lifted verbatim out of `readNasaSeries`, which now calls it. Returns `{kind:"fill"}`, `{kind:"non-finite"}` or `{kind:"value",value}` |
+| `nasaDataFailureToHttp(f)` | `routes.ts:239` — the status, code and wording for the two DATA defects, lifted out of the calculate handler, which now calls it. This is what makes "the result is a typed 422" assertable without a live request |
+
+Test: `artifacts/api-server/src/routes/nasa-fillvalue-fixture.test.ts`, 5 cases.
+
+- The fixture is read as **bytes** and **hash-pinned** —
+  `sha256 c526b22edbdbb4677a982b076c8ba60676cae7efd6b36e3b7e2ddb4bd4ce2706`. Reshaping the
+  file into monthly keys, or trimming its `-999` days, fails the test instead of silently
+  making the claim false.
+- NASA's own header is asserted to declare the sentinel (`fill_value: -999.0`,
+  `POWER Daily API`), and every key to be `YYYYMMDD` — the shape conflict, stated in the
+  test rather than in prose only.
+- The four real fill values are located **independently of the guard** and pinned exactly:
+  `ALLSKY_SFC_SW_DWN` at `20260821`, `20260822`, `20260823`, and `T2M` at `20260823`. Every
+  one classifies as `fill` and none carries a `value`.
+- The 18 readings NASA did supply all classify as `value`. Over-rejection — a working month
+  discarded as a sentinel — would be its own defect.
+- The typed answer, built from the fixture's own parameter and keys: **422**,
+  `nasa_fill_value`, message naming `-999` and `20260821, 20260822, 20260823`, and stating
+  that no figure can be computed. A typed error, never a substitution.
+
+**Mutation-tested (G9).** Removing the fill branch from `classifyNasaValue` fails
+**4** tests: the three A3.6 route cases and, newly, `filters every -999 the response
+actually carries`. Restored, 64/64 green — 59 before this amendment, +5. `lib/cte` 72/72
+unchanged. `tsc --noEmit` clean.
+
+**G10 holds.** The test reads one local file and calls two pure functions. No server, no
+fetch, nothing to leak.
