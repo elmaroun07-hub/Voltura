@@ -15,6 +15,7 @@ server, not from local assumption.
 | Code merge | `eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2` — `--no-ff`, per G2 |
 | `main` before | `0a9c24e61bf0e4d39291bbcd5489c3450474f051` |
 | A20 + fixture test | `53ff2cb09949d969b3102ed20a24fd36382be6bf` on `heatshield/h1-gate-ruling` |
+| Ruling merge | `5f08fba03d4fa8a16629c2b2ced2751149ae0c55` — `--no-ff`, carries A20's extraction into `main` |
 | First ruled | 2026-09-10 (local, +0100) — NOT CLOSED, (ii) unmet |
 | Re-ruled | 2026-09-10, after A20 |
 | Ruled by | Executor, under operator authorisation given in session. Merge, file deletion and amendment are operator-only under §14.2; each was authorised explicitly before execution. |
@@ -281,18 +282,48 @@ git revert -m 1 eb45faf --no-edit      # -> f69673fc7e6972138da9c2645d2cab9d08ad
 Scratch ref retained locally at `f69673f`, **unpushed**. It must not be pushed: it exists
 as evidence, not as a rollback anyone should run from.
 
-**Scope note.** The proof covers `eb45faf`, the code merge. A20's commit and the ruling
-merge land after it and are not inside that revert; reverting `eb45faf` alone would leave
+### Second Tier-B proof — the ruling merge
+
+**The ruling merge ships production code too**, and a ruling that proved only the first
+merge would leave exactly the kind of hole A16 was written to close. `5f08fba` carries
+A20's extraction of `classifyNasaValue` and `nasaDataFailureToHttp` out of `routes.ts`,
+not only documents, so G8 binds it in its own right.
+
+Proved the same way, on its own scratch ref, never pushed:
+
+```bash
+git branch scratch/h1-ruling-revert-proof 5f08fba
+git checkout scratch/h1-ruling-revert-proof
+git revert -m 1 5f08fba --no-edit      # -> 34c2e6017ea85e68411b49e32b2e9b5395009b6f
+```
+
+| Check | Result |
+|---|---|
+| Revert applies | Cleanly, exit 0, no conflict |
+| Revert diffstat | **4 files changed, 28 insertions(+), 636 deletions(-)** — the exact mirror of the merge |
+| Reverted tree vs `eb45faf` | **Identical.** `tree(eb45faf)` = `tree(34c2e60)` = `372125c94b5e58362451f4fcac087333168cc5a5`; `git diff eb45faf 34c2e60` is empty |
+| Lands on | The H1 code merge, guard intact — reverting the ruling merge undoes A20's extraction and its test, and leaves the block's own `-999` rejection standing |
+
+Scratch ref retained locally at `34c2e60`, **unpushed**, on the same terms as the first:
+evidence, not a rollback anyone should run from.
+
+**Ordering, because the two are not independent.** Reverting `eb45faf` alone would leave
 `53ff2cb`'s test pointing at functions its parent no longer defines. A rollback of H1 as a
-whole reverts the ruling merge first, or both.
+whole reverts the ruling merge **first**, then the code merge. Reverting only the ruling
+merge is coherent on its own; reverting only the code merge is not.
+
+**Both merges are UNPROVEN on the real deploy path.** Two Tier-B proofs are still two
+halves of the same half. Neither `f69673f` nor `34c2e60` has been pushed, deployed, or
+served, and the debt below covers both.
 
 ### The deploy path is UNPROVEN
 
-**This is a Tier-B ruling and Tier B is not a pass.** What is proven here is git mechanics:
-that `git revert -m 1` targets exactly this block's 30 files and 2,785 changed lines and
-leaves everything else standing. What is not proven is the half that matters — **a
-production instance actually going back**. No deploy was performed, none was authorised,
-and nothing is serving the merged code tonight in any case.
+**This is a Tier-B ruling and Tier B is not a pass.** What is proven here is git mechanics,
+twice: that `git revert -m 1` targets exactly the code merge's 30 files and 2,785 changed
+lines, and exactly the ruling merge's 4 files and 664 changed lines, each leaving
+everything else standing. What is not proven, for **either** merge, is the half that
+matters — **a production instance actually going back**. No deploy was performed, none was
+authorised, and nothing is serving either merge tonight in any case.
 
 **A13's standing debt is carried forward unchanged, not dissolved by this ruling.** A real
 rollback is a push that deploys; that has never been exercised, on this block or any other.
@@ -304,8 +335,8 @@ breach, not the missing drill.
 a production deploy with its window stated (A13), never described as local:
 
 ```bash
-git revert -m 1 <the ruling merge>   # then, if the whole block is going back:
-git revert -m 1 eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2
+git revert -m 1 5f08fba03d4fa8a16629c2b2ced2751149ae0c55   # ruling merge, first
+git revert -m 1 eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2   # code merge, only with the above
 ```
 
 ---
@@ -321,7 +352,7 @@ git revert -m 1 eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2
 | iii | `/api/version` proves the deployed code | Static PASS · **live PENDING-VERIFICATION** |
 | iv | Live multi-year path | Static PASS · **live PENDING-VERIFICATION** |
 | v | PDF half of 1.8 | **DEFERRED** (A19) |
-| G8 | Rollback | **Tier B** — applies; deploy path **UNPROVEN**; A13 debt stands |
+| G8 | Rollback | **Tier B, both merges** — `eb45faf` → `f69673f`, `5f08fba` → `34c2e60`; each applies cleanly; deploy path **UNPROVEN** for both; A13 debt stands |
 | 1.3 | Four files deleted | **Verified by absence**, 2026-09-09T23:58:14Z |
 
 What changed since the first ruling is (ii), and it changed on evidence rather than on
