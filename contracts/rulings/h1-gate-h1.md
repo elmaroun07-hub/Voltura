@@ -1,18 +1,24 @@
 # Gate H1 — Truth · week 2
 
-**Status: NOT CLOSED.** Four of five criteria are met, deferred, or pending live
-verification. **Criterion (ii) is unmet** — see below. The merge was operator-authorised
-and stands; the gate does not close on it.
+**Status: NOT CLOSED — held open on (iii) and (iv) alone.**
+
+Every criterion obtainable without a running server is met or properly deferred. (ii),
+which failed its first re-verification, is now met on A20's evidence. What remains is live
+proof, and nothing is serving the merged code: Render is unpaid. That is a billing state,
+not a code state, and G12 does not let it be assumed away — evidence comes from the live
+server, not from local assumption.
 
 | | |
 |---|---|
 | Block | H1 (`contracts/blocks/h1.md`) |
 | Branch | `heatshield/h1` @ `c261620159a09ec95312a138d30fcff6f2c5e979` |
-| Merge | `eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2` — `--no-ff`, per G2 |
+| Code merge | `eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2` — `--no-ff`, per G2 |
 | `main` before | `0a9c24e61bf0e4d39291bbcd5489c3450474f051` |
-| Ruled | 2026-09-10 (local, +0100) / 2026-09-09T23:58Z |
-| Ruled by | Executor, under operator authorisation given in session. Merge and file deletion are operator-only under §14.2; both were authorised explicitly before execution. |
-| Pushed | **No.** Local only. `main` is ahead of `origin/main` by 6 commits, unpushed. |
+| A20 + fixture test | `53ff2cb09949d969b3102ed20a24fd36382be6bf` on `heatshield/h1-gate-ruling` |
+| First ruled | 2026-09-10 (local, +0100) — NOT CLOSED, (ii) unmet |
+| Re-ruled | 2026-09-10, after A20 |
+| Ruled by | Executor, under operator authorisation given in session. Merge, file deletion and amendment are operator-only under §14.2; each was authorised explicitly before execution. |
+| Pushed | **No.** Local only. |
 
 ---
 
@@ -48,13 +54,18 @@ M  lib/cte/src/cte-zones.ts
 M  lib/db/src/schema/schema.ts
 ```
 
-**Full suite green** at the merge commit, both packages that carry tests:
+**A20 lands on top of this merge, not inside it.** `53ff2cb` adds the fixture test and
+factors two pure functions out of `routes.ts`; the deployed sha to check at (iii) is
+therefore whatever `main` carries once the ruling branch is folded in, **not** `eb45faf`.
+
+**Full suite green**, at `53ff2cb`:
 
 | Package | Result |
 |---|---|
-| `artifacts/api-server` (`pnpm test` → `vitest run`) | 7 files, **59 passed**, 0 failed |
-| `lib/cte` (`pnpm test` → `vitest run`) | 2 files, **72 passed**, 0 failed |
-| Total | **131 passed** |
+| `artifacts/api-server` | 8 files, **64 passed**, 0 failed (59 before A20, +5) |
+| `lib/cte` | 2 files, **72 passed**, 0 failed |
+| Total | **136 passed** |
+| `tsc -p tsconfig.json --noEmit` | clean |
 
 ---
 
@@ -112,74 +123,70 @@ in the tree. It was the only thing standing between `git status` and clean.
 
 ---
 
-## Gate H1 — five criteria (A18, as tabled in `contracts/blocks/h1.md`)
+## Gate H1 — five criteria (A18, as amended by A20)
 
 ### (i) Fill value rejected at the parse boundary, mutation-tested — **PASS**
 
-The guard is `artifacts/api-server/src/routes/routes.ts:248`, inside the single parse
-boundary A11 required:
+The guard is `classifyNasaValue` in `artifacts/api-server/src/routes/routes.ts`, called by
+`readNasaSeries` — the single parse boundary A11 required:
 
 ```ts
-if (value === NASA_FILL_VALUE) { fillHits.push(key); continue; }   // NASA_FILL_VALUE = -999
+if (value === NASA_FILL_VALUE) return { kind: "fill" };   // NASA_FILL_VALUE = -999
 ```
 
 Compared exactly, not by threshold, and reached by every value NASA sends — one site, not
-per-call-site.
+per-call-site. A20 moved these three checks out of the loop body verbatim; `readNasaSeries`
+now calls the function rather than inlining it, and the route tests that pin the old
+behaviour by exact substring all still pass, which is what makes the extraction provably
+behaviour-preserving rather than merely intended to be.
 
-**Mutation executed (G9), not recalled.** Line 248 replaced by a comment, reintroducing
-acceptance. One-line diff, confirmed by `git diff --shortstat`.
+**Mutation executed (G9), twice — before A20 and after.**
 
-| | Result |
-|---|---|
-| Baseline | 59 passed / 59 |
-| Under mutation | **3 failed** / 59 — all three of `A3.6 — the -999 fill value is rejected, never consumed` |
-| Restored (`git checkout --`) | 59 passed / 59; file byte-identical to the pre-mutation copy |
+| | Before A20 | After A20 |
+|---|---|---|
+| Baseline | 59 / 59 | 64 / 64 |
+| Under mutation | **3 failed** — the A3.6 route cases | **4 failed** — the same three, plus `filters every -999 the response actually carries` |
+| Restored | 59 / 59, file byte-identical | 64 / 64, guard line restored verbatim |
 
-The three killed tests are exactly the three A18 predicted, and the third fails on
+The third A3.6 case fails on
 `expect(r.body.resolution.irradianceSource).not.toBe("nasa-live")` — with the guard
 disabled, `-999` is consumed and presented to the user as live NASA data. That is the
 defect, observed rather than asserted.
 
-### (ii) The guard runs against a **real** NASA fill value — **NOT MET**
+### (ii) The guard runs against a **real** NASA fill value — **PASS, on A20's terms**
 
-A18 and `h1.md` both record this as provable because
-`contracts/fixtures/nasa-power-daily-fillvalue-20260813-20260823.json` "is an unedited live
-response carrying `-999`" and "the test consumes the fixture, never the network."
+**This criterion failed its first re-verification and was the sole reason the gate did not
+close on 2026-09-10.** A18 recorded it satisfied on the stated fact that a test consumes
+`contracts/fixtures/nasa-power-daily-fillvalue-20260813-20260823.json`. No test did: five
+references to that path existed in the repository and all five were contract prose. The
+`-999` A3.6 rejects is written by the test itself at run time — synthetic, which is the one
+thing (ii) exists to exclude.
 
-**The fixture exists and is real. No test consumes it.**
+The cause was structural, not neglect: the fixture is a **daily** response keyed
+`20260821`, and production calls the **monthly** endpoint keyed `202608`. It cannot be fed
+to the route unedited, and editing it to fit destroys the property being claimed.
 
-| Check | Result |
+A20 rules the criterion, not the task, and forbids the tempting fix. **Production stays
+monthly-only** — a daily parse would add a surface the `-999` family can re-enter through.
+The boundary is factored instead, so the guard itself can be pointed at the real bytes.
+
+Evidence — `artifacts/api-server/src/routes/nasa-fillvalue-fixture.test.ts`, 5 cases, green:
+
+| Assertion | Result |
 |---|---|
-| Fixture present, 982 bytes | Yes — header `"fill_value":-999.0`, three real `-999.0` days in `ALLSKY_SFC_SW_DWN` (20260821–23) and one in `T2M` (20260823) |
-| `git grep "contracts/fixtures"` across all tracked files | 5 hits, **all in `contracts/` prose** — AMENDMENTS.md, h1.md, h-r-gate-r.md. Zero in `artifacts/`, `lib/`, `scripts/` |
-| `git grep -i "fillvalue\|20260813"` outside `contracts/` | **Zero hits** |
-| `-999` inside `artifacts/api-server/src/routes/calculate.fixtures.json` | 4 hits, **all the declarative `"fill_value": -999` header field**. No data month in any of the four cities carries one |
-| How A3.6 obtains its `-999` | Injected at runtime by the test: `nasa.properties.parameter.ALLSKY_SFC_SW_DWN["202108"] = -999` (`calculate.test.ts:259`, `:279`, `:293`) |
+| Fixture read as bytes and hash-pinned, `sha256 c526b22e…ce2706` | Passes. Reshaping the file into monthly keys, or trimming its `-999` days, now **fails the test** instead of silently making the claim false |
+| NASA's own header declares the sentinel — `fill_value: -999.0`, `POWER Daily API` | Passes. The response says what `-999` means; the test does not assert it into being |
+| Every key matches `^\d{8}$` | Passes — the daily/monthly shape conflict, pinned in code rather than only in prose |
+| The four real fill values, located **independently of the guard** and pinned exactly: `ALLSKY_SFC_SW_DWN` at `20260821`, `20260822`, `20260823`; `T2M` at `20260823` | Passes |
+| Each classifies as `fill`, and none carries a `value` | Passes — **every `-999` the response actually carries is filtered** |
+| The 18 readings NASA did supply all classify as `value` | Passes — over-rejection, a working month discarded as a sentinel, would be its own defect |
+| A `fill-value` failure built from the fixture's own parameter and keys → `nasaDataFailureToHttp` | **422**, `nasa_fill_value`, message naming `-999`, naming `20260821, 20260822, 20260823`, and stating no figure can be computed. A typed error, never a substitution |
 
-So the value the guard is proven against is **synthetic** — which is the precise thing
-criterion (ii) exists to exclude.
+**G10 holds absolutely.** The test reads one local file and calls two pure functions. No
+server, no fetch, nothing to leak.
 
-**Why it was probably never wired.** The saved fixture is a **daily** response
-(`temporal/daily`, keys `20260813`…). The parse boundary calls the **monthly** endpoint —
-`routes.ts:314`, `https://power.larc.nasa.gov/api/temporal/monthly/point` — whose keys are
-`YYYYMM`. The fixture cannot be dropped into the monthly path without reshaping it, and
-reshaping it makes it edited, which is what (ii) forbids. This is a real shape conflict in
-the criterion, not an oversight in the code.
-
-**This does not weaken (i).** The guard is an exact `=== -999` comparison at a single
-boundary; a real `-999.0` and an injected `-999` are the same double. What is missing is
-the *evidence* the criterion demands, and A7's standing rule — do not present one kind of
-proof as another — is why it is recorded unmet rather than argued past.
-
-**Two honest routes, both operator-ruled, neither taken tonight:**
-
-1. Wire a test that consumes the fixture unedited through a daily-shaped parse, if the code
-   is ever given one.
-2. Amend the criterion, as A18 amended its own predecessor, to state that the fixture
-   proves the fill value's *reality and format* while the mutation test proves *rejection*
-   — a task-defect ruling on a criterion whose evidence the code's shape cannot supply.
-
-Until one of those happens, **Gate H1 does not close.**
+The synthetic injection at `calculate.test.ts:259` remains, as A20 directs — an additional
+case, not (ii)'s evidence.
 
 ### (iii) `/api/version` reports the deployed sha — **static PASS, live PENDING-VERIFICATION**
 
@@ -198,19 +205,19 @@ Run once serving resumes, after the push:
 curl -s https://voltura-api.onrender.com/api/version
 ```
 
-Passes when `shaFull` equals the sha `origin/main` carries after the push
-(`eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2` if pushed unchanged) and `source` is
-`"render"`. Fails if `sha` is non-null but does not match — that is a stale container, the
-exact condition A12 recorded as unprovable before this endpoint existed.
+Passes when `shaFull` equals what `git rev-parse main` reports at push time — the merge of
+`heatshield/h1-gate-ruling`, since A20's guard extraction sits there and not in `eb45faf` —
+and `source` is `"render"`. Fails if `sha` is non-null but does not match: that is a stale
+container, the exact condition A12 recorded as unprovable before this endpoint existed.
 
 ### (iv) Live multi-year 2019–2023 response — **static PASS, live PENDING-VERIFICATION**
 
 The period is a parameter with a stated default (`NASA_PERIOD_START = 2019`,
-`NASA_PERIOD_END = 2023`, `routes.ts:146-147`), reported in the response as
-`resolution.irradiancePeriod`, never hardcoded at a call site.
+`NASA_PERIOD_END = 2023`), reported in the response as `resolution.irradiancePeriod`, never
+hardcoded at a call site.
 
 Partial coverage is a typed 422 naming **months covered of months expected**, not a shorter
-mean quietly relabelled:
+mean quietly relabelled. Since A20 the wording is built by `nasaDataFailureToHttp`:
 
 ```
 NASA POWER covered {monthsPresent} of {monthsExpected} months for {parameter}
@@ -234,16 +241,15 @@ Passes on a 200 whose `resolution.irradianceSource` is `"nasa-live"`,
 
 ### (v) 1.8's PDF half shown as DEFERRED — **DEFERRED, per A19**
 
-Recorded as deferred, never as met. A19's blocking condition was re-checked at the merge
-commit and still holds:
+Recorded as deferred, never as met. A19's blocking condition was re-checked and still
+holds:
 
 - `lib/db/src/schema/schema.ts` — the `calculations` row carries **no** provenance column.
   No source, no year, no period.
-- `routes.ts:622-630` — the PDF footer prints no irradiance claim in either direction, and
-  the comment in place states why: the row carries no provenance, so the PDF cannot know
-  whether the figures came from NASA or the latitude fallback, and naming a year it cannot
-  verify "would read as a verified fact on the artefact most likely to be forwarded
-  onward."
+- The PDF footer prints no irradiance claim in either direction, and the comment in place
+  states why: the row carries no provenance, so the PDF cannot know whether the figures
+  came from NASA or the latitude fallback, and naming a year it cannot verify "would read
+  as a verified fact on the artefact most likely to be forwarded onward."
 
 Carried to the first fence granting a migration. **The column, not the renderer, is the
 work.** Silence is the honest state until then.
@@ -275,6 +281,11 @@ git revert -m 1 eb45faf --no-edit      # -> f69673fc7e6972138da9c2645d2cab9d08ad
 Scratch ref retained locally at `f69673f`, **unpushed**. It must not be pushed: it exists
 as evidence, not as a rollback anyone should run from.
 
+**Scope note.** The proof covers `eb45faf`, the code merge. A20's commit and the ruling
+merge land after it and are not inside that revert; reverting `eb45faf` alone would leave
+`53ff2cb`'s test pointing at functions its parent no longer defines. A rollback of H1 as a
+whole reverts the ruling merge first, or both.
+
 ### The deploy path is UNPROVEN
 
 **This is a Tier-B ruling and Tier B is not a pass.** What is proven here is git mechanics:
@@ -293,6 +304,7 @@ breach, not the missing drill.
 a production deploy with its window stated (A13), never described as local:
 
 ```bash
+git revert -m 1 <the ruling merge>   # then, if the whole block is going back:
 git revert -m 1 eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2
 ```
 
@@ -300,26 +312,29 @@ git revert -m 1 eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2
 
 ## Outcome
 
-**Gate H1: NOT CLOSED.**
+**Gate H1: NOT CLOSED. Held open on (iii) and (iv) only.**
 
 | # | Criterion | Ruling |
 |---|---|---|
-| i | Parse-boundary rejection, mutation-tested | **PASS** |
-| ii | Real NASA fill value, not synthetic | **NOT MET** — the fixture is consumed by no test |
+| i | Parse-boundary rejection, mutation-tested | **PASS** — mutation kills 4 |
+| ii | Real NASA fill value, not synthetic | **PASS**, on A20's amended terms |
 | iii | `/api/version` proves the deployed code | Static PASS · **live PENDING-VERIFICATION** |
 | iv | Live multi-year path | Static PASS · **live PENDING-VERIFICATION** |
 | v | PDF half of 1.8 | **DEFERRED** (A19) |
 | G8 | Rollback | **Tier B** — applies; deploy path **UNPROVEN**; A13 debt stands |
 | 1.3 | Four files deleted | **Verified by absence**, 2026-09-09T23:58:14Z |
 
-The merge stands — it was authorised in its own right and G2 was satisfied. The gate is a
-separate judgement, and it does not close while (ii) is unmet and (iii)/(iv) are unrun.
+What changed since the first ruling is (ii), and it changed on evidence rather than on
+argument: a test that reads the real bytes, pinned by hash, and dies if the guard does.
+What has not changed is that two criteria demand a live server and there is none. Under
+G12 that cannot be assumed away, and A18 wrote (iii) and (iv) precisely because live proof
+was the thing missing before.
 
-**Nothing is pushed.** `main` is 6 commits ahead of `origin/main`. The operator pushes
-after the Render bill is paid:
+**Nothing is pushed.** The operator pushes after the Render bill is paid:
 
 ```bash
 git push origin main
 ```
 
-Then (iii) and (iv) become runnable, and this ruling is amended with their results.
+Then (iii) and (iv) become runnable, this ruling is amended with their results, and the
+gate closes or does not on what the server actually returns.
