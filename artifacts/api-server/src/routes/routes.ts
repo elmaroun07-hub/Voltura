@@ -184,6 +184,75 @@ type NasaProbe = {
 };
 
 /**
+ * How one value NASA sent is classified, before anything is averaged.
+ *
+ * Extracted from `readNasaSeries` under A20, unchanged in behaviour, so the
+ * guard can be exercised **directly** against the real fixture. Gate H1 (ii)
+ * demands the fill value be proven rejected against an unedited live response,
+ * and that response is a DAILY one — `20260821`, not `202608`. Production is
+ * monthly-only and stays that way: building a daily parse to make the fixture
+ * reachable would add a surface the `-999` family can re-enter through, which
+ * is the opposite of what the H-series is for. So the boundary is factored
+ * instead: one classifier, called by the monthly reader, callable by a test
+ * with whatever keys the real file happens to carry.
+ *
+ * This function is the guard. If it stops rejecting `-999`, the product
+ * resumes fabricating, whatever the caller's key scheme.
+ */
+export type NasaValueClass =
+  | { kind: "fill" }
+  | { kind: "non-finite" }
+  | { kind: "value"; value: number };
+
+export function classifyNasaValue(rawValue: unknown): NasaValueClass {
+  // Type first, and NEVER Number() before this check.
+  //
+  // Number(null) === 0 and Number("") === 0. Both are finite, so a
+  // Number.isFinite guard accepts them and a month NASA sent as null becomes
+  // 0 kWh/m2/day - a plausible-looking winter reading that no instrument
+  // produced. This is the same defect as `|| 4.0`, one coercion further down.
+  const isNumeric =
+    typeof rawValue === "number" ||
+    (typeof rawValue === "string" && rawValue.trim() !== "");
+  if (!isNumeric) return { kind: "non-finite" };
+
+  const value = Number(rawValue);
+  // Compared exactly, not by threshold. A threshold like `v < -900` would be a
+  // guess about values NASA has never documented, and P2 forbids guessing.
+  if (value === NASA_FILL_VALUE) return { kind: "fill" };
+  if (!Number.isFinite(value)) return { kind: "non-finite" };
+
+  return { kind: "value", value };
+}
+
+/**
+ * The typed answer for a DATA defect — NASA replied, and the reply cannot
+ * support a number.
+ *
+ * Extracted from the calculate handler under A20 so that "the result is a
+ * typed 422" is assertable as a pure function rather than only through a live
+ * request. Behaviour unchanged: same status, same codes, same wording, which
+ * A3.6 and A3.7 pin by exact substring.
+ */
+export function nasaDataFailureToHttp(
+  f: Extract<NasaFailure, { kind: "fill-value" } | { kind: "partial-coverage" }>,
+): { status: 422; code: "nasa_fill_value" | "nasa_partial_coverage"; message: string } {
+  if (f.kind === "fill-value") {
+    return {
+      status: 422,
+      code: "nasa_fill_value",
+      message: `NASA POWER returned its ${NASA_FILL_VALUE} fill value for ${f.parameter} at ${f.keys.join(", ")}. No irradiance figure can be computed for this location.`,
+    };
+  }
+
+  return {
+    status: 422,
+    code: "nasa_partial_coverage",
+    message: `NASA POWER covered ${f.monthsPresent} of ${f.monthsExpected} months for ${f.parameter} over ${f.yearsRequested} year(s)${f.missing.length ? ` (missing ${f.missing.join(", ")})` : ""}. A mean over fewer years than requested would misstate the period.`,
+  };
+}
+
+/**
  * Read one NASA parameter across the whole period and return the twelve
  * monthly means — or the reason it cannot.
  *
@@ -228,27 +297,16 @@ function readNasaSeries(
       const key = `${year}${mm}`;
       if (!(key in raw)) { missing.push(key); continue; }
 
-      // Type first, and NEVER Number() before this check.
-      //
-      // Number(null) === 0 and Number("") === 0. Both are finite, so a
-      // Number.isFinite guard accepts them and a month NASA sent as null
-      // becomes 0 kWh/m2/day - a plausible-looking winter reading that no
-      // instrument produced. The old code only escaped this because its test
-      // deleted keys, making Number(undefined) NaN; a null in a live response
-      // would have sailed straight through.
-      //
-      // This is the same defect as `|| 4.0`, one coercion further down.
-      const rawValue = raw[key];
-      const isNumeric =
-        typeof rawValue === "number" ||
-        (typeof rawValue === "string" && rawValue.trim() !== "");
-      if (!isNumeric) { nonFinite.push(key); continue; }
+      // The classification lives in `classifyNasaValue` (A20) — the same
+      // function a test can point at the real daily fixture. The old code
+      // only escaped the null-coercion defect because its test deleted keys,
+      // making Number(undefined) NaN; a null in a live response would have
+      // sailed straight through.
+      const classified = classifyNasaValue(raw[key]);
+      if (classified.kind === "fill") { fillHits.push(key); continue; }
+      if (classified.kind === "non-finite") { nonFinite.push(key); continue; }
 
-      const value = Number(rawValue);
-      if (value === NASA_FILL_VALUE) { fillHits.push(key); continue; }
-      if (!Number.isFinite(value)) { nonFinite.push(key); continue; }
-
-      perYear.push(value);
+      perYear.push(classified.value);
       monthsPresent++;
     }
 
@@ -691,14 +749,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // nothing else. Substituting here is the defect this block removes.
       const f = nasaProbe.failure;
       if (f && (f.kind === "fill-value" || f.kind === "partial-coverage")) {
-        const detail =
-          f.kind === "fill-value"
-            ? `NASA POWER returned its ${NASA_FILL_VALUE} fill value for ${f.parameter} at ${f.keys.join(", ")}. No irradiance figure can be computed for this location.`
-            : `NASA POWER covered ${f.monthsPresent} of ${f.monthsExpected} months for ${f.parameter} over ${f.yearsRequested} year(s)${f.missing.length ? ` (missing ${f.missing.join(", ")})` : ""}. A mean over fewer years than requested would misstate the period.`;
+        const typed = nasaDataFailureToHttp(f);
 
-        return res.status(422).json({
-          message: detail,
-          code: f.kind === "fill-value" ? "nasa_fill_value" : "nasa_partial_coverage",
+        return res.status(typed.status).json({
+          message: typed.message,
+          code: typed.code,
           field: "location",
           resolution: {
             locationInput: input.location,
