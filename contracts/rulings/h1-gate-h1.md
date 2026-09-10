@@ -1,12 +1,12 @@
 # Gate H1 — Truth · week 2
 
-**Status: NOT CLOSED — held open on (iii) and (iv) alone.**
+**Status: CLOSED.** Four criteria met — two of them live, against the deployed host — and
+(v) deferred under A19. The G8 debt below is carried, not discharged.
 
-Every criterion obtainable without a running server is met or properly deferred. (ii),
-which failed its first re-verification, is now met on A20's evidence. What remains is live
-proof, and nothing is serving the merged code: Render is unpaid. That is a billing state,
-not a code state, and G12 does not let it be assumed away — evidence comes from the live
-server, not from local assumption.
+It closes on its third ruling, and the two things that moved it were both found by running
+something rather than by reading it: (ii), recorded satisfied on a test that did not exist,
+and 1.7, recorded done on a workflow that had never executed. Neither was visible in a
+diff.
 
 | | |
 |---|---|
@@ -16,10 +16,13 @@ server, not from local assumption.
 | `main` before | `0a9c24e61bf0e4d39291bbcd5489c3450474f051` |
 | A20 + fixture test | `53ff2cb09949d969b3102ed20a24fd36382be6bf` on `heatshield/h1-gate-ruling` |
 | Ruling merge | `5f08fba03d4fa8a16629c2b2ced2751149ae0c55` — `--no-ff`, carries A20's extraction into `main` |
+| CI fix | `e959758593dc04eae4c87c98a26124446059721a`, merged `b15e2744715618660b7d5ead1589039219a66eb2` |
+| Deployed and verified | `b15e274` — `/api/version` and `voltura-web`'s `build-sha` both report it |
 | First ruled | 2026-09-10 (local, +0100) — NOT CLOSED, (ii) unmet |
-| Re-ruled | 2026-09-10, after A20 |
+| Re-ruled | 2026-09-10, after A20 — NOT CLOSED, (iii)/(iv) unrun |
+| Closed | 2026-09-10T17:26Z, on live evidence |
 | Ruled by | Executor, under operator authorisation given in session. Merge, file deletion and amendment are operator-only under §14.2; each was authorised explicitly before execution. |
-| Pushed | **No.** Local only. |
+| Pushed | **Yes** — `main` at `b15e274`, CI green (`34508022838`) |
 
 ---
 
@@ -189,29 +192,37 @@ server, no fetch, nothing to leak.
 The synthetic injection at `calculate.test.ts:259` remains, as A20 directs — an additional
 case, not (ii)'s evidence.
 
-### (iii) `/api/version` reports the deployed sha — **static PASS, live PENDING-VERIFICATION**
+### (iii) `/api/version` reports the deployed sha — **PASS, live**
 
 Implemented at `artifacts/api-server/src/routes/health.ts:29`. Reads
 `process.env.RENDER_GIT_COMMIT` at request time rather than baked in at build, so it
 reports the container and not the compile. Absent means absent: `sha: null`,
 `source: "unknown"` — no placeholder, no zero sha. 4 tests in `version.test.ts`, green.
 
-**Live half cannot run.** Render is unpaid; nothing is serving the merged code. Not a pass
-and not a failure — the evidence is unobtainable tonight for a billing reason, not a
-technical one.
+**Observed against the deployed host, 2026-09-10T17:25Z**, after the bill was paid and
+`main` pushed:
 
-Run once serving resumes, after the push:
+```
+$ git rev-parse main
+b15e2744715618660b7d5ead1589039219a66eb2
 
-```bash
-curl -s https://voltura-api.onrender.com/api/version
+$ curl -s https://voltura-api.onrender.com/api/version
+{"sha":"b15e274","shaFull":"b15e2744715618660b7d5ead1589039219a66eb2","source":"render"}
 ```
 
-Passes when `shaFull` equals what `git rev-parse main` reports at push time — the merge of
-`heatshield/h1-gate-ruling`, since A20's guard extraction sits there and not in `eb45faf` —
-and `source` is `"render"`. Fails if `sha` is non-null but does not match: that is a stale
-container, the exact condition A12 recorded as unprovable before this endpoint existed.
+`shaFull` equals `git rev-parse main` exactly, and `source` is `"render"` — not a
+placeholder, not a zero sha, not a stale container.
 
-### (iv) Live multi-year 2019–2023 response — **static PASS, live PENDING-VERIFICATION**
+**A12's gap is closed for this deploy.** The residue A12 recorded — "a coding session
+cannot prove the API container redeployed" — is now answerable by a single request. It was
+answered twice here, which is what makes the answer worth anything: the first probe, taken
+before Render finished building, returned `1ce9199`, the *previous* tip. The endpoint
+therefore tracks the container rather than reporting whatever the caller hoped for, and
+the polled transition `1ce9199 → b15e274` is the deploy itself, observed.
+
+`voltura-web` corroborates independently: its `build-sha` meta tag serves `b15e274`.
+
+### (iv) Live multi-year 2019–2023 response — **PASS, live**
 
 The period is a parameter with a stated default (`NASA_PERIOD_START = 2019`,
 `NASA_PERIOD_END = 2023`), reported in the response as `resolution.irradiancePeriod`, never
@@ -230,15 +241,50 @@ Covered by `A3.7`, green: one month deleted → `"59 of 60 months"`; a whole yea
 `"48 of 60 months"`, with `savingsKwh` undefined. `code: "nasa_partial_coverage"`,
 `irradiancePeriod: null`.
 
-**Live half cannot run**, same reason as (iii). Run once serving resumes:
+**Observed against the deployed host, 2026-09-10T17:26Z.** `POST /api/calculate`,
+Fuengirola, 5000 kWh / 4000 W / 10 kWh — HTTP **200**:
 
-```bash
-curl -s -X POST https://voltura-api.onrender.com/api/calculate -H "Content-Type: application/json; charset=utf-8" -H "X-Session-Id: a3a3a3a3-3333-4333-8333-a3a3a3a3a3a3" -d '{"location":"Fuengirola, Málaga, Spain","energyUsage":5000,"pvWattage":4000,"batteryCapacity":10}'
+```
+irradianceSource : nasa-live
+irradiancePeriod : {"start":2019,"end":2023}
+months returned  : 12
+irradianceMonthly: [2.7288,3.602,4.6302,5.6395,7.1196,7.7255,7.614,6.8466,5.2683,4.0985,2.9637,2.3492]
+nasaHttpStatus   : 200
+avgIrradiance    : 5.05   savingsKwh: 3860
 ```
 
-Passes on a 200 whose `resolution.irradianceSource` is `"nasa-live"`,
-`resolution.irradiancePeriod` is `{"start":2019,"end":2023}`, and
-`resolution.irradianceMonthly` has twelve entries.
+All three of A18 (iv)'s demands met: `nasa-live`, the concrete period `{2019, 2023}`,
+twelve months.
+
+**The figures moved, which is the point of 1.8.** Gate R recorded the 2022-only response
+for the same location: January `2.6544`, `savingsKwh 3702`, `nasa-live 2022`. The five-year
+mean gives January `2.7288` and `savingsKwh 3860`. A single anomalous year was moving a
+euro figure a user reads, and it no longer is.
+
+**H1.5 confirmed live in the same sweep** — `POST /api/calculate`, "Indianapolis, Indiana,
+USA": `carbonIntensity 0.386`, the United States value, at `39.7683, -86.1584`. The
+substring defect would have matched "india" inside "Indianapolis" and returned India's
+`0.708` — an 83% overstatement of the CO2 figure for every Indianapolis user.
+
+#### The partial-coverage 422 is not obtainable live — by construction
+
+The static half is proven and stays proven: `A3.7` is green, and since A20 the wording
+comes from `nasaDataFailureToHttp` — one month deleted → `"59 of 60 months"`, a whole year
+deleted → `"48 of 60 months"`, `savingsKwh` undefined, `irradiancePeriod: null`.
+
+A **live** partial-coverage 422 cannot be produced, and this is worth stating rather than
+leaving as a gap someone tries to close later. `fetchNasaPower(lat, lon)` is called at
+`routes.ts:744` with **no period argument** — the default `{2019, 2023}` is a server
+constant and no request parameter reaches it. Both years are fully processed, so NASA
+returns complete coverage for every reachable location. The condition is unreachable
+through user-controlled input for exactly the reason A11 gave for the monthly `-999`, and
+A18 dropped that criterion as unobtainable on the same grounds.
+
+**This is a reachability argument, not a sighting**, and per A7's standing rule it is not
+presented as one. The reachability condition, written out: partial coverage becomes live
+the moment the period stops being a constant — a user-supplied year range, or a default
+extended into a year NASA has not finished processing. Whoever makes the period a request
+parameter inherits this criterion in live form.
 
 ### (v) 1.8's PDF half shown as DEFERRED — **DEFERRED, per A19**
 
@@ -254,6 +300,44 @@ holds:
 
 Carried to the first fence granting a migration. **The column, not the renderer, is the
 work.** Silence is the honest state until then.
+
+---
+
+## Task 1.7 — correction: the workflow shipped never-executed
+
+1.7 reads "GitHub Actions running the TypeScript suites on push." The workflow was merged
+as done. **It had never run, and on its first execution it failed.**
+
+| | |
+|---|---|
+| Workflow added | `.github/workflows/ci.yml`, in the H1 merge `eb45faf` |
+| First execution, anywhere | `34430648452`, on `main`, 2026-09-10T02:44Z — the ruling merge `1ce9199`. **Failure** |
+| Cause | 6 × `TS6305` in the `test` job's Typecheck step. `pnpm -r exec tsc --noEmit` typechecks packages whose project references need `lib/db/dist/index.d.ts` and `lib/api-zod/dist/index.d.ts`. `dist` is gitignored, so a fresh checkout has neither |
+| Why it passed locally | A developer's disk still held dists from an earlier build. The workflow's own `--frozen-lockfile` comment objects to "testing something nobody has on disk"; this was that, inverted |
+| Fix | `heatshield/h1-ci-fix` @ `e959758` — Typecheck now calls the root `pnpm run typecheck`, which runs `typecheck:libs` (`tsc --build`) first. No separate build step; the root script already covers it. The `build` job, which had been installing a pnpm-11 lockfile under pnpm 10 / node 22, is pinned to node 24 / pnpm 11 to match |
+| First green, anywhere | `34507843297`, on `heatshield/h1-ci-fix`, 2026-09-10T17:22Z |
+| First green on `main` | **`34508022838`**, `b15e274`, 2026-09-10T17:24Z |
+
+**What the first green actually proved, stated separately because it had never been
+observed before.** The `Test` step and the `G10 — a test naming a live host must stub
+fetch` step had *both* never executed on any runner; their result was unproven, not
+expected-green. On first execution:
+
+```
+Test:  lib/cte              2 files, 72 passed
+       artifacts/api-server 8 files, 64 passed        (136 total, matching local exactly)
+G10:   ok  artifacts/api-server/src/routes/calculate.test.ts (host named, fetch stubbed)
+```
+
+G10 matched exactly one file, which is correct: `calculate.test.ts` is the only test naming
+a live host, and it names both inside its fetch stub. `nasa-fillvalue-fixture.test.ts`
+names no host at all — it reads a local file.
+
+**The general finding, which outlives this fix.** A gate criterion satisfied by a file
+existing is not satisfied. 1.7's evidence was the workflow's presence in the diff; the
+workflow's *presence* and the workflow's *passing* were never distinguished, and the
+distinction was invisible until a push forced it. Same shape as (ii): a stated fact that
+nothing had executed. Both were found by running the thing rather than by reading it.
 
 ---
 
@@ -339,33 +423,44 @@ git revert -m 1 5f08fba03d4fa8a16629c2b2ced2751149ae0c55   # ruling merge, first
 git revert -m 1 eb45faf06518a5cecd7e6ff5e8a98c1a4d18bfa2   # code merge, only with the above
 ```
 
+The CI-fix merge `b15e274` is not in that sequence and needs no Tier-B proof of its own: it
+touches `.github/workflows/ci.yml` only, ships nothing to either container, and is Tier A —
+nothing was deployed by it, so there is nothing to revert. Reverting it would only restore
+a workflow already known to fail.
+
 ---
 
 ## Outcome
 
-**Gate H1: NOT CLOSED. Held open on (iii) and (iv) only.**
+**Gate H1: CLOSED.**
 
 | # | Criterion | Ruling |
 |---|---|---|
 | i | Parse-boundary rejection, mutation-tested | **PASS** — mutation kills 4 |
 | ii | Real NASA fill value, not synthetic | **PASS**, on A20's amended terms |
-| iii | `/api/version` proves the deployed code | Static PASS · **live PENDING-VERIFICATION** |
-| iv | Live multi-year path | Static PASS · **live PENDING-VERIFICATION** |
+| iii | `/api/version` proves the deployed code | **PASS, live** — `shaFull` = `git rev-parse main` = `b15e274`, `source: "render"` |
+| iv | Live multi-year path | **PASS, live** — 200, `nasa-live`, `{2019, 2023}`, twelve months. Live partial-coverage 422 unreachable by construction; static proof stands |
 | v | PDF half of 1.8 | **DEFERRED** (A19) |
 | G8 | Rollback | **Tier B, both merges** — `eb45faf` → `f69673f`, `5f08fba` → `34c2e60`; each applies cleanly; deploy path **UNPROVEN** for both; A13 debt stands |
 | 1.3 | Four files deleted | **Verified by absence**, 2026-09-09T23:58:14Z |
+| 1.5 | Indianapolis ≠ India | **PASS, live** — `carbonIntensity 0.386`, not `0.708` |
+| 1.7 | CI on push | **Corrected** — shipped never-executed, first run failed, first green `34508022838` |
 
-What changed since the first ruling is (ii), and it changed on evidence rather than on
-argument: a test that reads the real bytes, pinned by hash, and dies if the guard does.
-What has not changed is that two criteria demand a live server and there is none. Under
-G12 that cannot be assumed away, and A18 wrote (iii) and (iv) precisely because live proof
-was the thing missing before.
+**What closes it.** Four criteria met, two of them against a running server rather than a
+local assumption, which is what G12 demands and what A18 rewrote the gate to obtain. (v) is
+deferred on A19, with the blocking condition re-checked and still true.
 
-**Nothing is pushed.** The operator pushes after the Render bill is paid:
+**What it does not close.** The G8 debt above is carried, not discharged: both merges are
+Tier-B proven and neither has been rolled back through a real deploy. A13's finding stands
+until a Tier-C drill. And (v) remains work, not a closed item — the `calculations` table
+still has no provenance column, and the first fence granting a migration inherits it.
 
-```bash
-git push origin main
-```
+**Two of the three rulings this gate took were caused by evidence that did not exist.**
+(ii) was recorded satisfied on a test nothing had written; 1.7 was recorded done on a
+workflow nothing had run. Both survived a merge, a gate reading and a diff review, and both
+died the moment something executed them. The transferable rule is narrow and worth keeping:
+**a criterion is met when its evidence has run, not when the file that would produce it
+exists.**
 
 Then (iii) and (iv) become runnable, this ruling is amended with their results, and the
 gate closes or does not on what the server actually returns.
