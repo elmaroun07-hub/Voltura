@@ -48,8 +48,22 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The ROOT script, not `pnpm -r exec tsc --noEmit`.
+      #
+      # The direct form was authored without ever being run and failed on its
+      # first execution — six TS6305, "output file has not been built from
+      # source file". `lib/db` and `lib/api-zod` are TypeScript project
+      # references: their consumers need `dist/index.d.ts`, `dist` is
+      # gitignored, and a fresh checkout therefore has none. It passed locally
+      # only because a developer's disk still holds dists from an earlier
+      # build — the exact "testing something nobody has on disk" the install
+      # comment above objects to, inverted.
+      #
+      # `pnpm run typecheck` runs `typecheck:libs` (`tsc --build`) first, which
+      # builds those dists, then typechecks each package. No separate build
+      # step: the root script already covers it.
       - name: Typecheck
-        run: pnpm -r exec tsc --noEmit
+        run: pnpm run typecheck
 
       - name: Test
         run: pnpm -r test
@@ -92,12 +106,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # pnpm 11 / node 24, matching the test job and the lockfile. This job ran
+      # pnpm 10 / node 22 while installing --frozen-lockfile: the lockfile was
+      # written by pnpm 11, so a green build here was produced by a toolchain
+      # nobody has on disk. Same defect class as the Typecheck step above — a
+      # workflow authored without being run.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 11
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
