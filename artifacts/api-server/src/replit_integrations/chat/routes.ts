@@ -1,20 +1,12 @@
 import type { Express, Request, Response } from "express";
-import OpenAI from "openai";
 import rateLimit from "express-rate-limit";
 import { chatStorage } from "./storage";
+import { getLlmClient, llmModel } from "../../lib/llm";
 
-// Mistral via its OpenAI-compatible endpoint. Lazy init so a missing key
-// fails the request, not the server boot.
-let _mistral: OpenAI | null = null;
-function getMistral(): OpenAI {
-  if (_mistral) return _mistral;
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) throw new Error("MISTRAL_API_KEY not configured.");
-  _mistral = new OpenAI({ apiKey, baseURL: "https://api.mistral.ai/v1" });
-  return _mistral;
-}
-
-const MISTRAL_MODEL = "mistral-small-latest";
+// Provider, endpoint and model come from ../../lib/llm, env-driven. This file
+// used to carry its own copy of the accessor and the same two hardcoded
+// literals, so a provider change had to be made twice and could be half-done.
+// Still lazy: a missing key fails the request, not the server boot.
 
 const SYSTEM_PROMPT = `You are Voltura's Energy Assistant, an expert advisor on residential solar PV, battery storage, energy self-consumption, and grid-import reduction.
 
@@ -160,9 +152,9 @@ export function registerChatRoutes(app: Express): void {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Stream response from Mistral
-      const stream = await getMistral().chat.completions.create({
-        model: MISTRAL_MODEL,
+      // Stream the completion from the configured provider
+      const stream = await getLlmClient().chat.completions.create({
+        model: llmModel(),
         messages: [{ role: "system" as const, content: SYSTEM_PROMPT }, ...chatMessages],
         stream: true,
         max_tokens: 2048,

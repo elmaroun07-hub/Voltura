@@ -4,25 +4,15 @@ import { storage } from "../storage";
 import { api } from "../shared-routes";
 import { z } from "zod/v4";
 import { registerChatRoutes } from "../replit_integrations/chat";
-import OpenAI from "openai";
+import { getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
 import rateLimit from "express-rate-limit";
 import { parseOptimizePayload, OPTIMIZE_FAILURE_MESSAGE } from "./optimize-payload";
 import { type MonthlyEntry } from "@workspace/db";
 import { lookupCarbonIntensity } from "../lib/carbon-intensity";
 
-// Mistral exposes an OpenAI-compatible API, so we reuse the openai SDK
-// pointed at api.mistral.ai. Lazy init: server boots even if the key is
-// missing; only the AI endpoints fail, with a clear error.
-let _mistral: OpenAI | null = null;
-function getMistral(): OpenAI {
-  if (_mistral) return _mistral;
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) throw new Error("MISTRAL_API_KEY not configured.");
-  _mistral = new OpenAI({ apiKey, baseURL: "https://api.mistral.ai/v1" });
-  return _mistral;
-}
-export const MISTRAL_MODEL = "mistral-small-latest";
+// Provider, endpoint and model live in ../lib/llm, env-driven. The accessor
+// stays lazy: a missing key fails the AI request, not the server boot.
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
@@ -936,8 +926,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post(api.calculations.optimize.path, optimizeLimiter, async (req, res) => {
     try {
       const { energyPattern, location } = api.calculations.optimize.input.parse(req.body);
-      const response = await getMistral().chat.completions.create({
-        model: MISTRAL_MODEL,
+      const response = await getLlmClient().chat.completions.create({
+        model: llmModel(),
         messages: [
           {
             role: "system",
