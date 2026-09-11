@@ -7,7 +7,7 @@
 | **COMMIT (before)** | `c459b0d` |
 | **MERGE COMMIT** | **`4afdf95`**, two parents (`c459b0d`, `8ccde3b`) — `--no-ff` per G2 |
 | **AUTHORISED BY** | Operator, 2026-09-11, §14.2 (*"any merge to `main`"*) |
-| **RULING** | **CLOSED** — merged, pushed, CI green, deployed and proven deployed. One **live finding blocking the requested probes** — not caused by this block's code, possibly exposed by its deploy. See below. |
+| **RULING** | **CLOSED** — merged, pushed, CI green, deployed and proven deployed, four live probes run. One **live finding**: a ~12-minute geocoder outage, not caused by this block's code, self-healed, cause never established. See below. |
 
 ---
 
@@ -157,15 +157,34 @@ on the resolution record — `http` (with status), `timeout`, `request-failed`, 
 and user copy that only says "check the spelling" for `no-match`. Same three-way split the
 NASA boundary already makes between DATA and TRANSPORT defects.
 
-### Status at the time of writing
+### Resolved — it was transient, and it healed itself
 
-A retry watch ran against `/api/calculate` every 90 seconds from 10:42:58Z. Attempts at
-10:43:00Z and 10:44:33Z: still `geocode_failed`. Not transient over the first minutes. If it
-recovers, the four probes are a five-minute job and the numbers get appended here.
+A retry watch ran `/api/calculate` every 90 seconds from 10:42:58Z. Seven consecutive
+failures, then:
 
-**The merge is not implicated and is not being reverted.** Reverting would restore an
-optimizer that fabricates irradiance and would not restore geocoding — `/api/calculate`
-would still 422, because the outage is upstream of both.
+```
+10:43:00Z attempt 1 -> still geocode_failed
+...
+10:52:13Z attempt 7 -> still geocode_failed
+10:53:45Z attempt 8 -> GEOCODE RECOVERED
+```
+
+**Outage window: roughly 10:41Z to 10:53Z, about twelve minutes, beginning minutes after
+the deploy and ending with no intervention.** No redeploy was performed and no
+configuration was touched.
+
+That last fact re-weights the hypotheses rather than confirming the one offered above. A
+new container permanently behind an egress IP Nominatim refuses would **not** heal on its
+own; something that releases after ~12 minutes looks like a temporary upstream refusal or
+rate-limit window, or a transient egress condition on a freshly started instance. **The
+cause is still not determinable from outside the container**, for the reason in the next
+section: the code records no status for it. The operator redeploy test proposed above is no
+longer needed — the condition has cleared — but nothing has been learned about why, and it
+will not announce itself next time either.
+
+**The merge was not implicated and was not reverted.** Reverting would have restored an
+optimizer that fabricates irradiance and would not have restored geocoding — during the
+window `/api/calculate` was 422ing too, on code this block did not change.
 
 ---
 
@@ -173,7 +192,7 @@ would still 422, because the outage is upstream of both.
 
 | # | Item |
 |---|---|
-| 1 | **The four requested live probes are outstanding**, blocked on the geocoder above. Not a gate criterion — Gate H-OPT closed on branch evidence before this merge — but an operator request that is unfulfilled and must not be reported as met. |
+| 1 | **The geocoder outage cleared on its own and its cause was never established.** It will recur without warning and, until residue 2 is fixed, will present to users as "check the spelling". |
 | 2 | **`geocodeStatus` cannot express the failure it exists to detect.** §6 trace-rule violation on a path that predates this block. Needs a home in a future block's fence. |
 | 3 | **Nominatim has no rate-limit handling, no retry, no cache and no second source.** P5 says "one geocoder", which this honours, but one geocoder with no fallback is also a single point of failure for every number the product computes. An architectural question for the operator, not a code task to slip into a ruling. |
 | 4 | **A13's deploy-path rollback debt is carried, not discharged.** This merge proved the deploy path is 81 seconds long in the forward direction and still never exercised it backwards. |
@@ -192,7 +211,53 @@ would still 422, because the outage is upstream of both.
 | Deployed, and proven to be the deployed code | **PASS** — both shas at `4afdf95`; the pre-merge request that returned a fabricated 200 now returns a typed 400 |
 | §2 auto-deploy re-confirmed at the merge gate | **PASS, observed** — both containers moved on one push; not asserted from a dashboard |
 | G8 rollback | **Tier B** — applies, tree byte-identical to pre-merge `main`; deploy path **UNPROVEN**; A13 debt carried |
-| Operator's four live probes | **BLOCKED** — production geocoder failing for every location on both routes. Not caused by this block's code; whether its deploy exposed it is unresolved and named as such |
+| Operator's four live probes | **DONE** — run at 10:55Z once the geocoder recovered; numbers below |
+
+---
+
+## LIVE PROBES — four locations, 5,000 kWh/year, one identical 24-hour pattern
+
+Run 2026-09-11T10:55Z against `4afdf95`. `POST /api/optimize`,
+`annualUsageKwh: 5000`, `energyPattern` = the web client's standard profile
+(`[2,2,2,2,3,5,8,8,6,4,3,3,3,3,4,5,7,10,8,5,3,2,2,2]`) every time. Full raw bodies were
+captured; the figures:
+
+| Location | PV kWp | Battery kWh | Irradiance used | coverageTarget | Source / period |
+|---|---|---|---|---|---|
+| Tétouan, Morocco | **3.371** | 4.1 | **5.08** | **1** | `nasa-live` / 2019–2023 |
+| Fuengirola, Málaga, Spain | **3.391** | 4.1 | **5.05** | **1** | `nasa-live` / 2019–2023 |
+| Paris, France | **4.935** | 4.1 | **3.47** | **1** | `nasa-live` / 2019–2023 |
+| London, United Kingdom | **5.651** | 4.1 | **3.03** | **1** | `nasa-live` / 2019–2023 |
+
+All four: `HTTP 200`, `geocodeStatus: "resolved"`, `nasaHttpStatus: 200`,
+`nasaKeysPresent` equal to `nasaKeysRequested`, twelve monthly values,
+`irradiancePeriod {2019, 2023}`.
+
+**Against the defect this block was opened for:**
+
+| | Model, before | Computed, now |
+|---|---|---|
+| Tétouan irradiance | ~5.5 | **5.08** |
+| Fuengirola irradiance | ~4.5 | **5.05** |
+| Coverage target | 100 / 100 / 88 / 40 % — varying silently by location | **1.00 everywhere** |
+| PV size | 20,000–30,000 W | **3,371–5,651 W** |
+
+**London is the sharpest result.** The old output gave it the *smallest* coverage, 40%. The
+honest answer is that London needs a **67% larger array than Fuengirola** for the identical
+household — 5.651 kWp against 3.391 — because its irradiance is 3.03 against 5.05. The
+model was shrinking precisely the array that most needed growing.
+
+The battery is 4.1 kWh at all four sites, which is correct and worth stating so it is not
+read as a stuck value: it is sized from the night load, and the load, the profile and the
+dark-hour count are identical across the four runs. Only the array moves with location.
+
+**The strict figure validator produced no false 502s across four calls.** Every explanation
+quoted only figures from its own input — including the ratios in both renderings, e.g.
+*"performance ratio of 80% (0.8)"* and *"coverage target of 1 (100%)"*, which is what the
+dual percent/ratio line in the facts was for. Four calls is not a rate; it is one
+encouraging data point against the known trade recorded at Gate H-OPT.
+
+---
 
 **The rollback target moves: `4afdf95`, not `c459b0d`.** §2's table and A12's supersession
 both need this folding in when §2 is next revised.
