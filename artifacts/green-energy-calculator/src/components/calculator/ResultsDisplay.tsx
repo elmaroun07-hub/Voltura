@@ -5,6 +5,7 @@ import {
   LineChart, Line, ReferenceLine, Area, AreaChart,
 } from "recharts";
 import { type CalculationResponse } from "@/lib/api";
+import { irradianceLabel } from "@/lib/provenance";
 import { downloadCalculationPdf } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,40 +18,6 @@ interface ResultsDisplayProps {
 }
 
 const PIE_COLORS = ["#10b981", "#f59e0b", "#e2e8f0"];
-
-/**
- * irradianceSource is a machine enum - it is the provenance record, it is
- * asserted in the test suite, and a production watch reads it. It must never be
- * printed raw to a person, which is what this maps.
- *
- * The period is taken from the response, never written as a literal here: a
- * hardcoded "2022" in the UI would be a second source of truth for one fact,
- * and would keep saying 2022 the day the server starts sending something else.
- * It says the years the mean actually spans, because a multi-year mean without
- * its period is not a citation.
- *
- * No default branch. The switch is exhaustive over the union, so TypeScript
- * fails the build if the enum grows; an impossible state throws rather than
- * being quietly given a comfortable label.
- */
-function irradianceLabel(resolution: CalculationResponse["resolution"]): string {
-  switch (resolution.irradianceSource) {
-    case "nasa-live": {
-      if (resolution.irradiancePeriod === null) {
-        throw new Error("nasa-live carries no irradiancePeriod");
-      }
-      const { start, end } = resolution.irradiancePeriod;
-      const span = start === end ? `${start}` : `${start}–${end}`;
-      return `NASA POWER satellite data, ${span} mean`;
-    }
-    case "fallback-lat":
-      return "Estimated from latitude — NASA data unavailable";
-    case "not-reached":
-      // Unreachable on a 200: an unresolvable location returns 422 before any
-      // calculation exists to render.
-      throw new Error("irradianceSource 'not-reached' on a successful calculation");
-  }
-}
 
 export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
   if (!results) {

@@ -60,7 +60,13 @@ export function useOptimize() {
   const { toast } = useToast();
   
   return useMutation({
-    mutationFn: async (data: { energyPattern: number[], location: string }) => {
+    mutationFn: async (data: {
+      energyPattern: number[];
+      location: string;
+      // H-OPT: required. The 24-entry pattern is a SHAPE; this is the
+      // magnitude, and without it the server refuses rather than assuming one.
+      annualUsageKwh: number;
+    }) => {
       const res = await sessionFetch(API_BASE + api.calculations.optimize.path, {
         method: api.calculations.optimize.method,
         headers: { "Content-Type": "application/json" },

@@ -7,7 +7,13 @@ import { registerChatRoutes } from "../replit_integrations/chat";
 import { getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
 import rateLimit from "express-rate-limit";
-import { parseOptimizePayload, OPTIMIZE_FAILURE_MESSAGE } from "./optimize-payload";
+import {
+  parseOptimizePayload,
+  renderOptimizeFacts,
+  OPTIMIZE_FAILURE_MESSAGE,
+  type OptimizeFacts,
+} from "./optimize-payload";
+import { sizePvAndBattery, sizingFailureMessage } from "../lib/sizing";
 import { type MonthlyEntry } from "@workspace/db";
 import { lookupCarbonIntensity } from "../lib/carbon-intensity";
 
@@ -423,6 +429,176 @@ export function fallbackIrradiance(lat: number): { irradiance: number[]; tempera
   return { irradiance, temperature };
 }
 
+/**
+ * The provenance record every location-derived response carries.
+ *
+ * Mirrors `resolutionSchema` in ../shared-routes. Written out rather than
+ * inferred so this module does not import a Zod schema to describe a plain
+ * object; the schema is the contract with the client, this is the contract
+ * inside the server, and `shared-routes.test.ts` fails if they drift.
+ */
+type ResolutionRecord = {
+  locationInput: string;
+  geocodeStatus: "resolved" | "failed";
+  lat: number | null;
+  lon: number | null;
+  irradianceSource: "nasa-live" | "fallback-lat" | "not-reached";
+  irradiancePeriod: { start: number; end: number } | null;
+  nasaHttpStatus: number | "not-called" | "request-failed";
+  nasaKeysRequested: string[];
+  nasaKeysPresent: string[];
+  irradianceMonthly: number[];
+};
+
+/** The same record once geocoding has succeeded: lat and lon are real. */
+type ResolvedResolutionRecord = ResolutionRecord & { lat: number; lon: number };
+
+type IrradianceRejection = {
+  ok: false;
+  status: 422;
+  body: {
+    message: string;
+    code: "geocode_failed" | "nasa_fill_value" | "nasa_partial_coverage";
+    field: "location";
+    resolution: ResolutionRecord;
+  };
+};
+
+type IrradianceResolved = {
+  ok: true;
+  lat: number;
+  lon: number;
+  country: string;
+  irradianceMonthly: number[];
+  temperatureMonthly: number[];
+  /** The twelve-month mean, at the precision the response reports it. */
+  avgIrradiance: number;
+  irradianceSource: "nasa-live" | "fallback-lat";
+  irradiancePeriod: { start: number; end: number } | null;
+  resolution: ResolvedResolutionRecord;
+};
+
+/**
+ * Location string in, irradiance and provenance out — or a typed 422.
+ *
+ * Extracted at H-OPT, behaviour unchanged, because `/api/optimize` needs
+ * exactly this and had none of it: it passed the raw location string to a
+ * language model, which answered with its own priors (~5.5 kWh/m2/day for
+ * Tetouan where this path computes 5.08). Two routes quoting two different
+ * irradiances for one town is a P5 failure before it is anything else, and the
+ * only durable fix is that there is one path, not two that agree today.
+ *
+ * `avgIrradiance` is rounded HERE, to the two decimals the calculate response
+ * has always reported, and the optimizer sizes from that same rounded figure.
+ * Sizing from the unrounded mean would put a number in the recommendation that
+ * no field of any response contains — a small and very hard-to-find version of
+ * the defect this block is closing.
+ */
+async function resolveLocationIrradiance(
+  locationInput: string,
+): Promise<IrradianceResolved | IrradianceRejection> {
+  // A failure used to fall through to lat 45, lon 10 — northern Italy — and
+  // produce a complete, confident result computed from a location the user
+  // never asked about, with nothing on screen saying so. Some requests that
+  // used to "succeed" now fail here. That is the point.
+  const geo = await geocode(locationInput);
+  if (!geo) {
+    return {
+      ok: false,
+      status: 422,
+      body: {
+        message:
+          "We could not locate that place. Check the spelling, or try including the country - for example \"Madrid, Spain\".",
+        code: "geocode_failed",
+        field: "location",
+        // Provenance matters most at the moment a request cannot be served.
+        resolution: {
+          locationInput,
+          geocodeStatus: "failed",
+          lat: null,
+          lon: null,
+          irradianceSource: "not-reached",
+          irradiancePeriod: null,
+          nasaHttpStatus: "not-called",
+          nasaKeysRequested: [],
+          nasaKeysPresent: [],
+          irradianceMonthly: [],
+        },
+      },
+    };
+  }
+
+  const { lat, lon } = geo;
+  const nasaProbe = await fetchNasaPower(lat, lon);
+
+  // H1.0 / H1.8. A data defect is fatal to the request: NASA answered and the
+  // answer cannot carry a number, so no number is produced. Not a fallback,
+  // not a shorter mean quietly relabelled — a typed error and nothing else.
+  const f = nasaProbe.failure;
+  if (f && (f.kind === "fill-value" || f.kind === "partial-coverage")) {
+    const typed = nasaDataFailureToHttp(f);
+    return {
+      ok: false,
+      status: 422,
+      body: {
+        message: typed.message,
+        code: typed.code,
+        field: "location",
+        resolution: {
+          locationInput,
+          geocodeStatus: "resolved",
+          lat,
+          lon,
+          irradianceSource: "not-reached",
+          irradiancePeriod: null,
+          nasaHttpStatus: nasaProbe.httpStatus,
+          nasaKeysRequested: nasaProbe.keysRequested,
+          nasaKeysPresent: nasaProbe.keysPresent,
+          irradianceMonthly: [],
+        },
+      },
+    };
+  }
+
+  let nasaData = nasaProbe.data;
+  let irradiancePeriod = nasaProbe.period;
+  let irradianceSource: "nasa-live" | "fallback-lat" = "nasa-live";
+  if (!nasaData) {
+    // Transport failure only - NASA did not answer. Labelled, never silent.
+    nasaData = fallbackIrradiance(lat);
+    irradianceSource = "fallback-lat";
+    irradiancePeriod = null;
+  }
+
+  const { irradiance: irrMonthly, temperature: tempMonthly } = nasaData;
+
+  return {
+    ok: true,
+    lat,
+    lon,
+    country: geo.country,
+    irradianceMonthly: irrMonthly,
+    temperatureMonthly: tempMonthly,
+    avgIrradiance: parseFloat((irrMonthly.reduce((a, b) => a + b, 0) / 12).toFixed(2)),
+    irradianceSource,
+    irradiancePeriod,
+    // Provenance record. Not debug logging - it stays in the response body so a
+    // user-facing number can say where its inputs came from.
+    resolution: {
+      locationInput,
+      geocodeStatus: "resolved",
+      lat: parseFloat(lat.toFixed(4)),
+      lon: parseFloat(lon.toFixed(4)),
+      irradianceSource,
+      irradiancePeriod,
+      nasaHttpStatus: nasaProbe.httpStatus,
+      nasaKeysRequested: nasaProbe.keysRequested,
+      nasaKeysPresent: nasaProbe.keysPresent,
+      irradianceMonthly: irrMonthly,
+    },
+  };
+}
+
 // 8760-hour annual battery simulation
 function simulate8760(
   annualKwh: number,
@@ -696,82 +872,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const input = api.calculations.create.input.parse(req.body);
 
-      // Geocode location. A failure used to fall through to lat 45, lon 10 -
-      // northern Italy - and produce a complete, confident result computed from
-      // a location the user never asked about, with nothing on screen saying so.
-      // Some requests that used to "succeed" now fail here. That is the point.
-      const geo = await geocode(input.location);
-      if (!geo) {
-        // Provenance matters most at the moment a request cannot be served.
-        return res.status(422).json({
-          message:
-            "We could not locate that place. Check the spelling, or try including the country - for example \"Madrid, Spain\".",
-          code: "geocode_failed",
-          field: "location",
-          resolution: {
-            locationInput: input.location,
-            geocodeStatus: "failed" as const,
-            lat: null,
-            lon: null,
-            irradianceSource: "not-reached" as const,
-            irradiancePeriod: null,
-            nasaHttpStatus: "not-called" as const,
-            nasaKeysRequested: [],
-            nasaKeysPresent: [],
-            irradianceMonthly: [],
-          },
-        });
+      // Geocode, then NASA, then provenance — one path, shared with
+      // /api/optimize since H-OPT so the two routes cannot quote different
+      // irradiance for the same town.
+      const resolved = await resolveLocationIrradiance(input.location);
+      if (!resolved.ok) {
+        return res.status(resolved.status).json(resolved.body);
       }
 
-      const lat = geo.lat;
-      const lon = geo.lon;
-      const countryFromGeo = geo.country;
+      const {
+        irradianceMonthly: irrMonthly,
+        temperatureMonthly: tempMonthly,
+        avgIrradiance,
+        irradianceSource,
+        resolution,
+      } = resolved;
 
       // Detect carbon intensity from location
-      const carbonIntensity = detectCarbonIntensity(countryFromGeo, input.location);
-
-      // Fetch NASA POWER data (fall back to lat-based estimate)
-      const nasaProbe = await fetchNasaPower(lat, lon);
-
-      // H1.0 / H1.8. A data defect is fatal to the request: NASA answered and
-      // the answer cannot carry a number, so no number is produced. Not a
-      // fallback, not a shorter mean quietly relabelled - a typed error and
-      // nothing else. Substituting here is the defect this block removes.
-      const f = nasaProbe.failure;
-      if (f && (f.kind === "fill-value" || f.kind === "partial-coverage")) {
-        const typed = nasaDataFailureToHttp(f);
-
-        return res.status(typed.status).json({
-          message: typed.message,
-          code: typed.code,
-          field: "location",
-          resolution: {
-            locationInput: input.location,
-            geocodeStatus: "resolved" as const,
-            lat,
-            lon,
-            irradianceSource: "not-reached" as const,
-            irradiancePeriod: null,
-            nasaHttpStatus: nasaProbe.httpStatus,
-            nasaKeysRequested: nasaProbe.keysRequested,
-            nasaKeysPresent: nasaProbe.keysPresent,
-            irradianceMonthly: [],
-          },
-        });
-      }
-
-      let nasaData = nasaProbe.data;
-      let irradiancePeriod = nasaProbe.period;
-      let irradianceSource: "nasa-live" | "fallback-lat" = "nasa-live";
-      if (!nasaData) {
-        // Transport failure only - NASA did not answer. Labelled, never silent.
-        nasaData = fallbackIrradiance(lat);
-        irradianceSource = "fallback-lat";
-        irradiancePeriod = null;
-      }
-
-      const { irradiance: irrMonthly, temperature: tempMonthly } = nasaData;
-      const avgIrradiance = parseFloat((irrMonthly.reduce((a, b) => a + b, 0) / 12).toFixed(2));
+      const carbonIntensity = detectCarbonIntensity(resolved.country, input.location);
 
       const panelFactor = panelEfficiencyFactor(input.roofAngle, input.panelOrientation);
       const SYSTEM_EFFICIENCY = 0.78;
@@ -848,21 +966,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         cumulative += yearSavings;
       }
 
-      // Provenance record. Not debug logging - it stays in the response body so a
-      // user-facing number can say where its inputs came from.
-      const resolution = {
-        locationInput: input.location,
-        geocodeStatus: "resolved" as const,
-        lat: parseFloat(lat.toFixed(4)),
-        lon: parseFloat(lon.toFixed(4)),
-        irradianceSource,
-        irradiancePeriod,
-        nasaHttpStatus: nasaProbe.httpStatus,
-        nasaKeysRequested: nasaProbe.keysRequested,
-        nasaKeysPresent: nasaProbe.keysPresent,
-        irradianceMonthly: irrMonthly,
-      };
-
       const result = {
         savingsKwh: Math.round(totalSavingsKwh),
         co2Reduction: Math.round(annualCo2Reduction),
@@ -923,32 +1026,93 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return res.json(history);
   });
 
+  /**
+   * /api/optimize — H-OPT.
+   *
+   * What this route used to do: hand the location STRING and a 24-entry array
+   * to a language model and print what came back. It never called NASA. The
+   * model answered from its priors — ~5.5 kWh/m2/day for Tetouan where the
+   * calculator computes 5.08, ~4.5 for Fuengirola where it computes 5.05 — and
+   * it read the array as absolute kWh, so every request was sized for the
+   * client's fixed 102 kWh/day profile. A 20-30 kW array came back where the
+   * answer is around 3.4 kWp. P3 and P1 in one handler.
+   *
+   * What it does now, in order: geocode through the shared resolver, take the
+   * same NASA 2019-2023 mean through the same parse boundary, size with a pure
+   * function, and only then show the model the figures and ask for prose. The
+   * model cannot move a number because no number it returns is read.
+   */
   app.post(api.calculations.optimize.path, optimizeLimiter, async (req, res) => {
     try {
-      const { energyPattern, location } = api.calculations.optimize.input.parse(req.body);
+      const { energyPattern, location, annualUsageKwh } =
+        api.calculations.optimize.input.parse(req.body);
+
+      const resolved = await resolveLocationIrradiance(location);
+      if (!resolved.ok) {
+        return res.status(resolved.status).json(resolved.body);
+      }
+
+      // The solar profile is passed in rather than re-declared in lib/sizing,
+      // so "the hours the array produces nothing" means the same thing here as
+      // it does in the 8760 simulation. One profile. P5.
+      const sized = sizePvAndBattery({
+        annualUsageKwh,
+        hourlyLoadShape: energyPattern,
+        hourlySolarShape: SOLAR_HOURLY_PROFILE,
+        irradianceKwhM2Day: resolved.avgIrradiance,
+      });
+
+      if (!sized.ok) {
+        // Reachable only for inputs Zod admits and physics does not — a load
+        // shape of 24 zeros is the live one. A typed 422 in the same shape as
+        // every other refusal on this path, never a substituted size.
+        return res.status(422).json({
+          message: sizingFailureMessage(sized.failure),
+          code: "sizing_failed",
+          field: "energyPattern",
+          resolution: resolved.resolution,
+        });
+      }
+
+      const facts: OptimizeFacts = {
+        location,
+        // The 4-decimal coordinates the response reports, not the raw ones:
+        // the model must not be shown a number no field of the answer carries.
+        lat: resolved.resolution.lat,
+        lon: resolved.resolution.lon,
+        irradianceSource: resolved.irradianceSource,
+        irradiancePeriod: resolved.irradiancePeriod,
+        sizing: sized.sizing,
+      };
+      const factsText = renderOptimizeFacts(facts);
+
       const response = await getLlmClient().chat.completions.create({
         model: llmModel(),
         messages: [
           {
             role: "system",
-            content: "You are an expert energy consultant. Analyze the energy usage pattern and location to recommend optimal solar and battery sizing. Return JSON with exactly these keys: optimal_pv_watts (a number), optimal_battery_kwh (a number), explanation (a single plain string of prose). The explanation MUST be a string — never an object, never an array, never nested.",
+            content:
+              "You are an energy consultant writing for a homeowner. The system size has ALREADY been computed from satellite irradiance data and the household's metered consumption. You are not being asked to size anything and you must not propose a different size. Explain, in plain prose, why the given array and battery suit this location and this load. " +
+              "Return JSON with exactly one key: explanation (a single plain string of prose). The explanation MUST be a string — never an object, never an array, never nested. " +
+              "Every numeral you write must be copied exactly from the figures given to you. Do not round them, do not convert their units, and do not introduce any other number — no payback periods, no costs, no efficiencies, no irradiance of your own. A number that is not in the list makes the whole answer unusable and it will be discarded.",
           },
           {
             role: "user",
-            content: `Location: ${location}. 24h Energy Pattern (kWh): ${JSON.stringify(energyPattern)}. Recommend optimal PV size (Watts) and Battery (kWh) for max ROI.`,
+            content: `${factsText}\n\nWrite the explanation.`,
           },
         ],
         response_format: { type: "json_object" },
       });
-      const rawContent = response.choices[0].message.content || "{}";
+      const rawContent = response.choices[0].message.content ?? "{}";
 
-      // Coerce + validate at the boundary; never echo the model payload straight
-      // out. Zod detail goes to the logs, the client gets readable prose only.
-      const result = parseOptimizePayload(rawContent);
+      // Validate at the boundary; never echo the model payload straight out.
+      // Zod detail and the rejected figures go to the logs, the client gets
+      // readable prose only.
+      const result = parseOptimizePayload(rawContent, factsText);
 
       if (!result.ok) {
         console.error(
-          "[optimize] malformed model payload — reason:",
+          "[optimize] unusable model payload — reason:",
           result.reason,
           "| raw:",
           rawContent,
@@ -961,7 +1125,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
 
-      return res.json(result.data);
+      return res.json({
+        // G6: both figures come from the sizing function, and the response
+        // carries the inputs they were computed from so the tab can show them.
+        optimalPv: sized.sizing.pvWatts,
+        optimalBattery: sized.sizing.batteryKwh,
+        explanation: result.explanation,
+        sizing: sized.sizing,
+        resolution: resolved.resolution,
+      });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.issues[0].message, field: err.issues[0].path.join(".") });

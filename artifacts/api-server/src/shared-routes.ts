@@ -51,24 +51,35 @@ function normalizeText(value: unknown, depth = 0): string {
     .join('\n');
 }
 
-const llmTextSchema = z
+// Exported for the /api/optimize payload boundary, which validates the model's
+// prose before the route ever builds a response. One normalizer, used by the
+// thing that checks the model and by the thing that types the response — P5.
+export const modelProseSchema = z
   .unknown()
   .transform((value) => normalizeText(value))
   .pipe(z.string().min(1, 'could not be normalized to readable text'));
 
-// Models also emit numbers as strings ("5000"). Accept both; reject anything that
-// is not a finite number afterwards (null/{}/"" must fail, not silently become 0).
-const llmNumberSchema = z
-  .unknown()
-  .transform((value) => {
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      return trimmed === '' ? Number.NaN : Number(trimmed);
-    }
-    // Cast keeps the inferred output `number` for .pipe(); non-numbers still fail below.
-    return value as number;
-  })
-  .pipe(z.number().refine(Number.isFinite, 'must be a finite number'));
+// H-OPT sizing record. Every field is computed by `lib/sizing.ts` from NASA
+// POWER irradiance and the user's metered annual usage; none of it comes from a
+// model. It travels in the response because a recommended array size means
+// nothing without the irradiance, the load and the four assumptions it was
+// divided by — the same argument `irradiancePeriod` settled for the mean.
+const sizingSchema = z.object({
+  pvKwp: z.number(),
+  pvWatts: z.number(),
+  batteryKwh: z.number(),
+  annualUsageKwh: z.number(),
+  dailyUsageKwh: z.number(),
+  nightUsageKwh: z.number(),
+  nightShare: z.number(),
+  darkHours: z.number(),
+  irradianceKwhM2Day: z.number(),
+  coverageTarget: z.number(),
+  performanceRatio: z.number(),
+  roundTripEfficiency: z.number(),
+  usableDepthOfDischarge: z.number(),
+  daysPerYear: z.number(),
+});
 
 // A1 provenance record: where each user-facing number's inputs came from.
 const resolutionSchema = z.object({
@@ -147,14 +158,30 @@ export const api = {
       method: 'POST' as const,
       path: '/api/optimize',
       input: z.object({
-        energyPattern: z.array(z.number()),
+        // 24 hourly weights describing WHEN the load happens. A shape, not a
+        // magnitude: the server normalizes it to sum 1. The old prompt called
+        // this "24h Energy Pattern (kWh)" and the client's fixed profile sums
+        // to 102, so every recommendation was sized for a 102 kWh/day house.
+        energyPattern: z
+          .array(z.number().min(0, 'an hourly weight cannot be negative'))
+          .length(24, 'energyPattern must carry one weight per hour of the day'),
         location: z.string(),
+        // The magnitude, and it is REQUIRED. There is no default: a missing
+        // usage is a 400, never a substituted 5,000 (G5, P2). Bounds match
+        // `calculationInputSchema.energyUsage` so the two routes cannot
+        // disagree about what a plausible household is.
+        annualUsageKwh: z.number().min(100).max(100000),
       }),
       responses: {
         200: z.object({
-          optimalPv: llmNumberSchema,
-          optimalBattery: llmNumberSchema,
-          explanation: llmTextSchema,
+          // Computed, never model-supplied. `llmNumberSchema` used to sit here,
+          // tolerating "5000" from a model because a model was choosing the
+          // size. It no longer is, so a string here is now a defect and fails.
+          optimalPv: z.number(),
+          optimalBattery: z.number(),
+          explanation: modelProseSchema,
+          sizing: sizingSchema,
+          resolution: resolutionSchema,
         }),
       },
     },
