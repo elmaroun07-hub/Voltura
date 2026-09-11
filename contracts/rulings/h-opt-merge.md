@@ -7,7 +7,7 @@
 | **COMMIT (before)** | `c459b0d` |
 | **MERGE COMMIT** | **`4afdf95`**, two parents (`c459b0d`, `8ccde3b`) — `--no-ff` per G2 |
 | **AUTHORISED BY** | Operator, 2026-09-11, §14.2 (*"any merge to `main`"*) |
-| **RULING** | **CLOSED** — merged, pushed, CI green, deployed and proven deployed. One **live finding, unrelated to this block, blocking the requested probes** — see below. |
+| **RULING** | **CLOSED** — merged, pushed, CI green, deployed and proven deployed. One **live finding blocking the requested probes** — not caused by this block's code, possibly exposed by its deploy. See below. |
 
 ---
 
@@ -123,11 +123,12 @@ Render's logs were not read: `geocode()` swallows the status with a bare `return
 logs nothing, so no log line exists to find, and the MCP requires an operator to name a
 workspace before anything is queried.
 
-Taken together: an **egress-side** failure between the Render container and Nominatim that
-began after 2026-09-10 and is independent of the merge. The most likely cause is
-Nominatim's usage policy applied to a shared cloud egress IP (403/429), which
-`geocode()` converts to `null` and the route converts to `geocode_failed`. **That is a
-hypothesis, not a finding** — see the next section for why it cannot be settled from here.
+Taken together: an **egress-side** failure between the Render container and Nominatim,
+first observed 2026-09-11T10:41Z, whose **cause is not in this block's diff**. The leading
+explanation is Nominatim's usage policy applied to a shared cloud egress IP (403/429),
+which `geocode()` converts to `null` and the route converts to `geocode_failed`. **That is
+a hypothesis, not a finding**, and the section above says exactly which observation is
+missing to settle it.
 
 ### Why the cause cannot be named from the response — §6's trace rule, live
 
@@ -191,7 +192,7 @@ would still 422, because the outage is upstream of both.
 | Deployed, and proven to be the deployed code | **PASS** — both shas at `4afdf95`; the pre-merge request that returned a fabricated 200 now returns a typed 400 |
 | §2 auto-deploy re-confirmed at the merge gate | **PASS, observed** — both containers moved on one push; not asserted from a dashboard |
 | G8 rollback | **Tier B** — applies, tree byte-identical to pre-merge `main`; deploy path **UNPROVEN**; A13 debt carried |
-| Operator's four live probes | **BLOCKED** — production geocoder failing for every location on both routes, from before this merge |
+| Operator's four live probes | **BLOCKED** — production geocoder failing for every location on both routes. Not caused by this block's code; whether its deploy exposed it is unresolved and named as such |
 
 **The rollback target moves: `4afdf95`, not `c459b0d`.** §2's table and A12's supersession
 both need this folding in when §2 is next revised.
