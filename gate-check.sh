@@ -20,8 +20,15 @@ WEB_URL="${WEB_URL:-https://voltura-web.onrender.com}"
 # Moved again at H1: +5 for the -999 and partial-coverage locks (A3.6, A3.7),
 # +4 for /api/version. 113 -> 122 total, 41 -> 50 api. Then +9 for H1.5s
 # carbon-intensity lock: 122 -> 131 total, 50 -> 59 api.
-EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-131}"
-EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-59}"
+# Found 19 short on arrival at H-OPT (2026-09-11): the tree was already at
+# 150 total / 78 api against a config saying 131 / 59, so the row had been
+# failing since something after H1.5 landed without touching these constants.
+# Recorded in the H-OPT ruling rather than quietly corrected.
+# H-OPT adds 49 api tests — 17 sizing, 16 optimize route, +14 net across the
+# rewritten optimize-payload and shared-routes files: 150 -> 199 total,
+# 78 -> 127 api.
+EXPECTED_TOTAL_TESTS="${EXPECTED_TOTAL_TESTS:-199}"
+EXPECTED_API_TESTS="${EXPECTED_API_TESTS:-127}"
 EXPECTED_ASSISTANT_TESTS="${EXPECTED_ASSISTANT_TESTS:-9}"
 EXPECTED_F2_TESTS="${EXPECTED_F2_TESTS:-5}"
 # G4 as narrowed by amendment A14 (26 Aug 2026): chat/ is the protected subtree,
