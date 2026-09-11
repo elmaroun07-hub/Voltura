@@ -532,3 +532,33 @@ unchanged. `tsc --noEmit` clean.
 
 **G10 holds.** The test reads one local file and calls two pure functions. No server, no
 fetch, nothing to leak.
+
+---
+
+## 2026-09-11 · Gate H-OPT self-ruled CLOSED — the Optimizer is grounded
+
+Under §14.2. Every H-OPT criterion is mechanical — test counts, mutation kill counts,
+greps, diff stats, build results, a live HTTP response.
+
+Ruling file: `contracts/rulings/h-opt-gate.md`. Block file: `contracts/blocks/h-opt.md`.
+
+**Note the boundary, as Gate R3's entry did.** Self-ruling the gate closes the *gate*. It
+does not merge the block. §14.2 reserves **any merge to `main`** to the operator, and this
+one ships code to two production containers. `main` is `c459b0d`, untouched; the branch
+`heatshield/opt-grounded` is pushed to `origin` and unmerged.
+
+**Two things the ruling carries rather than closes.** The G8 rollback is **Tier B** — the
+revert is proven to apply and to leave a tree byte-identical to `main`, and the deploy path
+is recorded **UNPROVEN**, so A13's debt survives this block too. And every criterion is true
+of the branch, not of production: the live evidence in the ruling is evidence of the
+*defect*, not of the fix.
+
+**C7 is closed by this block, and its stated reason did not hold.** C7 reads *"a P3
+violation shipping today, addressed only at 4.7 ... do not fix it early; it needs
+`simulate8760()` extracted (2.11) first."* The sizing this block ships is closed form. It
+consumes the existing `fetchNasaPower` and the existing hourly solar profile and extracts
+nothing from the calculate path, so 2.11 was never a precondition for *stopping the model
+quoting its own priors* — only for the 8760-simulation-based optimizer C7 describes. That
+larger version stands deferred. **H1c's inventory should record C7 as closed here**, which
+is where the collision said the claim would be tracked.
+
