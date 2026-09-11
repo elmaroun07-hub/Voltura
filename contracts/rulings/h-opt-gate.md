@@ -262,4 +262,23 @@ unchanged.
 
 ## CI
 
-`heatshield/opt-grounded` pushed to `origin`. Run and result appended below on completion.
+`heatshield/opt-grounded` pushed to `origin` at `1f83282`. **No push to `main`.**
+
+Run [34589081261](https://github.com/elmaroun07-hub/Green-Energy-Calc/actions/runs/34589081261),
+2026-09-11T10:24:45Z — **success**, both jobs.
+
+| Job | Step | Result |
+|---|---|---|
+| `test` | Install (`--frozen-lockfile`) | ✓ |
+| `test` | Typecheck (`pnpm run typecheck`, the root script) | ✓ |
+| `test` | Test | ✓ — `lib/cte` **72 passed**, `artifacts/api-server` **127 passed**; 199 total, matching the local run and `gate-check.sh`'s corrected constants |
+| `test` | G10 — a test naming a live host must stub fetch | ✓ — `calculate.test.ts` and `optimize.test.ts` both *(host named, fetch stubbed)* |
+| `build` | Build api-server | ✓ |
+| `build` | Build web | ✓ |
+
+The only annotations are the runner's own Node 20 deprecation notices on
+`actions/checkout@v4`, `actions/setup-node@v4` and `pnpm/action-setup@v4`. Pre-existing,
+unrelated to this block, and not fixed here.
+
+Criterion (viii) is therefore met in full: suite green, typecheck clean, CI green on the
+pushed branch.
