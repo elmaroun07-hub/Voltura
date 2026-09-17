@@ -36,6 +36,27 @@ const sizing = {
   daysPerYear: 365,
 };
 
+// H-SRC-ES — "sourced" is the fixture's own carbonSource shape, mirroring
+// SourcedCarbonFactor<"supply_residual"> (es.ts). Values here are fixture
+// data for schema-tolerance tests, not an assertion about the registry's
+// real content — that lives in lib/emissions/es.test.ts instead.
+const carbonSource = {
+  status: "sourced" as const,
+  country: "spain" as const,
+  factor: {
+    status: "sourced" as const,
+    id: "es-carbon-supply-residual-2025",
+    valueGPerKwh: 258,
+    basis: "supply_residual" as const,
+    authority: "CNMC",
+    documentId: "Acuerdo GDO/DE/001/26",
+    editionDate: "2026-04-28",
+    activityYear: 2025,
+    nextEditionExpected: "2027-05",
+    verifiedOn: "2026-09-15",
+  },
+};
+
 const resolution = {
   locationInput: "Fuengirola, Málaga, Spain",
   geocodeStatus: "resolved" as const,
@@ -47,6 +68,7 @@ const resolution = {
   nasaKeysRequested: ["201901", "201902", "201903"],
   nasaKeysPresent: ["201901", "201902", "201903"],
   irradianceMonthly: [2.73, 3.5, 4.6, 5.6, 6.5, 7.2, 7.3, 6.6, 5.3, 3.9, 2.9, 2.5],
+  carbonSource,
 };
 
 const base = { optimalPv: 3391, optimalBattery: 4.1, sizing, resolution };
@@ -155,6 +177,90 @@ describe("optimize response — the sizes are computed, not coerced (H-OPT)", ()
         explanation: "ok",
         resolution: { ...resolution, irradianceSource: "nasa" },
       }).success,
+    ).toBe(false);
+  });
+});
+
+/**
+ * H-SRC-ES — AC3: "every response carrying a carbon figure names authority,
+ * document, edition date and activity year. A response without them fails a
+ * test." This schema is what /api/optimize's response is validated against
+ * too (H-OPT shares resolutionSchema), so these fixtures are also the "H-OPT
+ * validator's allowed-numeral input set" the block asks to be kept in sync —
+ * extending resolutionSchema with carbonSource required every fixture above
+ * to carry one, which is what made the parse succeed in the first place.
+ */
+describe("optimize response — resolution.carbonSource (H-SRC-ES)", () => {
+  it("accepts the sourced Spain shape with full provenance", () => {
+    const result = schema.parse({ ...base, explanation: "ok" });
+    expect(result.resolution.carbonSource).toEqual(carbonSource);
+  });
+
+  it("rejects a sourced entry missing authority, document, edition date or activity year", () => {
+    const bad = { ...carbonSource, factor: { ...carbonSource.factor, authority: undefined } };
+    expect(
+      schema.safeParse({
+        ...base,
+        explanation: "ok",
+        resolution: { ...resolution, carbonSource: bad },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a sourced entry whose basis is not supply_residual", () => {
+    const bad = { ...carbonSource, factor: { ...carbonSource.factor, basis: "generation" } };
+    expect(
+      schema.safeParse({
+        ...base,
+        explanation: "ok",
+        resolution: { ...resolution, carbonSource: bad },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts the unsourced_legacy shape", () => {
+    const legacy = { status: "unsourced_legacy" as const, country: "Morocco", valueKgPerKwh: 0.543 };
+    const result = schema.parse({
+      ...base,
+      explanation: "ok",
+      resolution: { ...resolution, carbonSource: legacy },
+    });
+    expect(result.resolution.carbonSource).toEqual(legacy);
+  });
+
+  it("accepts the unknown_country shape", () => {
+    const unknown = { status: "unknown_country" as const, attempted: "Bhutan" };
+    expect(
+      schema.safeParse({ ...base, explanation: "ok", resolution: { ...resolution, carbonSource: unknown } })
+        .success,
+    ).toBe(true);
+  });
+
+  it("accepts the not_reached shape", () => {
+    const notReached = { status: "not_reached" as const };
+    expect(
+      schema.safeParse({
+        ...base,
+        explanation: "ok",
+        resolution: { ...resolution, carbonSource: notReached },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a status outside the four known states — no fifth, silent state", () => {
+    expect(
+      schema.safeParse({
+        ...base,
+        explanation: "ok",
+        resolution: { ...resolution, carbonSource: { status: "fabricated" } },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a resolution with carbonSource dropped entirely", () => {
+    const { carbonSource: _drop, ...resolutionWithoutCarbon } = resolution;
+    expect(
+      schema.safeParse({ ...base, explanation: "ok", resolution: resolutionWithoutCarbon }).success,
     ).toBe(false);
   });
 });

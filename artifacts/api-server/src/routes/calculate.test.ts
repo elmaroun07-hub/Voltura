@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
+import { api } from "../shared-routes";
 
 /**
  * Regression lock for the location -> irradiance path.
@@ -362,6 +363,89 @@ describe("A3.5b unresolvable location", () => {
     expect(r.body.resolution.nasaHttpStatus).toBe("not-called");
     expect(r.body.resolution.lat).toBeNull();
     expect(r.body.resolution.irradianceMonthly).toEqual([]);
+    // H-SRC-ES: geocoding never reached a country, so there is nothing to
+    // resolve a carbon figure for — never a guess.
+    expect(r.body.resolution.carbonSource).toEqual({ status: "not_reached" });
+    await close();
+  });
+});
+
+/**
+ * H-SRC-ES — AC2: "The 0.4 unknown-country default is gone. Unknown country
+ * -> typed error -> HTTP 400. Prove it with a request." A live request
+ * against the real running server, through the real geocoder mock and the
+ * real carbon resolver — not a unit test of resolveCarbonSource in
+ * isolation (that lives in lib/emissions/carbon-source.test.ts).
+ */
+describe("D15 — unknown country is a typed 400, never a substituted number", () => {
+  it("returns 400 with a typed code for a geocoded country with no registry and no legacy entry", async () => {
+    const { base, close } = await serve();
+    const r = await calculate(base, "Thimphu, Bhutan");
+
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe("unknown_carbon_country");
+    expect(r.body.field).toBe("location");
+    expect(typeof r.body.message).toBe("string");
+    // No carbonIntensity, no co2Reduction — the response never reaches the
+    // point where either would be computed from a substituted number.
+    expect(r.body.carbonIntensity).toBeUndefined();
+    expect(r.body.co2Reduction).toBeUndefined();
+    // The rejection still carries full provenance, including WHICH country
+    // could not be resolved — not a bare 400 with no explanation.
+    expect(r.body.resolution.carbonSource).toEqual({
+      status: "unknown_country",
+      attempted: "Bhutan",
+    });
+    await close();
+  });
+});
+
+/**
+ * H-SRC-ES — AC3: "Every response carrying a carbon figure names authority,
+ * document, edition date and activity year. A response without them fails a
+ * test." Run against a live 200 response, not a hand-built fixture, and
+ * checked against the actual response schema so a future drift between
+ * routes.ts and shared-routes.ts fails here rather than only in production.
+ */
+describe("AC3 — every carbon-bearing response names its source", () => {
+  it("a Spain response carries the sourced registry object with full provenance", async () => {
+    const { base, close } = await serve();
+    const r = await calculate(base, ALMERIA);
+
+    expect(r.status).toBe(200);
+    const parsed = api.calculations.create.responses[200].parse(r.body);
+    const carbon = parsed.resolution.carbonSource;
+
+    expect(carbon.status).toBe("sourced");
+    if (carbon.status !== "sourced") throw new Error("unreachable");
+    expect(carbon.country).toBe("spain");
+    expect(carbon.factor.basis).toBe("supply_residual");
+    expect(carbon.factor.authority.length).toBeGreaterThan(0);
+    expect(carbon.factor.documentId.length).toBeGreaterThan(0);
+    expect(carbon.factor.editionDate.length).toBeGreaterThan(0);
+    expect(typeof carbon.factor.activityYear).toBe("number");
+
+    // The top-level carbonIntensity (kg/kWh, unchanged field for the client)
+    // agrees with the sourced g/kWh figure — one number, not two that could
+    // drift apart.
+    expect(r.body.carbonIntensity).toBeCloseTo(carbon.factor.valueGPerKwh / 1000, 9);
+    await close();
+  });
+
+  it("a non-Spain response still names its status honestly, even though it is legacy/unsourced", async () => {
+    const { base, close } = await serve();
+    const r = await calculate(base, TETOUAN);
+
+    expect(r.status).toBe(200);
+    const parsed = api.calculations.create.responses[200].parse(r.body);
+    const carbon = parsed.resolution.carbonSource;
+
+    expect(carbon.status).toBe("unsourced_legacy");
+    if (carbon.status !== "unsourced_legacy") throw new Error("unreachable");
+    // Unchanged from before this block — carbon-intensity.ts's own table,
+    // out of scope here (a second country is explicitly OUT).
+    expect(carbon.valueKgPerKwh).toBe(0.543);
+    expect(r.body.carbonIntensity).toBe(0.543);
     await close();
   });
 });
