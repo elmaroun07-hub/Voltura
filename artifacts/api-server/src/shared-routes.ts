@@ -81,6 +81,46 @@ const sizingSchema = z.object({
   daysPerYear: z.number(),
 });
 
+// H-SRC-ES. The sourced object a Spain-resolved carbon figure carries —
+// mirrors SourcedCarbonFactor<"supply_residual"> in
+// ../lib/emissions/es.ts. `basis` is pinned to the literal "supply_residual"
+// here too: this is the shape a CONSUMER-facing figure travels in, and the
+// consumer path is the only one that ever reaches a response body.
+const sourcedCarbonFactorSchema = z.object({
+  status: z.literal('sourced'),
+  id: z.string(),
+  valueGPerKwh: z.number(),
+  basis: z.literal('supply_residual'),
+  authority: z.string(),
+  documentId: z.string(),
+  editionDate: z.string(),
+  activityYear: z.number(),
+  nextEditionExpected: z.string().nullable(),
+  verifiedOn: z.string().nullable(),
+});
+
+// Mirrors CarbonSourceNote in ../lib/emissions/carbon-source.ts. Four honest
+// states, no fifth where a number ships without saying which of these it is.
+const carbonSourceSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('sourced'),
+    country: z.literal('spain'),
+    factor: sourcedCarbonFactorSchema,
+  }),
+  z.object({
+    status: z.literal('unsourced_legacy'),
+    country: z.string(),
+    valueKgPerKwh: z.number(),
+  }),
+  z.object({
+    status: z.literal('unknown_country'),
+    attempted: z.string(),
+  }),
+  z.object({
+    status: z.literal('not_reached'),
+  }),
+]);
+
 // A1 provenance record: where each user-facing number's inputs came from.
 const resolutionSchema = z.object({
   locationInput: z.string(),
@@ -102,6 +142,9 @@ const resolutionSchema = z.object({
   nasaKeysRequested: z.array(z.string()),
   nasaKeysPresent: z.array(z.string()),
   irradianceMonthly: z.array(z.number()),
+  // H-SRC-ES. Populated alongside geocoding for both /api/calculate and
+  // /api/optimize — see routes.ts's ResolutionRecord for why it is shared.
+  carbonSource: carbonSourceSchema,
 });
 
 const monthlyEntrySchema = z.object({

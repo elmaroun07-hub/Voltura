@@ -51,8 +51,12 @@ describe("H1.5 — whole-token country matching", () => {
   it("prefers the geocoded country over the free-text input", () => {
     // The user typed a country that is not where the geocoder landed. The
     // geocoded country is the better signal and wins.
-    expect(lookupCarbonIntensity("Spain", "Toledo, Spain")).toBe(0.244);
-    expect(lookupCarbonIntensity("Spain", "somewhere near france")).toBe(0.244);
+    // H-SRC-ES: was "Spain" / 0.244 — Spain no longer resolves through this
+    // bare table (see carbon-intensity.ts's header and ./emissions/es.ts), so
+    // this mechanic is now pinned with Portugal instead. The behaviour under
+    // test is the geocoded-country preference, not any particular country.
+    expect(lookupCarbonIntensity("Portugal", "Porto, Portugal")).toBe(0.212);
+    expect(lookupCarbonIntensity("Portugal", "somewhere near spain")).toBe(0.212);
   });
 
   it("matches multi-word keys only as consecutive tokens", () => {
@@ -62,14 +66,25 @@ describe("H1.5 — whole-token country matching", () => {
   });
 
   it("survives accents without splitting the word", () => {
-    expect(lookupCarbonIntensity("Spain", "Málaga, Almería")).toBe(0.244);
     expect(lookupCarbonIntensity("Morocco", "Tétouan")).toBe(0.543);
+    // H-SRC-ES: was "Spain" / 0.244 — see the note above.
+    expect(lookupCarbonIntensity("Portugal", "Málaga, Almería")).toBe(0.212);
   });
 
   it("returns null rather than inventing a number for an unknown country", () => {
-    // The caller substitutes 0.4 and that substitution is H1b's to remove.
-    // What matters here is that this function does not hide it.
+    // The caller (resolveCarbonSource, ./emissions/carbon-source.ts) turns
+    // this into a typed "unknown_country" and a 400 — H-SRC-ES removed the
+    // 0.4 substitution (D15). What matters here is that this function itself
+    // does not hide the absence.
     expect(lookupCarbonIntensity("Bhutan", "Thimphu")).toBeNull();
     expect(lookupCarbonIntensity("", "")).toBeNull();
+  });
+
+  it("no longer resolves Spain — Spain is sourced through ./emissions/es.ts", () => {
+    // H-SRC-ES: the bare 0.244 line was removed from CARBON_INTENSITY_BY_COUNTRY
+    // so a Spanish figure cannot be emitted from this unsourced table by
+    // accident. This is a negative test guarding against that key coming back.
+    expect(lookupCarbonIntensity("Spain", "Toledo, Spain")).toBeNull();
+    expect(CARBON_INTENSITY_BY_COUNTRY["spain"]).toBeUndefined();
   });
 });

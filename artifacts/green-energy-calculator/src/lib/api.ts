@@ -90,6 +90,44 @@ const monthlyEntrySchema = z.object({
 
 export type MonthlyEntry = z.infer<typeof monthlyEntrySchema>;
 
+// Mirrors sourcedCarbonFactorSchema in
+// artifacts/api-server/src/shared-routes.ts.
+const sourcedCarbonFactorSchema = z.object({
+  status: z.literal("sourced"),
+  id: z.string(),
+  valueGPerKwh: z.number(),
+  basis: z.literal("supply_residual"),
+  authority: z.string(),
+  documentId: z.string(),
+  editionDate: z.string(),
+  activityYear: z.number(),
+  nextEditionExpected: z.string().nullable(),
+  verifiedOn: z.string().nullable(),
+});
+
+// Mirrors carbonSourceSchema in artifacts/api-server/src/shared-routes.ts.
+const carbonSourceSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("sourced"),
+    country: z.literal("spain"),
+    factor: sourcedCarbonFactorSchema,
+  }),
+  z.object({
+    status: z.literal("unsourced_legacy"),
+    country: z.string(),
+    valueKgPerKwh: z.number(),
+  }),
+  z.object({
+    status: z.literal("unknown_country"),
+    attempted: z.string(),
+  }),
+  z.object({
+    status: z.literal("not_reached"),
+  }),
+]);
+
+export type CarbonSource = z.infer<typeof carbonSourceSchema>;
+
 // Mirrors resolutionSchema in artifacts/api-server/src/shared-routes.ts.
 const resolutionSchema = z.object({
   locationInput: z.string(),
@@ -108,6 +146,7 @@ const resolutionSchema = z.object({
   nasaKeysRequested: z.array(z.string()),
   nasaKeysPresent: z.array(z.string()),
   irradianceMonthly: z.array(z.number()),
+  carbonSource: carbonSourceSchema,
 });
 
 export type Resolution = z.infer<typeof resolutionSchema>;

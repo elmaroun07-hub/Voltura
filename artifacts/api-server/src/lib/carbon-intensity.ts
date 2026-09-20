@@ -5,9 +5,11 @@
  * not belong in a schema package: that package describes tables, and a value
  * that changes with a country's generation mix is data, not structure. Moving
  * it is NOT the same as fixing it — the figures carry no source and no date,
- * which is a P1 violation and is H1b's work (`lib/emissions`). This module is
- * a holding position, deliberately placed in the only package that consumes
- * it rather than in a new `lib/*` that would preempt H1b's design.
+ * which is a P1 violation. H1b (`lib/emissions`, all countries) is still
+ * open; H-SRC-ES took Spain out of this table entirely and gave it a sourced
+ * resolver at `./emissions/es.ts` instead, because Spain is the one market
+ * this product is currently being sold into. Every other country here is
+ * still the same unsourced holding position H1.9 left it in.
  */
 export const CARBON_INTENSITY_BY_COUNTRY: Record<string, number> = {
   australia: 0.656,
@@ -34,7 +36,10 @@ export const CARBON_INTENSITY_BY_COUNTRY: Record<string, number> = {
   portugal: 0.212,
   romania: 0.263,
   "south korea": 0.436,
-  spain: 0.244,
+  // Spain deliberately absent — H-SRC-ES. Spain resolves through the sourced
+  // registry at ./emissions/es.ts, never through this bare table. Adding a
+  // "spain" key back here would silently reintroduce the exact defect this
+  // block removes (a Spanish figure with no authority, document or year).
   sweden: 0.045,
   switzerland: 0.047,
   turkey: 0.481,

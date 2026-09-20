@@ -15,7 +15,11 @@ import {
 } from "./optimize-payload";
 import { sizePvAndBattery, sizingFailureMessage } from "../lib/sizing";
 import { type MonthlyEntry } from "@workspace/db";
-import { lookupCarbonIntensity } from "../lib/carbon-intensity";
+import {
+  resolveCarbonSource,
+  carbonIntensityKgPerKwh,
+  type CarbonSourceNote,
+} from "../lib/emissions/carbon-source";
 
 // Provider, endpoint and model live in ../lib/llm, env-driven. The accessor
 // stays lazy: a missing key fails the AI request, not the server boot.
@@ -64,25 +68,6 @@ function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
   const tiltDelta = Math.abs(roofAngle - 35);
   const tiltFactor = 1 - 0.003 * tiltDelta;
   return Math.max(0.4, oFactor * tiltFactor);
-}
-
-/**
- * Grid carbon intensity for a location. H1.5 fixed the substring match that
- * resolved "Indianapolis" to India; the lookup now lives in ./lib/carbon-intensity
- * with the table (H1.9, out of the schema package).
- *
- * The 0.4 fallback is NOT fixed here. It is a fabricated global average with no
- * source and no date, reaching a displayed CO2 figure — a live P1/P2 violation,
- * and it is H1b's (`lib/emissions`). Fixing it early means deciding what an
- * unknown country should do to a user-facing number, which is that block's
- * decision to make. The lookup below now returns null rather than a number, so
- * the substitution happens in exactly one visible place instead of being buried
- * in the table walk.
- */
-function detectCarbonIntensity(geocodedCountry: string, locationInput: string): number {
-  const found = lookupCarbonIntensity(geocodedCountry, locationInput);
-  if (found !== null) return found;
-  return 0.4; // H1b: fabricated global average, no source, no date.
 }
 
 // Geocode location string to lat/lon via Nominatim
@@ -448,6 +433,17 @@ type ResolutionRecord = {
   nasaKeysRequested: string[];
   nasaKeysPresent: string[];
   irradianceMonthly: number[];
+  /**
+   * H-SRC-ES. Resolved alongside geocoding, for BOTH /api/calculate and
+   * /api/optimize (this record is shared — see the header above). Attaching
+   * it here rather than only where /api/calculate consumes it is what "no
+   * silent defaults" means for a field neither route can compute without a
+   * decision about what an unresolved country means: every caller of
+   * resolveLocationIrradiance sees the same honest answer, whether or not it
+   * goes on to act on it. /api/optimize carries the field and does not act on
+   * it — it has never priced a CO2 figure and this block does not add that.
+   */
+  carbonSource: CarbonSourceNote;
 };
 
 /** The same record once geocoding has succeeded: lat and lon are real. */
@@ -523,12 +519,23 @@ async function resolveLocationIrradiance(
           nasaKeysRequested: [],
           nasaKeysPresent: [],
           irradianceMonthly: [],
+          // Geocoding itself failed — there is no country to resolve a
+          // carbon figure for, so this is "not_reached", never a guess.
+          carbonSource: { status: "not_reached" as const },
         },
       },
     };
   }
 
   const { lat, lon } = geo;
+  // Resolved once, here, and carried on every branch below — the success
+  // path and both NASA-failure rejections. H-SRC-ES: replaces the old
+  // detectCarbonIntensity(), which only ran inside /api/calculate's own
+  // handler and silently substituted 0.4 for a country neither the sourced
+  // registry nor the legacy table carried (D15). This function never
+  // substitutes; it names one of four states, and the caller decides what to
+  // do with "unknown_country" (see the /api/calculate handler below).
+  const carbonSource = resolveCarbonSource(geo.country, locationInput);
   const nasaProbe = await fetchNasaPower(lat, lon);
 
   // H1.0 / H1.8. A data defect is fatal to the request: NASA answered and the
@@ -555,6 +562,7 @@ async function resolveLocationIrradiance(
           nasaKeysRequested: nasaProbe.keysRequested,
           nasaKeysPresent: nasaProbe.keysPresent,
           irradianceMonthly: [],
+          carbonSource,
         },
       },
     };
@@ -595,6 +603,7 @@ async function resolveLocationIrradiance(
       nasaKeysRequested: nasaProbe.keysRequested,
       nasaKeysPresent: nasaProbe.keysPresent,
       irradianceMonthly: irrMonthly,
+      carbonSource,
     },
   };
 }
@@ -888,8 +897,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         resolution,
       } = resolved;
 
-      // Detect carbon intensity from location
-      const carbonIntensity = detectCarbonIntensity(resolved.country, input.location);
+      // H-SRC-ES: carbon intensity was resolved already, inside
+      // resolveLocationIrradiance, alongside geocoding — resolution.carbonSource
+      // names one of four states (see ../lib/emissions/carbon-source.ts).
+      // "unknown_country" is the D15 case that used to silently become 0.4;
+      // it is now a typed 400, decided here rather than buried in a lookup.
+      if (resolution.carbonSource.status === "unknown_country") {
+        return res.status(400).json({
+          message:
+            `We do not have a sourced carbon-intensity figure for "${resolution.carbonSource.attempted}". ` +
+            "Try including the country, or a nearby major city.",
+          code: "unknown_carbon_country",
+          field: "location",
+          resolution,
+        });
+      }
+      const carbonIntensity = carbonIntensityKgPerKwh(resolution.carbonSource);
 
       const panelFactor = panelEfficiencyFactor(input.roofAngle, input.panelOrientation);
       const SYSTEM_EFFICIENCY = 0.78;
