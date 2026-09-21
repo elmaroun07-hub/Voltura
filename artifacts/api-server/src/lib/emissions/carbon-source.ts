@@ -1,44 +1,63 @@
 /**
  * The single entry point routes.ts uses to find out what carbon figure a
- * location resolves to — H-SRC-ES.
+ * location resolves to — H-SRC-ES, reworked at H-SRC-ES-UK for amendment A21.
  *
- * Combines the sourced Spain resolver (`./es.ts`) with the pre-existing
- * legacy country table (`../carbon-intensity.ts`, unsourced, out of this
- * block's scope fence — a second country is explicitly OUT) and replaces
- * the old `detectCarbonIntensity()` in routes.ts, which used to fall back to
- * a fabricated `0.4` for any country the table did not carry (D15).
+ * Carbon is LOCATION-BASED: the direct emissions of the physical generation a
+ * panel displaces (REE per electric system for Spain, DESNZ generation factor
+ * for the UK). The CNMC residual mix that H-SRC-ES resolved for Spain is
+ * market-based; it is a note in the registry now and is no longer wired here.
  *
- * `CarbonSourceNote` is a closed set of four honest states. There is no
- * fifth state where the code emits a number without saying which of these
- * four it is — that is what makes "no silent defaults" true here rather than
- * merely intended.
+ * `CarbonSourceNote` is a closed set of five honest states. There is no sixth
+ * where the code emits a number without saying which of these it is.
  */
 import { lookupCarbonIntensity } from "../carbon-intensity";
-import { resolveEsConsumerCarbonFactor, type SourcedCarbonFactor } from "./es";
+import {
+  carbonFactorFor,
+  electricSystemFor,
+  findCountry,
+  type CountryEntry,
+  type SourcedLocationFactor,
+} from "./countries";
 
 export type CarbonSourceNote =
-  // Spain, resolved through the registry. Full provenance travels with it.
-  | { status: "sourced"; country: "spain"; factor: SourcedCarbonFactor<"supply_residual"> }
+  // A registry country, resolved for the address's own electric system.
+  | { status: "sourced"; country: string; factor: SourcedLocationFactor }
+  // A registry country whose factor for THIS address's system is not sourced
+  // (Baleares, Canarias, Ceuta, Melilla today) or cannot be determined. The
+  // peninsular factor is never substituted.
+  | {
+      status: "pending";
+      country: string;
+      system: string | null;
+      reason: "system_factor_pending" | "system_undetermined";
+      detail: string;
+    }
   // A country the legacy table still carries a bare, unsourced figure for.
-  // Pre-existing behaviour, unchanged by this block — see carbon-intensity.ts.
-  // Honest about NOT having a registry entry, rather than silent about it.
   | { status: "unsourced_legacy"; country: string; valueKgPerKwh: number }
-  // Neither the registry nor the legacy table has anything for this
-  // location. Used to silently become 0.4 (D15). Now the caller's job is to
-  // reject the request — see carbonIntensityKgPerKwh below.
+  // Neither the registry nor the legacy table has anything for this location.
   | { status: "unknown_country"; attempted: string }
-  // Geocoding itself failed, so there is no country to resolve a carbon
-  // figure for at all.
+  // Geocoding itself failed, so there is no country to resolve a figure for.
   | { status: "not_reached" };
 
 export function resolveCarbonSource(
   geocodedCountry: string,
   locationInput: string,
+  regionCode = "",
+  countries?: CountryEntry[],
 ): CarbonSourceNote {
-  const country = geocodedCountry.trim().toLowerCase();
-
-  if (country === "spain") {
-    return { status: "sourced", country: "spain", factor: resolveEsConsumerCarbonFactor() };
+  const country = findCountry(geocodedCountry, countries);
+  if (country) {
+    const result = carbonFactorFor(country, electricSystemFor(country, regionCode));
+    if (result.status === "sourced") {
+      return { status: "sourced", country: country.key, factor: result.factor };
+    }
+    return {
+      status: "pending",
+      country: country.key,
+      system: result.system,
+      reason: result.reason,
+      detail: result.detail,
+    };
   }
 
   const legacy = lookupCarbonIntensity(geocodedCountry, locationInput);
@@ -54,12 +73,10 @@ export function resolveCarbonSource(
 }
 
 /**
- * The kg CO2 / kWh figure to multiply a savings figure by. Throws for
- * `unknown_country` and `not_reached` — callers MUST check `status` and
- * reject the request themselves before reaching arithmetic (D15: the old
- * code's mistake was doing the substitution silently, inside the lookup,
- * where the caller never had to decide anything). This function refuses to
- * make that decision for the caller a second time.
+ * The kg CO2 / kWh figure to multiply a savings figure by. Throws for every
+ * state that is not a number — callers MUST check `status` and reject the
+ * request themselves before reaching arithmetic (D15: the old code's mistake
+ * was doing the substitution silently, inside the lookup).
  */
 export function carbonIntensityKgPerKwh(source: CarbonSourceNote): number {
   switch (source.status) {
@@ -67,6 +84,7 @@ export function carbonIntensityKgPerKwh(source: CarbonSourceNote): number {
       return source.factor.valueGPerKwh / 1000;
     case "unsourced_legacy":
       return source.valueKgPerKwh;
+    case "pending":
     case "unknown_country":
     case "not_reached":
       throw new Error(

@@ -81,31 +81,37 @@ const sizingSchema = z.object({
   daysPerYear: z.number(),
 });
 
-// H-SRC-ES. The sourced object a Spain-resolved carbon figure carries —
-// mirrors SourcedCarbonFactor<"supply_residual"> in
-// ../lib/emissions/es.ts. `basis` is pinned to the literal "supply_residual"
-// here too: this is the shape a CONSUMER-facing figure travels in, and the
-// consumer path is the only one that ever reaches a response body.
+// H-SRC-ES-UK. Location-based carbon, resolved per electric system. Mirrors
+// SourcedLocationFactor in ../lib/emissions/countries.ts.
 const sourcedCarbonFactorSchema = z.object({
   status: z.literal('sourced'),
-  id: z.string(),
+  system: z.string(),
   valueGPerKwh: z.number(),
-  basis: z.literal('supply_residual'),
+  basis: z.literal('generation'),
   authority: z.string(),
-  documentId: z.string(),
-  editionDate: z.string(),
+  publication: z.object({
+    title: z.string(),
+    url: z.string(),
+    published: z.string(),
+    retrieved: z.string(),
+  }),
   activityYear: z.number(),
-  nextEditionExpected: z.string().nullable(),
-  verifiedOn: z.string().nullable(),
 });
 
-// Mirrors CarbonSourceNote in ../lib/emissions/carbon-source.ts. Four honest
-// states, no fifth where a number ships without saying which of these it is.
+// Mirrors CarbonSourceNote in ../lib/emissions/carbon-source.ts. Five honest
+// states, no sixth where a number ships without saying which of these it is.
 const carbonSourceSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('sourced'),
-    country: z.literal('spain'),
+    country: z.string(),
     factor: sourcedCarbonFactorSchema,
+  }),
+  z.object({
+    status: z.literal('pending'),
+    country: z.string(),
+    system: z.string().nullable(),
+    reason: z.enum(['system_factor_pending', 'system_undetermined']),
+    detail: z.string(),
   }),
   z.object({
     status: z.literal('unsourced_legacy'),
@@ -147,6 +153,89 @@ const resolutionSchema = z.object({
   carbonSource: carbonSourceSchema,
 });
 
+// H-SRC-ES-UK. The money block: every part USED with its source named, or
+// PENDING with a typed reason. Mirrors MoneyBlock in ../lib/emissions/money.ts.
+const currencySchema = z.enum(['EUR', 'GBP']);
+const taxBasisSchema = z.enum(['all_taxes_included', 'vat_where_applicable', 'excl_vat']);
+
+const tariffUsedSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('used'), source: z.literal('user'), value: z.number(), label: z.string() }),
+  z.object({
+    status: z.literal('used'),
+    source: z.literal('registry'),
+    value: z.number(),
+    label: z.string(),
+    taxBasis: taxBasisSchema,
+    authority: z.string(),
+    period: z.object({ label: z.string(), start: z.string(), end: z.string() }),
+    reviewBy: z.string(),
+    publicationUrl: z.string(),
+  }),
+  z.object({
+    status: z.literal('pending'),
+    reason: z.enum(['country_not_in_registry', 'registry_tariff_pending', 'registry_tariff_stale']),
+    detail: z.string(),
+  }),
+]);
+
+const installCostUsedSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('used'), source: z.literal('user'), amount: z.number() }),
+  z.object({
+    status: z.literal('used'),
+    source: z.literal('registry_band'),
+    amount: z.number(),
+    perKw: z.number(),
+    kwp: z.number(),
+    band: z.object({ fromKw: z.number(), toKw: z.number() }),
+    taxBasis: taxBasisSchema,
+    authority: z.string(),
+    edition: z.string(),
+    label: z.string(),
+  }),
+  z.object({
+    status: z.literal('used'),
+    source: z.literal('registry_range'),
+    low: z.number(),
+    high: z.number(),
+    perKwLow: z.number(),
+    perKwHigh: z.number(),
+    kwp: z.number(),
+    taxBasis: taxBasisSchema,
+    authority: z.string(),
+    edition: z.string(),
+    label: z.string(),
+  }),
+  z.object({
+    status: z.literal('pending'),
+    reason: z.enum([
+      'country_not_in_registry',
+      'registry_cost_pending',
+      'battery_not_in_registry_cost',
+      'size_outside_registry_bands',
+    ]),
+    detail: z.string(),
+  }),
+]);
+
+const roiUsedSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('computed'),
+    paybackYears: z.number(),
+    curve: z.array(z.object({ year: z.number(), cumulativeSavings: z.number(), netPosition: z.number() })),
+    lifetimeSavings: z.number(),
+  }),
+  z.object({ status: z.literal('pending'), detail: z.string() }),
+]);
+
+const moneyBlockSchema = z.object({
+  // Null only for a country outside the registry: no currency is known, so none is guessed.
+  currency: currencySchema.nullable(),
+  tariff: tariffUsedSchema,
+  annualSavings: z.number().nullable(),
+  installCost: installCostUsedSchema,
+  roi: roiUsedSchema,
+});
+
 const monthlyEntrySchema = z.object({
   month: z.number(),
   name: z.string(),
@@ -167,7 +256,6 @@ export const api = {
         200: z.object({
           savingsKwh: z.number(),
           co2Reduction: z.number(),
-          annualSavingsEur: z.number(),
           carbonIntensity: z.number(),
           avgIrradiance: z.number(),
           irradianceSource: z.string(),
@@ -178,13 +266,7 @@ export const api = {
             battery: z.number(),
           }),
           monthlyData: z.array(monthlyEntrySchema),
-          installationCostEur: z.number(),
-          paybackYears: z.number(),
-          roiCurve: z.array(z.object({
-            year: z.number(),
-            cumulativeSavings: z.number(),
-            netPosition: z.number(),
-          })),
+          money: moneyBlockSchema,
           resolution: resolutionSchema,
         }),
         400: errorSchemas.validation,

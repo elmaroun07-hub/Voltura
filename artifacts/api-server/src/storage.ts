@@ -7,7 +7,7 @@ export interface IStorage {
   createCalculation(calc: InsertCalculation & {
     savingsKwh: number;
     co2Reduction: number;
-    annualSavingsEur?: number;
+    annualSavingsEur?: number | null;
     renewableMix?: { solar: number; wind: number };
     monthlyData?: any[];
     sessionId: string;

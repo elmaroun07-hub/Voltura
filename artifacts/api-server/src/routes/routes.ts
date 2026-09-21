@@ -20,6 +20,8 @@ import {
   carbonIntensityKgPerKwh,
   type CarbonSourceNote,
 } from "../lib/emissions/carbon-source";
+import { findCountry, formatMoney, type Currency } from "../lib/emissions/countries";
+import { describeSaving, resolveMoney } from "../lib/emissions/money";
 
 // Provider, endpoint and model live in ../lib/llm, env-driven. The accessor
 // stays lazy: a missing key fails the AI request, not the server boot.
@@ -71,7 +73,7 @@ function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
 }
 
 // Geocode location string to lat/lon via Nominatim
-async function geocode(location: string): Promise<{ lat: number; lon: number; country: string } | null> {
+async function geocode(location: string): Promise<{ lat: number; lon: number; country: string; regionCode: string } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1&accept-language=en`;
     const res = await fetch(url, {
@@ -85,6 +87,10 @@ async function geocode(location: string): Promise<{ lat: number; lon: number; co
       lat: parseFloat(data[0].lat),
       lon: parseFloat(data[0].lon),
       country: data[0].address?.country ?? "",
+      // ISO 3166-2 level-4 code (e.g. "ES-CN"). Decides which REE electric
+      // system a Spanish address is on. Empty when Nominatim gave none, and
+      // empty is never read as "peninsular" (see spainElectricSystem).
+      regionCode: data[0].address?.["ISO3166-2-lvl4"] ?? "",
     };
   } catch {
     return null;
@@ -535,7 +541,7 @@ async function resolveLocationIrradiance(
   // registry nor the legacy table carried (D15). This function never
   // substitutes; it names one of four states, and the caller decides what to
   // do with "unknown_country" (see the /api/calculate handler below).
-  const carbonSource = resolveCarbonSource(geo.country, locationInput);
+  const carbonSource = resolveCarbonSource(geo.country, locationInput, geo.regionCode);
   const nasaProbe = await fetchNasaPower(lat, lon);
 
   // H1.0 / H1.8. A data defect is fatal to the request: NASA answered and the
@@ -742,13 +748,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       doc.moveTo(50, 118).lineTo(doc.page.width - 50, 118).strokeColor("#e5e7eb").stroke();
       doc.moveDown(0.5);
 
+      const pdfCurrency = (calc.renewableMix as { currency?: Currency } | null)?.currency;
+      const pdfTariff =
+        calc.annualSavingsEur == null
+          ? "pending"
+          : pdfCurrency
+            ? `${formatMoney(calc.electricityTariff, pdfCurrency, 3)}/kWh`
+            : `${calc.electricityTariff.toFixed(3)}/kWh (currency not recorded)`;
+
       const summaryRows = [
         ["Location", calc.location],
         ["Annual Energy Usage", `${calc.energyUsage.toLocaleString()} kWh`],
         ["PV System Size", `${calc.pvWattage.toLocaleString()} W`],
         ["Battery Capacity", `${calc.batteryCapacity} kWh`],
         ["Battery Efficiency", `${((calc.batteryEfficiency ?? 0.9) * 100).toFixed(0)}%`],
-        ["Electricity Tariff", `€${(calc.electricityTariff ?? 0.25).toFixed(2)}/kWh`],
+        ["Electricity Tariff", pdfTariff],
         ["Panel Orientation", calc.panelOrientation],
         ["Roof Angle", `${calc.roofAngle}°`],
       ];
@@ -775,42 +789,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
 
 
-      const annualSav = calc.annualSavingsEur ?? 0;
-
-      let pdfPayback: string;
-      let pdfLifetimeSav: number;
-      if (calc.paybackYears != null && calc.lifetimeSavingsEur != null) {
-        pdfPayback = annualSav > 0 ? calc.paybackYears.toFixed(1) : "N/A";
-        pdfLifetimeSav = Math.round(calc.lifetimeSavingsEur);
-      } else {
-        const instCost = calc.installationCostEur
-          ?? ((calc.pvWattage / 1000) * 900 + calc.batteryCapacity * 500 + 1200);
-        const INFLATION = 0.015;
-        const YEARS = 25;
-        let cumulative = 0;
-        let lifetime = 0;
-        let payback = YEARS;
-        let paid = false;
-        for (let y = 0; y <= YEARS; y++) {
-          if (y === YEARS) lifetime = cumulative;
-          const yearSavings = annualSav * Math.pow(1 + INFLATION, y);
-          if (!paid && cumulative < instCost && cumulative + yearSavings >= instCost) {
-            payback = parseFloat((y + (instCost - cumulative) / yearSavings).toFixed(1));
-            paid = true;
-          }
-          cumulative += yearSavings;
-        }
-        pdfPayback = annualSav > 0 ? payback.toFixed(1) : "N/A";
-        pdfLifetimeSav = annualSav > 0 ? Math.round(lifetime) : 0;
-      }
-
-
+      // Money rows read the persisted values only. A null saving is a calculation
+      // that was never priced (no sourced tariff), and renders "pending" - the
+      // old path recomputed one here from a 900/500/1200 estimate that had no source.
+      const pdfMoney = (n: number | null | undefined): string =>
+        n == null ? "pending" : pdfCurrency ? formatMoney(n, pdfCurrency) : `${Math.round(n).toLocaleString()} (currency not recorded)`;
+      const pdfPayback = calc.paybackYears != null ? `${calc.paybackYears.toFixed(1)} years` : "pending";
 
       const resultRows = [
         ["Annual Energy Saved", `${(calc.savingsKwh ?? 0).toLocaleString()} kWh`, "#10b981"],
-        ["Annual Cost Savings", `€${annualSav.toFixed(0)}`, "#10b981"],
-        ["Estimated Payback Period", `${pdfPayback} years`, "#2563eb"],
-        ["Est. 25-Year Net Gain", `€${pdfLifetimeSav.toLocaleString()}`, "#2563eb"],
+        ["Annual Cost Savings", pdfMoney(calc.annualSavingsEur), "#10b981"],
+        ["Estimated Payback Period", pdfPayback, "#2563eb"],
+        ["Est. 25-Year Net Gain", pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
         ["CO₂ Emissions Reduced", `${(calc.co2Reduction ?? 0).toLocaleString()} kg`, "#059669"],
         ["Trees Equivalent", `${Math.round((calc.co2Reduction ?? 0) / 20)} trees/year`, "#059669"],
       ];
@@ -912,6 +902,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           resolution,
         });
       }
+      // A registry country whose factor for THIS address's electric system is
+      // not sourced (an island, or an address whose system cannot be told).
+      // The peninsular factor is never substituted (A21) — a typed 400.
+      if (resolution.carbonSource.status === "pending") {
+        return res.status(400).json({
+          message:
+            `We do not yet have a sourced carbon-intensity figure for this address: ${resolution.carbonSource.detail}.`,
+          code: "carbon_factor_pending",
+          field: "location",
+          resolution,
+        });
+      }
       const carbonIntensity = carbonIntensityKgPerKwh(resolution.carbonSource);
 
       const panelFactor = panelEfficiencyFactor(input.roofAngle, input.panelOrientation);
@@ -934,7 +936,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const totalGridKwh = monthlyData.reduce((a, m) => a + m.gridImportKwh, 0);
       const totalGenKwh = monthlyData.reduce((a, m) => a + m.generationKwh, 0);
       const annualCo2Reduction = parseFloat((totalSavingsKwh * carbonIntensity).toFixed(1));
-      const annualSavingsEur = parseFloat((totalSavingsKwh * input.electricityTariff).toFixed(2));
+      // Money: a tariff, an install cost and a payback, each either USED with
+      // its source named or PENDING with a typed reason. No default tariff, no
+      // default currency, no auto-estimated install cost (P0.7, P0.8).
+      const money = resolveMoney({
+        country: findCountry(resolved.country),
+        userTariff: input.electricityTariff ?? null,
+        userInstallCost: input.installationCost != null && input.installationCost > 0 ? input.installationCost : null,
+        savingsKwh: totalSavingsKwh,
+        pvKw: input.pvWattage / 1000,
+        batteryKwh: input.batteryCapacity,
+        now: new Date(),
+      });
 
       // Enrich monthly CO2
       monthlyData.forEach((m) => {
@@ -947,52 +960,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const batteryPct = Math.max(0, solarPct - Math.round((Math.min(totalGenKwh, input.energyUsage) / input.energyUsage) * 100));
       const gridPct = Math.max(0, 100 - solarPct);
 
-      // Recommendation
+      // Recommendation. Amounts are rendered in the calculation's own currency,
+      // or the sentence says the saving is not priced. No literal symbol.
       let recommendation = "";
       if (solarPct >= 100) {
-        recommendation = `Excellent! Your ${input.pvWattage}W system fully covers your usage and generates surplus energy worth €${(annualSavingsEur * 0.1).toFixed(0)} in potential grid export.`;
+        recommendation =
+          money.annualSavings !== null && money.currency !== null
+            ? `Excellent! Your ${input.pvWattage}W system fully covers your usage and generates surplus energy worth ${formatMoney(money.annualSavings * 0.1, money.currency)} in potential grid export.`
+            : `Excellent! Your ${input.pvWattage}W system fully covers your usage and generates surplus energy (${describeSaving(money)}).`;
       } else if (solarPct >= 70) {
-        recommendation = `Great result! Your system covers ${solarPct}% of your energy, saving €${annualSavingsEur.toFixed(0)}/year. A slightly larger battery could push you closer to 100%.`;
+        recommendation = `Great result! Your system covers ${solarPct}% of your energy, ${describeSaving(money)}. A slightly larger battery could push you closer to 100%.`;
       } else {
-        recommendation = `Your system offsets ${solarPct}% of your energy usage, saving €${annualSavingsEur.toFixed(0)}/year. Consider increasing PV capacity to ${Math.round(input.pvWattage * 1.5)}W for better coverage.`;
-      }
-
-      // ROI curve: auto-estimate installation cost if not provided
-      // Solar panels ~€900/kWp + battery ~€500/kWh + inverter/install €1,200 fixed
-      const estimatedCost = Math.round(
-        (input.pvWattage / 1000) * 900 +
-        input.batteryCapacity * 500 +
-        1200
-      );
-      const installationCostEur = (input.installationCostEur != null && input.installationCostEur > 0)
-        ? input.installationCostEur
-        : estimatedCost;
-
-      // 1.5% annual electricity price inflation
-      const INFLATION = 0.015;
-      const YEARS = 25;
-      const roiCurve: { year: number; cumulativeSavings: number; netPosition: number }[] = [];
-      let cumulative = 0;
-      let paybackYears = YEARS; // default if never paid back within 25y
-      for (let y = 0; y <= YEARS; y++) {
-        roiCurve.push({
-          year: y,
-          cumulativeSavings: parseFloat(cumulative.toFixed(0)),
-          netPosition: parseFloat((cumulative - installationCostEur).toFixed(0)),
-        });
-        // next year savings with inflation
-        const yearSavings = annualSavingsEur * Math.pow(1 + INFLATION, y);
-        if (cumulative < installationCostEur && cumulative + yearSavings >= installationCostEur) {
-          const fraction = (installationCostEur - cumulative) / yearSavings;
-          paybackYears = parseFloat((y + fraction).toFixed(1));
-        }
-        cumulative += yearSavings;
+        recommendation = `Your system offsets ${solarPct}% of your energy usage, ${describeSaving(money)}. Consider increasing PV capacity to ${Math.round(input.pvWattage * 1.5)}W for better coverage.`;
       }
 
       const result = {
         savingsKwh: Math.round(totalSavingsKwh),
         co2Reduction: Math.round(annualCo2Reduction),
-        annualSavingsEur,
         carbonIntensity,
         avgIrradiance,
         irradianceSource,
@@ -1003,9 +987,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           grid: gridPct,
         },
         monthlyData,
-        installationCostEur,
-        paybackYears,
-        roiCurve,
+        money,
         resolution,
       };
 
@@ -1014,18 +996,31 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         energyUsage: input.energyUsage,
         pvWattage: input.pvWattage,
         batteryCapacity: input.batteryCapacity,
-        electricityTariff: input.electricityTariff,
+        // The column is NOT NULL (no DDL here, G3). A tariff that was pending
+        // is stored as 0 - a value the input schema rejects (min 0.01), so it
+        // can only mean "no tariff was applied", and History/PDF read
+        // annualSavingsEur === null as pending, never this column.
+        electricityTariff: money.tariff.status === "used" ? money.tariff.value : 0,
         batteryEfficiency: input.batteryEfficiency,
         panelOrientation: input.panelOrientation,
         roofAngle: input.roofAngle,
         savingsKwh: result.savingsKwh,
         co2Reduction: result.co2Reduction,
-        annualSavingsEur: result.annualSavingsEur,
-        renewableMix: { solar: result.breakdown.solar + result.breakdown.battery, wind: 0 },
+        annualSavingsEur: money.annualSavings,
+        // The table has no currency column (no DDL, G3), so the currency the
+        // money was computed in travels here so the PDF can render it.
+        renewableMix: {
+          solar: result.breakdown.solar + result.breakdown.battery,
+          wind: 0,
+          ...(money.currency ? { currency: money.currency } : {}),
+        },
         monthlyData,
-        installationCostEur: result.installationCostEur,
-        paybackYears: result.paybackYears,
-        lifetimeSavingsEur: roiCurve[roiCurve.length - 1].cumulativeSavings,
+        installationCostEur:
+          money.installCost.status === "used" && money.installCost.source !== "registry_range"
+            ? money.installCost.amount
+            : null,
+        paybackYears: money.roi.status === "computed" ? money.roi.paybackYears : null,
+        lifetimeSavingsEur: money.roi.status === "computed" ? money.roi.lifetimeSavings : null,
         sessionId,
       });
 
