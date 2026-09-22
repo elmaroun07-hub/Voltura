@@ -6,11 +6,12 @@ import {
 } from "recharts";
 import { type CalculationResponse } from "@/lib/api";
 import { irradianceLabel } from "@/lib/provenance";
+import { formatMoney, formatMoneyCompact, formatMoneyRange, PENDING_LABEL } from "@/lib/money";
 import { downloadCalculationPdf } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Leaf, TrendingUp, Sun, Download, Euro, Satellite, AlertTriangle, CalendarCheck } from "lucide-react";
+import { Leaf, TrendingUp, Sun, Download, Banknote, Satellite, AlertTriangle, CalendarCheck } from "lucide-react";
 
 interface ResultsDisplayProps {
   results: CalculationResponse | null;
@@ -44,6 +45,11 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
   }));
 
   const trees = Math.round(results.co2Reduction / 20);
+  const { money } = results;
+  // Every amount below is rendered in the currency the server computed it in.
+  // A null currency means the country has no sourced tariff, so there is no amount.
+  const fmt = (n: number, digits = 0) => formatMoney(n, money.currency as NonNullable<typeof money.currency>, digits);
+  const savingsText = money.annualSavings !== null && money.currency ? fmt(money.annualSavings) : PENDING_LABEL;
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -59,8 +65,8 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
             <div className="bg-white/20 p-2.5 rounded-full"><TrendingUp className="w-5 h-5" /></div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span data-testid="text-savings-eur" className="text-2xl font-bold">€{results.annualSavingsEur.toFixed(0)}</span>
-            <span className="text-xs opacity-75">saved per year</span>
+            <span data-testid="text-savings-eur" className="text-2xl font-bold">{savingsText}</span>
+            <span className="text-xs opacity-75">{money.annualSavings !== null ? "saved per year" : "money saving not priced"}</span>
           </div>
         </Card>
 
@@ -90,10 +96,14 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
         </Card>
         <Card className="p-4 flex flex-col gap-1">
           <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-            <Euro className="w-3.5 h-3.5" /> Tariff Used
+            <Banknote className="w-3.5 h-3.5" /> Tariff Used
           </div>
-          <p className="font-semibold text-sm">€{(results.annualSavingsEur / Math.max(results.savingsKwh, 1)).toFixed(3)}/kWh</p>
-          <p className="text-xs text-muted-foreground">→ €{results.annualSavingsEur.toFixed(0)} total</p>
+          <p data-testid="text-tariff-used" className="font-semibold text-sm">
+            {money.tariff.status === "used" && money.currency ? `${fmt(money.tariff.value, 3)}/kWh` : PENDING_LABEL}
+          </p>
+          <p data-testid="text-tariff-source" className="text-xs text-muted-foreground">
+            {money.tariff.status === "used" ? money.tariff.label : money.tariff.detail}
+          </p>
         </Card>
       </div>
 
@@ -156,7 +166,7 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
       </Card>
 
       {/* ROI Curve */}
-      {results.roiCurve && results.roiCurve.length > 0 && (
+      {money.roi.status === "computed" && money.currency && (
         <Card className="p-5 shadow-md border-border/50">
           <CardHeader className="p-0 pb-3">
             <div className="flex items-center justify-between">
@@ -165,13 +175,14 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
                 <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
                   <CalendarCheck className="w-3.5 h-3.5 text-blue-600" />
                   <span data-testid="text-payback-years" className="text-xs font-bold text-blue-700">
-                    Payback: {results.paybackYears < 25 ? `${results.paybackYears}y` : ">25y"}
+                    Payback: {money.roi.paybackYears < 25 ? `${money.roi.paybackYears}y` : ">25y"}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-3 py-1">
-                  <Euro className="w-3.5 h-3.5 text-slate-500" />
+                  <Banknote className="w-3.5 h-3.5 text-slate-500" />
                   <span className="text-xs font-medium text-slate-600">
-                    Cost: €{results.installationCostEur.toLocaleString()}
+                    Cost: {money.installCost.status === "used" && money.installCost.source !== "registry_range" ? fmt(money.installCost.amount) : PENDING_LABEL}
+                    {money.installCost.status === "used" && money.installCost.source === "registry_band" ? ` (${money.installCost.label})` : ""}
                   </span>
                 </div>
               </div>
@@ -181,7 +192,7 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
           <CardContent className="p-0">
             <div className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={results.roiCurve} margin={{ top: 8, right: 4, left: -10, bottom: 0 }}>
+                <AreaChart data={money.roi.curve} margin={{ top: 8, right: 4, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="roiGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -190,14 +201,13 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="year" tick={{ fontSize: 10 }} label={{ value: "Year", position: "insideBottom", offset: -2, fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatMoneyCompact(v, money.currency!)} />
                   <Tooltip
                     contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: 12 }}
-                    formatter={(val: number, name: string) => [`€${val.toLocaleString()}`, name === "cumulativeSavings" ? "Cumulative Savings" : "Net Position"]}
+                    formatter={(val: number, name: string) => [fmt(val), name === "cumulativeSavings" ? "Cumulative Savings" : "Net Position"]}
                     labelFormatter={(l) => `Year ${l}`}
                   />
                   <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: "Break-even", fill: "#ef4444", fontSize: 10, position: "insideTopLeft" }} />
-                  <ReferenceLine y={-results.installationCostEur} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} />
                   <Area
                     type="monotone"
                     dataKey="netPosition"
@@ -212,9 +222,23 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
             </div>
             <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-500 rounded" /> Net position (savings − cost)</span>
-              <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-red-400 rounded" style={{ borderStyle: "dashed" }} /> Break-even (€0)</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-red-400 rounded" style={{ borderStyle: "dashed" }} /> Break-even</span>
             </div>
           </CardContent>
+        </Card>
+      )}
+
+      {/* Payback and cost, when not computed: said plainly, never a substituted figure. */}
+      {money.roi.status === "pending" && (
+        <Card className="p-5 shadow-md border-border/50" data-testid="card-roi-pending">
+          <CardTitle className="text-base font-semibold mb-2">25-Year ROI and payback</CardTitle>
+          <p data-testid="text-payback-years" className="text-sm font-semibold">Payback: {PENDING_LABEL}</p>
+          <p className="text-xs text-muted-foreground mt-1">{money.roi.detail}</p>
+          {money.installCost.status === "used" && money.installCost.source === "registry_range" && money.currency && (
+            <p data-testid="text-install-range" className="text-xs mt-2">
+              Install cost ({money.installCost.label}): {formatMoneyRange(money.installCost.low, money.installCost.high, money.currency)}
+            </p>
+          )}
         </Card>
       )}
 

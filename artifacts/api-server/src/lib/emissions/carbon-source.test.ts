@@ -1,20 +1,48 @@
 import { describe, expect, it } from "vitest";
 import { resolveCarbonSource, carbonIntensityKgPerKwh } from "./carbon-source";
-import { resolveEsConsumerCarbonFactor } from "./es";
+import { loadCountries } from "./countries";
 
-describe("resolveCarbonSource — the four honest states", () => {
-  it("Spain resolves to the sourced registry factor, not the legacy table", () => {
-    const source = resolveCarbonSource("Spain", "Toledo, Spain");
+describe("resolveCarbonSource — the five honest states", () => {
+  it("a mainland Spanish address resolves to the sourced PENINSULAR factor (A21), not the legacy table", () => {
+    const source = resolveCarbonSource("Spain", "Toledo, Spain", "ES-CM");
     expect(source.status).toBe("sourced");
     if (source.status === "sourced") {
       expect(source.country).toBe("spain");
-      expect(source.factor.basis).toBe("supply_residual");
+      expect(source.factor.system).toBe("peninsular");
+      expect(source.factor.basis).toBe("generation");
     }
   });
 
   it("is case- and whitespace-insensitive on the geocoded country for Spain", () => {
-    expect(resolveCarbonSource("  SPAIN  ", "x").status).toBe("sourced");
-    expect(resolveCarbonSource("spain", "x").status).toBe("sourced");
+    expect(resolveCarbonSource("  SPAIN  ", "x", "ES-AN").status).toBe("sourced");
+    expect(resolveCarbonSource("spain", "x", "ES-AN").status).toBe("sourced");
+  });
+
+  it("the United Kingdom resolves through the registry, and is absent from the legacy table", () => {
+    const source = resolveCarbonSource("United Kingdom", "London", "GB-ENG");
+    expect(source.status).toBe("sourced");
+    if (source.status === "sourced") {
+      expect(source.factor.system).toBe("gb");
+      expect(source.factor.authority).toMatch(/DESNZ/);
+    }
+  });
+
+  it.each(["ES-IB", "ES-CN", "ES-CE", "ES-ML"])(
+    "an address on %s is PENDING, never the peninsular factor (A21)",
+    (code) => {
+      const source = resolveCarbonSource("Spain", "an island", code);
+      expect(source.status).toBe("pending");
+      if (source.status === "pending") expect(source.reason).toBe("system_factor_pending");
+      expect(() => carbonIntensityKgPerKwh(source)).toThrow(/must reject/);
+    },
+  );
+
+  it("a Spanish address whose region code is missing is pending, not assumed peninsular", () => {
+    for (const code of ["", "  ", "not-a-code", "GB-ENG"]) {
+      const source = resolveCarbonSource("Spain", "somewhere", code);
+      expect(source.status).toBe("pending");
+      if (source.status === "pending") expect(source.reason).toBe("system_undetermined");
+    }
   });
 
   it("a country still on the legacy table resolves as unsourced_legacy, unchanged in value", () => {
@@ -41,9 +69,11 @@ describe("resolveCarbonSource — the four honest states", () => {
 
 describe("carbonIntensityKgPerKwh", () => {
   it("returns the registry value in kg/kWh for a sourced Spain result", () => {
-    const factor = resolveEsConsumerCarbonFactor();
-    const kg = carbonIntensityKgPerKwh({ status: "sourced", country: "spain", factor });
-    expect(kg).toBeCloseTo(factor.valueGPerKwh / 1000, 9);
+    const spain = loadCountries().find((c) => c.key === "spain")!;
+    const entry = spain.carbonFactor.systems.peninsular;
+    if (entry.status !== "current") throw new Error("peninsular entry must be current");
+    const source = resolveCarbonSource("Spain", "x", "ES-AN");
+    expect(carbonIntensityKgPerKwh(source)).toBeCloseTo(entry.value / 1000, 12);
   });
 
   it("returns the bare legacy value unchanged for unsourced_legacy", () => {

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Sun, Battery, MapPin, Zap, Euro, Gauge, TrendingUp } from "lucide-react";
+import { Loader2, Sun, Battery, MapPin, Zap, Banknote, Gauge, TrendingUp } from "lucide-react";
 
 interface CalculatorFormProps {
   onSubmit: (data: CalculationInput) => void;
@@ -23,17 +23,14 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
       energyUsage: 5000,
       pvWattage: 4000,
       batteryCapacity: 10,
-      electricityTariff: 0.25,
+      electricityTariff: null,
       batteryEfficiency: 0.9,
       panelOrientation: "south",
       roofAngle: 30,
-      installationCostEur: null,
+      installationCost: null,
     },
   });
 
-  const pvWattage = form.watch("pvWattage");
-  const batteryCapacity = form.watch("batteryCapacity");
-  const estimatedCost = Math.round((pvWattage / 1000) * 900 + batteryCapacity * 500 + 1200);
 
   return (
     <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
@@ -127,18 +124,19 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      <Euro className="w-4 h-4 text-green-600" /> Tariff (€/kWh)
+                      <Banknote className="w-4 h-4 text-green-600" /> Tariff (per kWh)
                     </FormLabel>
                     <FormControl>
                       <Input
                         data-testid="input-electricity-tariff"
                         type="number" step="0.01" min="0.01" max="5"
                         className="h-11 bg-white/50"
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        placeholder="Sourced national average"
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
                       />
                     </FormControl>
-                    <FormDescription>e.g. 0.30 for 30 c/kWh</FormDescription>
+                    <FormDescription>In your local currency. Leave blank to use the sourced national average, where we have one.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -217,11 +215,11 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
 
             <FormField
               control={form.control}
-              name="installationCostEur"
+              name="installationCost"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-blue-500" /> Installation Cost (€)
+                    <TrendingUp className="w-4 h-4 text-blue-500" /> Installation Cost
                   </FormLabel>
                   <FormControl>
                     <Input
@@ -230,12 +228,12 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                       step="100"
                       min="0"
                       className="h-11 bg-white/50"
-                      placeholder={`Auto-estimate: €${estimatedCost.toLocaleString()}`}
+                      placeholder="Sourced figure, where we have one"
                       value={field.value ?? ""}
                       onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
                     />
                   </FormControl>
-                  <FormDescription>Leave blank to auto-estimate (panels + battery + install)</FormDescription>
+                  <FormDescription>In your local currency. Leave blank to use a sourced figure for your country; if there is none, the payback shows as pending.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

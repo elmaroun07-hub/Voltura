@@ -399,13 +399,20 @@ export const ROI_INFLATION = 0.015;
 export const ROI_YEARS = 25;
 
 export interface RoiCurvePoint { year: number; cumulativeSavings: number; netPosition: number }
+export interface RoiResult { paybackYears: number; curve: RoiCurvePoint[]; lifetimeSavings: number }
 
-/** Both operands are `Money<C>` for the SAME C: an EUR saving against a GBP cost is a compile error. */
-export function roi<C extends Currency>(annualSavings: Money<C>, installCost: Money<C>): {
-  paybackYears: number;
-  curve: RoiCurvePoint[];
-  lifetimeSavings: number;
-} {
+/**
+ * Both operands must be the SAME currency, or this is a compile error (TS2769
+ * — no overload matches). A plain `roi<C extends Currency>(a: Money<C>, b:
+ * Money<C>)` does NOT catch `roi(eurMoney, gbpMoney)` at compile time: with
+ * `currency` only in a covariant (readonly property) position, TypeScript
+ * unifies C to the union `"EUR" | "GBP"` and both arguments satisfy it —
+ * proven with a minimal repro before choosing this shape. Two concrete
+ * overloads (one per member of `Currency`) is the closed-union AC2 needs.
+ */
+export function roi(annualSavings: Money<"EUR">, installCost: Money<"EUR">): RoiResult;
+export function roi(annualSavings: Money<"GBP">, installCost: Money<"GBP">): RoiResult;
+export function roi(annualSavings: Money<Currency>, installCost: Money<Currency>): RoiResult {
   const curve: RoiCurvePoint[] = [];
   let cumulative = 0;
   let paybackYears: number = ROI_YEARS; // "never paid back within 25y" — rendered as ">25y"

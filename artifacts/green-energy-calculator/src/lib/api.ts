@@ -5,11 +5,13 @@ export const calculationInputSchema = z.object({
   energyUsage: z.number().min(100).max(100000),
   pvWattage: z.number().min(100).max(100000),
   batteryCapacity: z.number().min(0).max(200),
-  electricityTariff: z.number().min(0.01).max(5).default(0.25),
+  // Optional, no default: the server resolves it from the country registry or the
+  // money figure is pending. Mirrors calculationInputSchema in lib/db.
+  electricityTariff: z.number().min(0.01).max(5).optional().nullable(),
   batteryEfficiency: z.number().min(0.5).max(1.0).default(0.9),
   panelOrientation: z.enum(["north", "south", "east", "west"]).default("south"),
   roofAngle: z.number().min(0).max(90).default(30),
-  installationCostEur: z.number().min(0).max(200000).optional().nullable(),
+  installationCost: z.number().min(0).max(200000).optional().nullable(),
 });
 
 export type CalculationInput = z.infer<typeof calculationInputSchema>;
@@ -94,23 +96,32 @@ export type MonthlyEntry = z.infer<typeof monthlyEntrySchema>;
 // artifacts/api-server/src/shared-routes.ts.
 const sourcedCarbonFactorSchema = z.object({
   status: z.literal("sourced"),
-  id: z.string(),
+  system: z.string(),
   valueGPerKwh: z.number(),
-  basis: z.literal("supply_residual"),
+  basis: z.literal("generation"),
   authority: z.string(),
-  documentId: z.string(),
-  editionDate: z.string(),
+  publication: z.object({
+    title: z.string(),
+    url: z.string(),
+    published: z.string(),
+    retrieved: z.string(),
+  }),
   activityYear: z.number(),
-  nextEditionExpected: z.string().nullable(),
-  verifiedOn: z.string().nullable(),
 });
 
 // Mirrors carbonSourceSchema in artifacts/api-server/src/shared-routes.ts.
 const carbonSourceSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("sourced"),
-    country: z.literal("spain"),
+    country: z.string(),
     factor: sourcedCarbonFactorSchema,
+  }),
+  z.object({
+    status: z.literal("pending"),
+    country: z.string(),
+    system: z.string().nullable(),
+    reason: z.enum(["system_factor_pending", "system_undetermined"]),
+    detail: z.string(),
   }),
   z.object({
     status: z.literal("unsourced_legacy"),
@@ -151,10 +162,93 @@ const resolutionSchema = z.object({
 
 export type Resolution = z.infer<typeof resolutionSchema>;
 
+// Mirrors the money block in artifacts/api-server/src/shared-routes.ts.
+// H-SRC-ES-UK. The money block: every part USED with its source named, or
+// PENDING with a typed reason. Mirrors MoneyBlock in ../lib/emissions/money.ts.
+const currencySchema = z.enum(["EUR", "GBP"]);
+const taxBasisSchema = z.enum(["all_taxes_included", "vat_where_applicable", "excl_vat"]);
+
+const tariffUsedSchema = z.union([
+  z.object({ status: z.literal("used"), source: z.literal("user"), value: z.number(), label: z.string() }),
+  z.object({
+    status: z.literal("used"),
+    source: z.literal("registry"),
+    value: z.number(),
+    label: z.string(),
+    taxBasis: taxBasisSchema,
+    authority: z.string(),
+    period: z.object({ label: z.string(), start: z.string(), end: z.string() }),
+    reviewBy: z.string(),
+    publicationUrl: z.string(),
+  }),
+  z.object({
+    status: z.literal("pending"),
+    reason: z.enum(["country_not_in_registry", "registry_tariff_pending", "registry_tariff_stale"]),
+    detail: z.string(),
+  }),
+]);
+
+const installCostUsedSchema = z.union([
+  z.object({ status: z.literal("used"), source: z.literal("user"), amount: z.number() }),
+  z.object({
+    status: z.literal("used"),
+    source: z.literal("registry_band"),
+    amount: z.number(),
+    perKw: z.number(),
+    kwp: z.number(),
+    band: z.object({ fromKw: z.number(), toKw: z.number() }),
+    taxBasis: taxBasisSchema,
+    authority: z.string(),
+    edition: z.string(),
+    label: z.string(),
+  }),
+  z.object({
+    status: z.literal("used"),
+    source: z.literal("registry_range"),
+    low: z.number(),
+    high: z.number(),
+    perKwLow: z.number(),
+    perKwHigh: z.number(),
+    kwp: z.number(),
+    taxBasis: taxBasisSchema,
+    authority: z.string(),
+    edition: z.string(),
+    label: z.string(),
+  }),
+  z.object({
+    status: z.literal("pending"),
+    reason: z.enum([
+      "country_not_in_registry",
+      "registry_cost_pending",
+      "battery_not_in_registry_cost",
+      "size_outside_registry_bands",
+    ]),
+    detail: z.string(),
+  }),
+]);
+
+const roiUsedSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("computed"),
+    paybackYears: z.number(),
+    curve: z.array(z.object({ year: z.number(), cumulativeSavings: z.number(), netPosition: z.number() })),
+    lifetimeSavings: z.number(),
+  }),
+  z.object({ status: z.literal("pending"), detail: z.string() }),
+]);
+
+const moneyBlockSchema = z.object({
+  // Null only for a country outside the registry: no currency is known, so none is guessed.
+  currency: currencySchema.nullable(),
+  tariff: tariffUsedSchema,
+  annualSavings: z.number().nullable(),
+  installCost: installCostUsedSchema,
+  roi: roiUsedSchema,
+});
+
 const calculationResponseSchema = z.object({
   savingsKwh: z.number(),
   co2Reduction: z.number(),
-  annualSavingsEur: z.number(),
   carbonIntensity: z.number(),
   avgIrradiance: z.number(),
   irradianceSource: z.string(),
@@ -165,13 +259,7 @@ const calculationResponseSchema = z.object({
     battery: z.number(),
   }),
   monthlyData: z.array(monthlyEntrySchema),
-  installationCostEur: z.number(),
-  paybackYears: z.number(),
-  roiCurve: z.array(z.object({
-    year: z.number(),
-    cumulativeSavings: z.number(),
-    netPosition: z.number(),
-  })),
+  money: moneyBlockSchema,
   resolution: resolutionSchema,
 });
 

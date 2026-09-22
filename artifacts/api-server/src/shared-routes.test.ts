@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { api } from "./shared-routes";
+import { resolveCarbonSource } from "./lib/emissions/carbon-source";
 
 /**
  * Regression guard for the /api/optimize Zod failure:
@@ -36,26 +37,11 @@ const sizing = {
   daysPerYear: 365,
 };
 
-// H-SRC-ES — "sourced" is the fixture's own carbonSource shape, mirroring
-// SourcedCarbonFactor<"supply_residual"> (es.ts). Values here are fixture
-// data for schema-tolerance tests, not an assertion about the registry's
-// real content — that lives in lib/emissions/es.test.ts instead.
-const carbonSource = {
-  status: "sourced" as const,
-  country: "spain" as const,
-  factor: {
-    status: "sourced" as const,
-    id: "es-carbon-supply-residual-2025",
-    valueGPerKwh: 258,
-    basis: "supply_residual" as const,
-    authority: "CNMC",
-    documentId: "Acuerdo GDO/DE/001/26",
-    editionDate: "2026-04-28",
-    activityYear: 2025,
-    nextEditionExpected: "2027-05",
-    verifiedOn: "2026-09-15",
-  },
-};
+// H-SRC-ES-UK — the fixture's carbonSource is produced by the real resolver, not
+// typed by hand, so this file holds no carbon literal (and cannot drift from the
+// registry). Shape assertions below are about the schema, not the registry.
+const carbonSource = resolveCarbonSource("Spain", "Toledo, Spain", "ES-CM");
+if (carbonSource.status !== "sourced") throw new Error("fixture must be sourced");
 
 const resolution = {
   locationInput: "Fuengirola, Málaga, Spain",
@@ -196,7 +182,7 @@ describe("optimize response — resolution.carbonSource (H-SRC-ES)", () => {
     expect(result.resolution.carbonSource).toEqual(carbonSource);
   });
 
-  it("rejects a sourced entry missing authority, document, edition date or activity year", () => {
+  it("rejects a sourced entry missing authority (publication and activity year are required too)", () => {
     const bad = { ...carbonSource, factor: { ...carbonSource.factor, authority: undefined } };
     expect(
       schema.safeParse({
@@ -207,8 +193,8 @@ describe("optimize response — resolution.carbonSource (H-SRC-ES)", () => {
     ).toBe(false);
   });
 
-  it("rejects a sourced entry whose basis is not supply_residual", () => {
-    const bad = { ...carbonSource, factor: { ...carbonSource.factor, basis: "generation" } };
+  it("rejects a sourced entry whose basis is not generation (A21: location-based only)", () => {
+    const bad = { ...carbonSource, factor: { ...carbonSource.factor, basis: "supply_residual" } };
     expect(
       schema.safeParse({
         ...base,
@@ -216,6 +202,13 @@ describe("optimize response — resolution.carbonSource (H-SRC-ES)", () => {
         resolution: { ...resolution, carbonSource: bad },
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts the pending shape (an island system with no sourced factor)", () => {
+    const pending = resolveCarbonSource("Spain", "Palma", "ES-IB");
+    expect(pending.status).toBe("pending");
+    const result = schema.parse({ ...base, explanation: "ok", resolution: { ...resolution, carbonSource: pending } });
+    expect(result.resolution.carbonSource).toEqual(pending);
   });
 
   it("accepts the unsourced_legacy shape", () => {

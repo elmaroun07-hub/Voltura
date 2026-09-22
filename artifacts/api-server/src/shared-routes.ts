@@ -158,7 +158,7 @@ const resolutionSchema = z.object({
 const currencySchema = z.enum(['EUR', 'GBP']);
 const taxBasisSchema = z.enum(['all_taxes_included', 'vat_where_applicable', 'excl_vat']);
 
-const tariffUsedSchema = z.discriminatedUnion('status', [
+const tariffUsedSchema = z.union([
   z.object({ status: z.literal('used'), source: z.literal('user'), value: z.number(), label: z.string() }),
   z.object({
     status: z.literal('used'),
@@ -178,7 +178,7 @@ const tariffUsedSchema = z.discriminatedUnion('status', [
   }),
 ]);
 
-const installCostUsedSchema = z.discriminatedUnion('status', [
+const installCostUsedSchema = z.union([
   z.object({ status: z.literal('used'), source: z.literal('user'), amount: z.number() }),
   z.object({
     status: z.literal('used'),

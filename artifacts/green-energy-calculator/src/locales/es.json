@@ -17,7 +17,7 @@
   "form_efficiency": "Eficiencia del Sistema (%)",
   "form_tilt": "Inclinación Panel (grados)",
   "form_orientation": "Orientación Panel",
-  "form_tariff": "Tarifa Eléctrica (€/kWh)",
+  "form_tariff": "Tarifa Eléctrica (por kWh)",
   "form_submit": "Calcular Ahorros",
   "results_title": "Tus Ahorros Solares",
   "results_annual_saved": "Energía Anual Ahorrada",

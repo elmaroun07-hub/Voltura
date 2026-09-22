@@ -3,7 +3,7 @@
  *
  * Replaces the flat `annualSavingsEur / installationCostEur / paybackYears /
  * roiCurve` fields, which hard-coded a currency, defaulted the tariff to
- * 0.25 for every country on Earth, and back-filled a €9,800 install cost
+ * 0.25 for every country on Earth, and back-filled a 9,800 install cost in euros
  * from constants with no source.
  *
  * Every part of the block is one of: USED (with its source named), or
@@ -220,8 +220,17 @@ export function resolveMoney(input: MoneyInput): MoneyBlock {
 
   let roiBlock: RoiUsed;
   if (installCost.status === "used" && installCost.source !== "registry_range") {
-    const cost: Money<Currency> = { amount: installCost.amount, currency };
-    const r = roi(annual, cost);
+    // roi() is exported as two concrete overloads (see countries.ts) so a
+    // mismatched pair is a compile error — real evidence for AC2. That means
+    // it cannot accept `Money<Currency>` at a call site where the concrete
+    // currency is only known at runtime; `annual` and `cost` were BOTH just
+    // built from this same `currency` local a few lines above, so the branch
+    // below is a narrowing of an invariant already established, not a new
+    // assumption.
+    const r =
+      currency === "EUR"
+        ? roi({ amount: annual.amount, currency }, { amount: installCost.amount, currency })
+        : roi({ amount: annual.amount, currency }, { amount: installCost.amount, currency });
     roiBlock = { status: "computed", paybackYears: r.paybackYears, curve: r.curve, lifetimeSavings: r.lifetimeSavings };
   } else if (installCost.status === "used") {
     roiBlock = { status: "pending", detail: "the install cost is a range, and a payback is not computed from a range" };
