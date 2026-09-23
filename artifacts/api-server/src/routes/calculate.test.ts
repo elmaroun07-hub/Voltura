@@ -127,7 +127,8 @@ describe("A3.1 regression pair — Fuengirola vs Tétouan", () => {
     // Non-equality only. They are ~110 km apart, so a small delta is
     // physically correct; any threshold here would be invented.
     expect(fuen.body.savingsKwh).not.toBe(tet.body.savingsKwh);
-    expect(fuen.body.annualSavingsEur).not.toBe(tet.body.annualSavingsEur);
+    // Money is compared no further: Tétouan's is pending by design (P0.8).
+    expect(tet.body.money.annualSavings).toBeNull();
     expect(fuen.body.resolution.irradianceMonthly).not.toEqual(
       tet.body.resolution.irradianceMonthly,
     );
@@ -419,10 +420,13 @@ describe("AC3 — every carbon-bearing response names its source", () => {
     expect(carbon.status).toBe("sourced");
     if (carbon.status !== "sourced") throw new Error("unreachable");
     expect(carbon.country).toBe("spain");
-    expect(carbon.factor.basis).toBe("supply_residual");
+    // A21: location-based, per electric system. The publication object replaces
+    // the CNMC documentId/editionDate pair.
+    expect(carbon.factor.basis).toBe("generation");
+    expect(carbon.factor.system).toBe("peninsular");
     expect(carbon.factor.authority.length).toBeGreaterThan(0);
-    expect(carbon.factor.documentId.length).toBeGreaterThan(0);
-    expect(carbon.factor.editionDate.length).toBeGreaterThan(0);
+    expect(carbon.factor.publication.title.length).toBeGreaterThan(0);
+    expect(carbon.factor.publication.published.length).toBeGreaterThan(0);
     expect(typeof carbon.factor.activityYear).toBe("number");
 
     // The top-level carbonIntensity (kg/kWh, unchanged field for the client)

@@ -17,7 +17,7 @@
   "form_efficiency": "System Efficiency (%)",
   "form_tilt": "Panel Tilt (degrees)",
   "form_orientation": "Panel Orientation",
-  "form_tariff": "Energy Tariff (€/kWh)",
+  "form_tariff": "Energy Tariff (per kWh)",
   "form_submit": "Calculate Savings",
   "results_title": "Your Solar Savings",
   "results_annual_saved": "Annual Energy Saved",

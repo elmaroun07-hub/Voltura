@@ -1,0 +1,2 @@
+# Fixtures are evidence: their bytes are pinned by sha256 tests. Never let git normalise line endings.
+contracts/fixtures/** -text

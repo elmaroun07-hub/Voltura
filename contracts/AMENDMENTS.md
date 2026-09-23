@@ -562,3 +562,16 @@ quoting its own priors* — only for the 8760-simulation-based optimizer C7 desc
 larger version stands deferred. **H1c's inventory should record C7 as closed here**, which
 is where the collision said the claim would be tracked.
 
+
+
+---
+
+## A21 · 2026-09-21 — Carbon method is location-based
+
+**Carbon method is location-based (ruled by the operator, 21 Sept 2026).** Supersedes the carbon source named in `contracts/blocks/h1b.md` (MITECO "Mix sin GdO", which is market-based).
+- Every country's carbon factor is **location-based**: direct emissions of that country's electricity generation per MWh generated, taken from the system operator or government statistic.
+- **Spain:** REE, *Emisiones y factor de emisión de CO2 eq. de la generación*, **per electric system**. Peninsular addresses use the peninsular factor; Baleares, Canarias, Ceuta and Melilla use their own system's factor or `pending` — never the peninsular one.
+- **UK:** DESNZ GHG conversion factors, **generation** factor, T&D losses excluded.
+- Market-based figures (e.g. CNMC's residual mix) may be recorded as notes, never as the value.
+- Why: the product reports CO₂ avoided by self-consumption — the physical grid a panel displaces — and location-based is the only basis on which both registry countries have an official figure.
+- Consequence accepted: Spain's displayed CO₂ falls by roughly 2.4× against the 258 g/kWh in production at `9034c99`.

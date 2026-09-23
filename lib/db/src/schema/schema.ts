@@ -34,7 +34,10 @@ export const calculations = pgTable(
     installationCostEur: real("installation_cost_eur"),
     paybackYears: real("payback_years"),
     lifetimeSavingsEur: real("lifetime_savings_eur"),
-    renewableMix: jsonb("renewable_mix").$type<{ solar: number; wind: number }>(),
+    // `currency` is not a column (no DDL, G3): the ISO 4217 code the money figures were
+    // computed in rides here so the PDF can render them. Absent on rows written before
+    // H-SRC-ES-UK and on calculations for a country outside the registry.
+    renewableMix: jsonb("renewable_mix").$type<{ solar: number; wind: number; currency?: "EUR" | "GBP" }>(),
     monthlyData: jsonb("monthly_data").$type<MonthlyEntry[]>(),
     // Nullable: rows written before session isolation have no id, and the
     // contract forbids backfilling or deleting them. Absence is rejected at
@@ -61,11 +64,15 @@ export const calculationInputSchema = z.object({
   energyUsage: z.number().min(100).max(100000),
   pvWattage: z.number().min(100).max(100000),
   batteryCapacity: z.number().min(0).max(200),
-  electricityTariff: z.number().min(0.01).max(5).default(0.25),
+  // Optional, and there is NO default (H-SRC-ES-UK, P0.7/P0.8). A missing tariff is
+  // resolved server-side from the country registry, or the money figure is pending.
+  // 0.25 used to be applied here to every country on Earth.
+  electricityTariff: z.number().min(0.01).max(5).optional().nullable(),
   batteryEfficiency: z.number().min(0.5).max(1.0).default(0.9),
   panelOrientation: z.enum(["north", "south", "east", "west"]).default("south"),
   roofAngle: z.number().min(0).max(90).default(30),
-  installationCostEur: z.number().min(0).max(200000).optional().nullable(),
+  // Renamed from installationCostEur: it is in the calculation's own currency.
+  installationCost: z.number().min(0).max(200000).optional().nullable(),
 });
 
 export type Calculation = typeof calculations.$inferSelect;

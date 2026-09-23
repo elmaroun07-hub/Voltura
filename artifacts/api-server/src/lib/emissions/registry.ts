@@ -52,7 +52,7 @@ const VALID_STATUS: readonly RegistryStatus[] = ["current", "superseded", "pendi
  * because it does not assume how many directories deep the calling module
  * happens to live.
  */
-function findUpward(startDir: string, relativePath: string, maxLevels = 10): string {
+export function findUpward(startDir: string, relativePath: string, maxLevels = 10): string {
   let dir = startDir;
   for (let i = 0; i < maxLevels; i++) {
     const candidate = join(dir, relativePath);

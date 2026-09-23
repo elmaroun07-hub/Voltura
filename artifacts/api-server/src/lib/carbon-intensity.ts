@@ -43,8 +43,8 @@ export const CARBON_INTENSITY_BY_COUNTRY: Record<string, number> = {
   sweden: 0.045,
   switzerland: 0.047,
   turkey: 0.481,
-  "united kingdom": 0.248,
-  uk: 0.248,
+  // United Kingdom deliberately absent — H-SRC-ES-UK. It resolves through the
+  // sourced registry (DESNZ generation factor), never through this bare table.
   "united states": 0.386,
   usa: 0.386,
   us: 0.386,

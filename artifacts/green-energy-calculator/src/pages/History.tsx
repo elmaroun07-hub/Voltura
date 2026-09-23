@@ -7,6 +7,21 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Loader2, Leaf, Download, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatMoney, PENDING_LABEL, type Currency } from "@/lib/money";
+
+// A history row carries no currency column (no DDL); the currency the money was
+// computed in rides in renewableMix.currency. A row without it predates that, or
+// was for a country with no sourced tariff - and says so rather than guessing one.
+function historyMoney(item: any, n: number | null | undefined, digits = 0): string {
+  if (n == null) return PENDING_LABEL;
+  const currency = item.renewableMix?.currency as Currency | undefined;
+  return currency ? formatMoney(n, currency, digits) : `${n.toFixed(digits)} (currency not recorded)`;
+}
+
+// A pending calculation stores tariff 0; the saving being null is what marks it.
+function historyTariff(item: any): string {
+  return item.annualSavingsEur == null ? PENDING_LABEL : historyMoney(item, item.electricityTariff, 3);
+}
 
 export default function History() {
   const { data: history, isLoading } = useHistory();
@@ -47,7 +62,7 @@ export default function History() {
                       <TableHead>Tariff</TableHead>
                       <TableHead>Efficiency</TableHead>
                       <TableHead className="text-right">Savings kWh</TableHead>
-                      <TableHead className="text-right">€ Savings</TableHead>
+                      <TableHead className="text-right">Savings</TableHead>
                       <TableHead className="text-right">CO₂ Reduced</TableHead>
                       <TableHead className="text-right">PDF</TableHead>
                     </TableRow>
@@ -67,7 +82,7 @@ export default function History() {
                           <span className="font-mono">{item.batteryCapacity}kWh</span>
                         </TableCell>
                         <TableCell className="text-sm">
-                          €{((item.electricityTariff ?? 0.25)).toFixed(2)}
+                          {historyTariff(item)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
@@ -78,7 +93,7 @@ export default function History() {
                           {item.savingsKwh.toLocaleString()} kWh
                         </TableCell>
                         <TableCell className="text-right font-semibold text-green-600">
-                          {item.annualSavingsEur != null ? `€${item.annualSavingsEur.toFixed(0)}` : "—"}
+                          {historyMoney(item, item.annualSavingsEur)}
                         </TableCell>
                         <TableCell className="text-right text-sm">
                           {item.co2Reduction.toLocaleString()} kg
