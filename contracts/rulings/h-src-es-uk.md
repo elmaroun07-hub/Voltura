@@ -1,6 +1,7 @@
 # Ruling — Block H-SRC-ES-UK
 
 **Branch:** `heatshield/h-src-es-uk`, off `main` at `9034c99`, tip `42515ce`.
+**Correction, 23 Sept 2026:** the merged tip is **`169b2c4`**, not `42515ce`. `169b2c4` adds only ruling text, +122/−3 on this file. The merge is **`dfde7b7`**. The revert was re-proved against `dfde7b7`: 42 files, +1,273/−6,482, tree identical to `9034c99`. See "MERGE AND LIVE EVIDENCE".
 **Status:** all tasks and acceptance criteria below are met on the branch. **Not merged** — merging to `main` is operator-ruled (§14.2); this session stops before it.
 **Update, 23 Sept 2026:** operator-authorised (22 Sept, §14.2) and **merged as `dfde7b7`**, pushed, deployed to both services, AC12 proven live. See **"MERGE AND LIVE EVIDENCE"** at the end. The text above that section is the pre-merge record and is left as written.
 **Executed:** 21–22 Sept 2026. Operator amendment A21 (location-based carbon) is the first commit on the branch.
@@ -132,9 +133,23 @@ Test will be written against the *registry-read* values, and I additionally pin 
 
 ## Fixtures (sha256 — every one pinned by a test, see `source-fixtures.test.ts`)
 
-```
-FIXTURE_HASHES_PLACEHOLDER
-```
+| Fixture | sha256 |
+|---|---|
+| `contracts/fixtures/eurostat-nrg_pc_204-ES-UK-2025S2.raw` | `4def6a5a4e052bc35d8dfce77979b2371b667b9ed48fe2d82a65ec96da29d2e2` |
+| `contracts/fixtures/eurostat-nrg_pc_204-UK-alltime-probe.raw` | `320eb3e5fb675592dbeb1c427dd5b54d4d6e6078ba3e22812992c65114390030` |
+| `contracts/fixtures/ree-emissions-peninsular-2025.raw` | `c33daabe8ac32556ce928db5efdf19e4ab5701affaa8145b07cfb24fbc6606af` |
+| `contracts/fixtures/ree-emissions-nacional-control-2025.raw` | `f7fdf53c9ae93176648a77aefdd0d3fadebde22095b72b9d00ffdcef105b1959` |
+| `contracts/fixtures/desnz-ghg-2026-publication-page.html` | `5f289a1f34fba90b34da2e2954493d5b2943c1bd86f8270ff22adb3cba3eceb2` |
+| `contracts/fixtures/desnz-ghg-conversion-factors-2026-full-set.xlsx` | `b5c4f2f86cdc74707337b2fb013b44ded189a1b528f5e29ea99856ba65ae0205` |
+| `contracts/fixtures/desnz-solar-costs-2025-26-tic.xlsx` | `1ce7ec3a9671fac704d313f07ee127de1fd0776e312ded7257d219131a45a1ca` |
+| `contracts/fixtures/desnz-solar-costs-2025-26-dnc.xlsx` | `a5932c65beedb36867b7f106f3dbc3374f239ca028e576a0b096377020cde680` |
+| `contracts/fixtures/secondary-tuenergiaverde-placas-solares-precio-2026.html` | `66f4922988810d2a389c33b6fd6a9ad5b8acfd244eb408bbb2c9e3e01ecdd0f0` |
+| `contracts/fixtures/h-src-es-uk-geo-nasa.fixtures.json` | `8752ecd91e43991bba1706ca75ccd856d07f2572bb564693b5e8824779794d9f` |
+| `contracts/fixtures/prod-9034c99-calculate-fuengirola-before.json` | `1f071a2e68b54f4fc7a22348663dddbdb45f4ebce5d7965dd441321ae708de96` |
+| `contracts/fixtures/prod-9034c99-calculate-london-before.json` | `51eecc44659cfd2d0f24e63226dc6559cc102116f2ddb75f4fd914a82c431237` |
+| `contracts/fixtures/prod-9034c99-calculate-tetouan-before.json` | `9a6e39552008bc7029b61eca824d4af550dda06a7cdf1fd5f76c90c7c3cf42e4` |
+
+*Filled 23 Sept 2026. The pre-merge record left this block unfilled. The table is copied from `PINNED` in `artifacts/api-server/src/lib/emissions/source-fixtures.test.ts`, and each hash was recomputed from the file bytes on disk: **13/13 equal their pins, 0 mismatches.** All 13 files carry `-text` (`git ls-files --eol`), so git cannot normalise their bytes. The pre-existing NASA fill-value fixture is pinned separately, in `nasa-fillvalue-fixture.test.ts`, and is not listed here.*
 
 ## Operator decision taken mid-run (§5 refusal)
 
@@ -317,7 +332,7 @@ GET https://voltura-web.onrender.com | grep build-sha   (12:56:23Z)
 <meta name="build-sha" content="dfde7b7" />
 ```
 
-**§2 / A2: auto-deploy was re-confirmed at this merge gate by observation, not assertion.** One push moved both containers with trigger `new_commit`. Render's service records read `autoDeploy: yes`, `autoDeployTrigger: commit`, `branch: main` for both. **Build config:** both build commands are the dashboard-fixed form, `corepack enable --install-directory /tmp/bin`. The builds succeeded, so the 20 Sept `EROFS` failure shape did not recur. **The Node version pin was not verified:** service env vars were not read. It remains the operator's item, unchanged.
+**§2 / A2: auto-deploy was re-confirmed at this merge gate by observation, not assertion.** One push moved both containers with trigger `new_commit`. Render's service records read `autoDeploy: yes`, `autoDeployTrigger: commit`, `branch: main` for both. **Build config:** both build commands are the dashboard-fixed form, `corepack enable --install-directory /tmp/bin`. The builds succeeded, so the 20 Sept `EROFS` failure shape did not recur. **The Node version pin was not verified:** service env vars were not read. It remains the operator's item, unchanged. *(Update, 23 Sept 13:08Z: the operator pinned it. See "Operator-side change outside git" below.)*
 
 ### Step 4: AC12, behavioural proof on the live API
 
@@ -372,6 +387,30 @@ ce3b0c4bce123eda4e392f4d47310640032d26f9ba227e2aa19e5cf6b9fb1fa7  prod-dfde7b7-o
 
 These are not pinned by a test. They are evidence captured from production, like the `prod-9034c99-*-before.json` files beside them.
 
+### Operator-side change outside git: 23 Sept 2026, 13:08Z. Two production deploys, no code change
+
+**Operator statement.** `NODE_VERSION` was changed on both Render services from the floating `"24"` to **`24.21.0`**. The env change redeployed `dfde7b7` on both. Nothing in git changed.
+
+**Observed, not taken on assertion**, from the Render API (read-only `list_deploys`, `list_logs`) and a live GET:
+
+| Service | Deploy id | Commit | Trigger | Build started | Live |
+|---|---|---|---|---|---|
+| `voltura-web` | `dep-dapsudhsrm7s73aoaem0` | `dfde7b7` | `api` | 13:08:06.727Z | **13:08:41.588Z** |
+| `voltura-api` | `dep-dapsucegekts73f3ht60` | `dfde7b7` | `api` | 13:08:01.878Z | **13:08:53.507Z** |
+
+The merge deploys, `dep-dapso8cs728c73fc8sh0` and `dep-dapso8cs728c73fc8sk0`, went to `deactivated` at those same instants. At 13:12:19Z, `/api/version` read `{"sha":"dfde7b7",...}` and the web `build-sha` read `dfde7b7`. **Same commit, no code change.**
+
+**The pin, as the build logs show it:**
+
+| Build | Log lines |
+|---|---|
+| 12:55Z (merge deploys, both services) | `Requesting Node.js version 24`, then `Using Node.js version 24.21.0 via environment variable NODE_VERSION`. A floating `24` was resolved at build time |
+| 13:08Z (env-change deploys, both services) | `Using Node.js version 24.21.0 via environment variable NODE_VERSION`, with **no** `Requesting ... 24` line. This fits an exact pin |
+
+So the merge deploys already ran 24.21.0. The pin freezes the version that was running; it does not change it. A future Node 24.x release can no longer enter a build unannounced, and that floating version was the unverified half of the 20 Sept `EROFS` failure.
+
+**Declared per A13: two production deploys** (`voltura-api`, `voltura-web`), window **13:08:01Z–13:08:54Z**, made by the operator outside git. The executor made no deploy, env or dashboard change.
+
 ### Rollback: Tier B, re-proven against the real merge. Deploy path UNPROVEN
 
 ```
@@ -390,8 +429,8 @@ The pre-merge Tier-B proof above was computed at `42515ce` (6,363 insertions). T
 |---|---|
 | 1 | **This evidence commit rides the next code merge.** It is on `heatshield/h-src-es-uk-live-evidence`, off `dfde7b7`, **unmerged and unpushed**. A docs-only commit to `main` would redeploy both services for zero code change, which is how H-OPT wasted three deploys. |
 | 2 | **4 probe rows (ids 90–93)** remain in production `calculations` under `probe-h-src-es-uk-2026-09-23-dfde7b7`. Deleting them needs an operator-granted micro-task (G3). |
-| 3 | **The Node version pin on both Render services is unverified.** The builds passed, so the `EROFS` shape did not recur. The pin is still an operator dashboard item. |
-| 4 | **Pre-merge ruling text, found and not edited:** line 3 still says tip `42515ce` (the merged tip is `169b2c4`), and the "Fixtures" block still reads `FIXTURE_HASHES_PLACEHOLDER`. The real hashes live in `source-fixtures.test.ts`. Both were left as written, because correcting a closed record is the operator's call. |
+| 3 | ~~The Node version pin on both Render services is unverified.~~ **Resolved 23 Sept 13:08Z by the operator:** `NODE_VERSION` pinned to `24.21.0` on both services, and verified in the build logs. See "Operator-side change outside git". |
+| 4 | ~~Pre-merge ruling text: stale tip on line 3, unfilled fixture-hash block.~~ **Resolved 23 Sept 2026 at the operator's instruction.** A dated correction line was added under line 3, with the original line kept. The fixture-hash block now holds the 13-row table, each hash recomputed and equal to its pin. |
 | 5 | Pre-merge residue (es.yaml unwired, Spain install cost and UK tariff `pending`, island systems `pending`, H-SRC-ES's own ruling untouched) is carried forward unchanged. |
 
 ### RULING (merge)
@@ -404,6 +443,7 @@ The pre-merge Tier-B proof above was computed at `42515ce` (6,363 insertions). T
 | Both containers deployed | **PASS**. `dep-dapso8cs728c73fc8sh0` (web, 12:55:30Z), `dep-dapso8cs728c73fc8sk0` (api, 12:56:01Z), both serving `dfde7b7` |
 | AC12, behavioural | **PASS**. Five live responses, all as expected (table above) |
 | §2 auto-deploy re-confirmed at the merge gate | **PASS, observed** |
+| Operator env change, 13:08Z (`NODE_VERSION` pinned to `24.21.0`) | **Declared: two production deploys**, `dep-dapsucegekts73f3ht60` (api, 13:08:53Z) and `dep-dapsudhsrm7s73aoaem0` (web, 13:08:41Z). Both still `dfde7b7`, no code change |
 | G8 rollback | **Tier B**, re-proven at `dfde7b7`. **Deploy path UNPROVEN. A13 debt carried** |
 
 **Block H-SRC-ES-UK: MERGED. `main` is `dfde7b7`.**
