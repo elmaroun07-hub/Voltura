@@ -2,6 +2,7 @@
 
 **Branch:** `heatshield/h-src-es-uk`, off `main` at `9034c99`, tip `42515ce`.
 **Status:** all tasks and acceptance criteria below are met on the branch. **Not merged** — merging to `main` is operator-ruled (§14.2); this session stops before it.
+**Update, 23 Sept 2026:** operator-authorised (22 Sept, §14.2) and **merged as `dfde7b7`**, pushed, deployed to both services, AC12 proven live. See **"MERGE AND LIVE EVIDENCE"** at the end. The text above that section is the pre-merge record and is left as written.
 **Executed:** 21–22 Sept 2026. Operator amendment A21 (location-based carbon) is the first commit on the branch.
 
 ---
@@ -165,7 +166,7 @@ FIXTURE_HASHES_PLACEHOLDER
 9. **AC9 — `gate-check.sh` and `artifacts/greencalc/` diffs empty.** `git diff --stat main -- gate-check.sh artifacts/greencalc/` — empty.
 10. **AC10 — revert-clean on a disposable local merge.** See "Rollback" below.
 11. **AC11 — stale docs ride this branch.** `git diff --stat main -- contracts/blocks/h-src-es.md contracts/rulings/h-src-es.md` — empty. Neither file was touched; both still say H-SRC-ES's own merge is pending, which remains true and is a separate, still-open question from this block.
-12. **AC12 — deploy proof is behavioural.** Not yet performed — requires the push and merge the operator has not authorised. The exact curls to run after that merge are recorded below.
+12. **AC12 — deploy proof is behavioural.** Not yet performed — requires the push and merge the operator has not authorised. The exact curls to run after that merge are recorded below. **Performed 23 Sept 2026 against `dfde7b7`: met. See "MERGE AND LIVE EVIDENCE".**
 
 ## Test counts
 
@@ -254,3 +255,155 @@ curl -sS https://voltura-api.onrender.com/api/version
 ## RULING
 
 **CLOSED on the branch, pending operator merge.** Every mechanical acceptance criterion (AC1–AC3, AC5–AC11) is met with evidence above; AC4 is met against the server's real (unrounded) arithmetic, with the naive rounded reading corrected and explained; AC12 cannot close until the operator authorises the push/merge this session stops before. One `§5` refusal was raised and ruled by the operator mid-run (UK tariff = pending). This gate — being a merge to `main` — is **operator-ruled**, not self-ruled under §14.2.
+
+---
+
+## MERGE AND LIVE EVIDENCE — 23 Sept 2026
+
+| | |
+|---|---|
+| **BLOCK / GATE** | H-SRC-ES-UK / merge |
+| **DATE** | 2026-09-23 |
+| **COMMIT (before)** | `9034c99` |
+| **MERGE COMMIT** | **`dfde7b7`** (`dfde7b7606e5e243ca6916b89aa85384f5801484`), two parents: `9034c99` and `169b2c4`. `--no-ff` per G2 |
+| **AUTHORISED BY** | Operator, 22 Sept 2026, §14.2 (*"any merge to `main`"*). The authorisation covered this merge and its push only |
+| **RULING** | **MERGED. AC12 met live.** Deploy path still **UNPROVEN** (A16), A13's debt carried forward unchanged. See the end of this section |
+
+### Step 0: preconditions, all met, checked 12:50Z
+
+| Check | Result |
+|---|---|
+| `git fetch origin`, `git status` | clean |
+| `main` / `origin/main` | `9034c99` / `9034c99`. No unpushed commits on `main` (`git log origin/main..main` empty) |
+| branch tip / `git merge-base main heatshield/h-src-es-uk` | `169b2c4` / `9034c99` |
+| live `GET /api/version` (12:50:47Z) | `{"sha":"9034c99","shaFull":"9034c990be5062d23819ebf234b716ce218f97c5","source":"render"}` |
+| live web, `curl -sS` (a GET, not `-I`) piped to `grep build-sha` | `<meta name="build-sha" content="9034c99" />` |
+| branch tip: root `pnpm run typecheck` | exit 0 |
+| branch tip: `pnpm -r test` | `lib/cte` 72 + `artifacts/api-server` 239 = **311**, all passed |
+| Render live deploys before the merge | api `dep-danuj3740ujc73d83c3g`, web `dep-danujon40ujc73d85sgg`, both `9034c99`, live since 2026-09-20T14:12Z / 14:13Z |
+
+### Step 1: merge
+
+```
+git checkout main
+git merge --no-ff heatshield/h-src-es-uk -m "Merge branch 'heatshield/h-src-es-uk' into main" -m "Co-Authored-By: ..."
+```
+
+The only change from the ruling's command is `-m`, which supplies the message and attribution trailer so no editor opens in a non-interactive shell. The `--no-ff` semantics are unchanged. The merge commit has two parents (above), so `git revert -m 1` has a mainline. **42 files, 6,482 insertions, 1,273 deletions.** No DDL: the only `lib/db` change is Zod input fields plus a TypeScript type on the existing `renewable_mix` jsonb column. No column changed (G3).
+
+**On `main` at `dfde7b7`:** root `pnpm run typecheck` exit 0. `pnpm -r test` 72 + 239 = **311**, equal to the branch.
+
+### Step 2: push, a production deploy of both services (A13)
+
+`git push origin main`: `9034c99..dfde7b7`, window **2026-09-23T12:54:47Z → 12:54:57Z**.
+
+**CI on `main`:** run [35863537086](https://github.com/elmaroun07-hub/Green-Energy-Calc/actions/runs/35863537086), head `dfde7b7`, **success**. Job `build` completed 12:55:38Z, job `test` completed 12:56:03Z.
+
+### Step 3: Render. Both containers moved, and both builds succeeded
+
+These are declared as **two production deploys** (A13), window 12:54:57Z–12:56:01Z. Deploy data is from the Render API (read-only `list_deploys`), and the served sha was polled from outside every 30 s:
+
+| Service | Deploy id | Trigger | Build started | Live (Render) | First seen serving `dfde7b7` (poll) |
+|---|---|---|---|---|---|
+| `voltura-web` | `dep-dapso8cs728c73fc8sh0` | `new_commit` | 12:54:57.214Z | **12:55:30.108Z** | 12:55:51Z (12:55:20Z still `9034c99`) |
+| `voltura-api` | `dep-dapso8cs728c73fc8sk0` | `new_commit` | 12:54:57.290Z | **12:56:00.897Z** | 12:56:23Z (12:55:51Z still `9034c99`) |
+
+The previous deploys, `dep-danuj3740ujc73d83c3g` and `dep-danujon40ujc73d85sgg`, went to `deactivated` at those same instants.
+
+```
+GET https://voltura-api.onrender.com/api/version   (12:56:23Z)
+{"sha":"dfde7b7","shaFull":"dfde7b7606e5e243ca6916b89aa85384f5801484","source":"render"}
+GET https://voltura-web.onrender.com | grep build-sha   (12:56:23Z)
+<meta name="build-sha" content="dfde7b7" />
+```
+
+**§2 / A2: auto-deploy was re-confirmed at this merge gate by observation, not assertion.** One push moved both containers with trigger `new_commit`. Render's service records read `autoDeploy: yes`, `autoDeployTrigger: commit`, `branch: main` for both. **Build config:** both build commands are the dashboard-fixed form, `corepack enable --install-directory /tmp/bin`. The builds succeeded, so the 20 Sept `EROFS` failure shape did not recur. **The Node version pin was not verified:** service env vars were not read. It remains the operator's item, unchanged.
+
+### Step 4: AC12, behavioural proof on the live API
+
+The sha match above is not the proof. The proof is these responses.
+
+Probe session id: **`probe-h-src-es-uk-2026-09-23-dfde7b7`**, sent as `X-Session-Id` on every request. Bodies were sent from files, ASCII only, with Tétouan JSON-escaped as `Tétouan`. Every body was `energyUsage 5000, pvWattage 4000, batteryCapacity 10` unless stated.
+
+| # | Request (sent → received, UTC) | HTTP | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | `POST /api/calculate` `"Fuengirola, Spain"` (12:56:59Z → 12:57:00Z) | 200 | CO₂ 333 kg; money €1,030.34; carbon REE peninsular 86.1356 g/kWh; tariff Eurostat ES 2025-S2 | `co2Reduction` **333**; `money.currency` EUR, `annualSavings` **1030.34**; `carbonSource.factor` `system: "peninsular"`, `valueGPerKwh` **86.13556944796785**, `basis: "generation"`, REE, published 2026-05-11; `money.tariff` `status: "used"`, `source: "registry"`, **0.2669**, `label: "Eurostat 2025-S2"`, `taxBasis: "all_taxes_included"`, `reviewBy` 2027-02-12. `savingsKwh` 3860 | **MET** |
+| 2a | `POST /api/calculate` `"London, United Kingdom"`, **no tariff** (12:57:03Z → 12:57:04Z) | 200 | currency GBP; money pending; carbon DESNZ generation 130.96 | `money.currency` **GBP**; `money.tariff.status` **"pending"**, `reason: "registry_tariff_pending"`; `annualSavings` **null**; `roi` pending; `installCost` pending (`battery_not_in_registry_cost`); `carbonSource.factor` `system: "gb"`, `valueGPerKwh` **130.96**, `basis: "generation"`, DESNZ, published 2026-06-11 | **MET** |
+| 2b | `POST /api/calculate` London **with the ruling's `"electricityTariff":0.28`** (12:57:01Z → 12:57:03Z) | 200 | per the ruling's curl: `money.currency === "GBP"` | `money.currency` **GBP**; `tariff` `status: "used"`, `source: "user"`, 0.28, `label: "your tariff"`; `annualSavings` 761.94; carbon identical to 2a | **MET** (the ruling's expectation) |
+| 3 | `POST /api/calculate` `"Tétouan, Morocco"` (12:57:04Z → 12:57:05Z) | 200 | money pending, never €0.250 | `money.currency` **null**; `tariff.status` **"pending"**, `reason: "country_not_in_registry"`; `annualSavings` null; `installCost` and `roi` pending. The raw body contains **no** `0.25`, `0.250` or `electricityTariff` anywhere. `resolution.locationInput` echoes `Tétouan, Morocco` correctly | **MET** |
+| 4 | `POST /api/optimize` London, `annualUsageKwh 5000`, the web client's standard 24-h profile (12:57:39Z → 12:57:44Z) | 200 | resolves, and carries `carbonSource` the way `/calculate` does | resolves: `optimalPv` 5651, `optimalBattery` 4.1, `nasa-live` 2019–2023. `resolution.carbonSource` **deep-equals** 2a's `resolution.carbonSource` (`JSON.stringify` equality: `true`). Rate limit after the call: `limit=10, remaining=9` | **MET** |
+
+**Arithmetic, from each response's own `monthlyData`** (design decision 10: never a hand-typed 3860):
+
+| | Σ `monthlyData[].savingsKwh` | × factor | → `co2Reduction` | × tariff | → `annualSavings` |
+|---|---|---|---|---|---|
+| Fuengirola | 3860.3999999999996 | × 0.08613556944796785 = 332.5178 | **333** ✔ | × 0.2669 = 1030.3408 | **1030.34** ✔ |
+| London (2a / 2b) | 2721.2 | × 0.13096 = 356.3684 | **356** ✔ | 2b: × 0.28 = 761.936 | 2b: **761.94** ✔ (2a: null, pending) |
+
+**Deviation: London was probed twice, and neither expectation was chosen over the other.** The ruling's AC12 curl sends `"electricityTariff":0.28` and expects only `money.currency === "GBP"`. The merge instruction expects London to return **money pending**, which by the ruling's own S1 ("London's money figure renders `pending` unless the user types a tariff") can only be observed **without** a user tariff. The two expectations test two different requests, so both were sent: 2b is the ruling's curl verbatim, and 2a is the same request without the tariff. Cost: one extra production row, counted below.
+
+**Observed and not ruled:** Tétouan's `carbonSource` is `{"status":"unsourced_legacy","country":"Morocco","valueKgPerKwh":0.543}`, from the legacy country table. It is labelled as unsourced in the response. It is outside this block's AC12 expectations and is recorded only.
+
+### Probe hygiene
+
+- Session id **`probe-h-src-es-uk-2026-09-23-dfde7b7`**.
+- **4 rows** in production `calculations`, read back with `GET /api/history` (12:57:55Z, read-only):
+
+| id | location | createdAt |
+|---|---|---|
+| 90 | Fuengirola, Spain | 12:56:59.764Z |
+| 91 | London, United Kingdom (tariff 0.28) | 12:57:02.086Z |
+| 92 | London, United Kingdom | 12:57:03.423Z |
+| 93 | Tétouan, Morocco | 12:57:04.906Z |
+
+- `/api/optimize` writes no row. The only insert in `routes.ts` is `storage.createCalculation` in `/api/calculate`.
+- **Nothing was deleted (G3).** Cleanup is a separate operator-granted micro-task.
+
+### Raw responses: `contracts/fixtures/` (binary to git, `-text`), sha256
+
+```
+b539c10d02c716f3f355e0044568439d548a538bf5dd7b4193477edf558d9f44  prod-dfde7b7-calculate-fuengirola-after.json
+9176d52fd7fca78ddb0c8094c2ce5704abff28404afed77fa81c0f21923157e4  prod-dfde7b7-calculate-london-after.json
+c4bdbe8cc6114284525a077ccaf31d4447f71478f339f7dab2e411ddac2fafc7  prod-dfde7b7-calculate-london-tariff028-after.json
+d071ce31e17b23f580501ccda1d034c828175f54e5db5053671f90d530a6f9d5  prod-dfde7b7-calculate-tetouan-after.json
+ce3b0c4bce123eda4e392f4d47310640032d26f9ba227e2aa19e5cf6b9fb1fa7  prod-dfde7b7-optimize-london-after.json
+112c123ecff44fae439d7772223db391fb815857b50a905e8b622125d2c3db69  prod-dfde7b7-history-probe-session.json
+```
+
+These are not pinned by a test. They are evidence captured from production, like the `prod-9034c99-*-before.json` files beside them.
+
+### Rollback: Tier B, re-proven against the real merge. Deploy path UNPROVEN
+
+```
+git revert -m 1 dfde7b7
+```
+
+The pre-merge Tier-B proof above was computed at `42515ce` (6,363 insertions). The merged tip is `169b2c4`, which adds 122 lines of ruling text to one file. The proof was therefore **re-run against `dfde7b7` itself**, on a detached scratch worktree with no branch, never pushed, then removed. `git revert -m 1 dfde7b7` applied cleanly: **42 files, 1,273 insertions, 6,482 deletions**, the exact mirror of the merge. `git diff --stat 9034c99 <revert>` printed **zero lines**, so the tree is byte-identical to pre-merge `main`.
+
+**The deploy path is UNPROVEN.** No rollback of this block has been pushed. A revert on `main` is a production deploy, and this merge measured that deploy at about 64 s for the API (push end 12:54:57Z → live 12:56:01Z). **A13's standing debt is carried forward unchanged**: the deploy path has carried another forward merge and still never a rollback. No drill was authorised and none was run.
+
+**The rollback target moves: `dfde7b7`, not `9034c99`.**
+
+### Residue
+
+| # | Item |
+|---|---|
+| 1 | **This evidence commit rides the next code merge.** It is on `heatshield/h-src-es-uk-live-evidence`, off `dfde7b7`, **unmerged and unpushed**. A docs-only commit to `main` would redeploy both services for zero code change, which is how H-OPT wasted three deploys. |
+| 2 | **4 probe rows (ids 90–93)** remain in production `calculations` under `probe-h-src-es-uk-2026-09-23-dfde7b7`. Deleting them needs an operator-granted micro-task (G3). |
+| 3 | **The Node version pin on both Render services is unverified.** The builds passed, so the `EROFS` shape did not recur. The pin is still an operator dashboard item. |
+| 4 | **Pre-merge ruling text, found and not edited:** line 3 still says tip `42515ce` (the merged tip is `169b2c4`), and the "Fixtures" block still reads `FIXTURE_HASHES_PLACEHOLDER`. The real hashes live in `source-fixtures.test.ts`. Both were left as written, because correcting a closed record is the operator's call. |
+| 5 | Pre-merge residue (es.yaml unwired, Spain install cost and UK tariff `pending`, island systems `pending`, H-SRC-ES's own ruling untouched) is carried forward unchanged. |
+
+### RULING (merge)
+
+| Criterion | Ruling |
+|---|---|
+| `--no-ff`, two parents, revert has a mainline | **PASS**. `dfde7b7`, parents `9034c99` + `169b2c4` |
+| Suite and typecheck on `main` equal the branch | **PASS**. 311 = 311, typecheck exit 0 both |
+| CI green on `main` | **PASS**. Run 35863537086, `build` + `test` |
+| Both containers deployed | **PASS**. `dep-dapso8cs728c73fc8sh0` (web, 12:55:30Z), `dep-dapso8cs728c73fc8sk0` (api, 12:56:01Z), both serving `dfde7b7` |
+| AC12, behavioural | **PASS**. Five live responses, all as expected (table above) |
+| §2 auto-deploy re-confirmed at the merge gate | **PASS, observed** |
+| G8 rollback | **Tier B**, re-proven at `dfde7b7`. **Deploy path UNPROVEN. A13 debt carried** |
+
+**Block H-SRC-ES-UK: MERGED. `main` is `dfde7b7`.**
