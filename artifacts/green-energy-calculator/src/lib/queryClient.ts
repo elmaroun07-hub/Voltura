@@ -3,22 +3,53 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 const SESSION_ID_KEY = "voltura.sessionId";
 
 /**
- * The one place an X-Session-Id header is attached.
+ * The API origin, applied in exactly one place: sessionFetch, below.
  *
- * Every API call in the app goes through here. Attaching the header at a call
- * site is exactly what this exists to prevent, so nothing below and nothing in
- * the hooks calls `fetch` directly — including getQueryFn, which is installed
- * as the QueryClient's default queryFn and would otherwise serve any useQuery
- * written without its own queryFn, unfiltered.
+ * In production the web is a static site on its own origin, and its SPA
+ * fallback answers any unknown path - /api/history included - with 200 and
+ * index.html. A call that misses this prefix does not fail at the network:
+ * res.ok is true and the JSON parse throws (D51). The prefix used to be
+ * defined three times and added by hand at every call site; one site forgot.
+ */
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
+/**
+ * A path as the API routes it: never a full URL, never carrying the base.
+ * sessionFetch adds the base, so a caller that adds it too is a type error.
+ */
+export type ApiPath = `/api/${string}`;
+
+/** Thrown instead of fetching something the API base cannot be applied to. */
+export class ApiPathError extends Error {
+  readonly name = "ApiPathError";
+  constructor(readonly path: string) {
+    super(`Not an API path: ${JSON.stringify(path)}. Pass "/api/..."; sessionFetch applies the API base.`);
+  }
+}
+
+function isApiPath(value: string): value is ApiPath {
+  return value.startsWith("/api/");
+}
+
+/**
+ * The one place an X-Session-Id header is attached, and the one place the API
+ * base is applied.
+ *
+ * Every API call in the app goes through here. Attaching the header or the
+ * base at a call site is exactly what this exists to prevent, so nothing below
+ * and nothing in the hooks calls `fetch` directly — including getQueryFn,
+ * which is installed as the QueryClient's default queryFn and would otherwise
+ * serve any useQuery written without its own queryFn, unfiltered.
  *
  * The id is generated once per browser and persisted in localStorage. It is
  * forgeable by design: it closes accidental cross-visitor exposure, it is not
  * authorization.
  */
-export function sessionFetch(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<Response> {
+export async function sessionFetch(path: ApiPath, init?: RequestInit): Promise<Response> {
+  // The type already demands "/api/...". This catches a value that arrives
+  // typed `any` or cast past the checker, which would otherwise be prefixed blind.
+  if (!isApiPath(path)) throw new ApiPathError(path);
+
   let sessionId = localStorage.getItem(SESSION_ID_KEY);
   if (!sessionId) {
     sessionId = crypto.randomUUID();
@@ -28,10 +59,8 @@ export function sessionFetch(
   const headers = new Headers(init?.headers);
   headers.set("X-Session-Id", sessionId);
 
-  return fetch(input, { ...init, headers });
+  return fetch(API_BASE + path, { ...init, headers });
 }
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 /**
  * Download a calculation's PDF report.
@@ -50,7 +79,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "";
  * tick as the click.
  */
 export async function downloadCalculationPdf(calcId: number): Promise<void> {
-  const res = await sessionFetch(`${API_BASE}/api/calculate/${calcId}/pdf`);
+  const res = await sessionFetch(`/api/calculate/${calcId}/pdf`);
   await throwIfResNotOk(res);
 
   const blob = await res.blob();
@@ -71,16 +100,19 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// apiRequest and getQueryFn send no `credentials: "include"`. The API is a
+// different origin whose CORS config does not allow credentials (api-server
+// app.ts), and nothing here uses a cookie: once these two carry the API base,
+// that flag would make the browser refuse every response they receive.
 export async function apiRequest(
   method: string,
-  url: string,
+  path: ApiPath,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await sessionFetch(url, {
+  const res = await sessionFetch(path, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -93,9 +125,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await sessionFetch(queryKey.join("/") as string, {
-      credentials: "include",
-    });
+    // Nothing static says a queryKey names an API path. Refuse anything that
+    // does not, rather than hand it on to be fetched from the wrong origin.
+    const path = queryKey.join("/");
+    if (!isApiPath(path)) throw new ApiPathError(path);
+    const res = await sessionFetch(path);
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

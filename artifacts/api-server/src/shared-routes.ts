@@ -254,6 +254,9 @@ export const api = {
       input: calculationInputSchema,
       responses: {
         200: z.object({
+          // The calculations row this response was stored as - the row the PDF
+          // route renders. Taken from the insert itself, never derived.
+          id: z.number().int().positive(),
           savingsKwh: z.number(),
           co2Reduction: z.number(),
           carbonIntensity: z.number(),

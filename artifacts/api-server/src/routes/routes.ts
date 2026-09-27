@@ -991,7 +991,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         resolution,
       };
 
-      await storage.createCalculation({
+      // The row this calculation was stored as. Its id is what the PDF button
+      // downloads, so it goes back in this response - the web used to guess it
+      // from the newest history row, a different request that could still be
+      // the previous calculation (D51, D53).
+      const saved = await storage.createCalculation({
         location: input.location,
         energyUsage: input.energyUsage,
         pvWattage: input.pvWattage,
@@ -1024,7 +1028,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         sessionId,
       });
 
-      return res.json(result);
+      return res.json({ ...result, id: saved.id });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.issues[0].message, field: err.issues[0].path.join(".") });
