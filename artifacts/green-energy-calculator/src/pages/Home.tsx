@@ -4,32 +4,16 @@ import { Shell } from "@/components/layout/Shell";
 import { CalculatorForm } from "@/components/calculator/CalculatorForm";
 import { ResultsDisplay } from "@/components/calculator/ResultsDisplay";
 import { useCalculate } from "@/hooks/use-calculations";
-import { type CalculationInput, type CalculationResponse, api } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
-import { sessionFetch } from "@/lib/queryClient";
+import { type CalculationInput, type CalculationResponse } from "@/lib/api";
 
 export default function Home() {
   const [results, setResults] = useState<CalculationResponse | null>(null);
-  const [latestId, setLatestId] = useState<number | null>(null);
   const calculateMutation = useCalculate();
-
-  const { data: history } = useQuery({
-    queryKey: [api.calculations.history.path],
-    queryFn: async () => {
-      const res = await sessionFetch(api.calculations.history.path);
-      if (!res.ok) throw new Error("Failed to fetch history");
-      return res.json();
-    },
-  });
 
   const handleCalculate = async (data: CalculationInput) => {
     const result = await calculateMutation.mutateAsync(data);
     setResults(result);
-    // Grab the most-recently-created ID from history (re-fetched after mutation)
   };
-
-  // Sync latest ID from history after each calculation
-  const calcId = history && history.length > 0 ? history[0].id : null;
 
   return (
     <Shell>
@@ -68,7 +52,10 @@ export default function Home() {
             transition={{ delay: 0.2 }}
             className="xl:col-span-7"
           >
-            <ResultsDisplay results={results} calcId={results ? calcId : null} />
+            {/* The id of the row this result was stored as, from the same response.
+                Never the newest history row: that is another request, and it can
+                still be the previous calculation (D51, D53). */}
+            <ResultsDisplay results={results} calcId={results ? results.id : null} />
           </motion.div>
         </div>
       </div>

@@ -247,6 +247,10 @@ const moneyBlockSchema = z.object({
 });
 
 const calculationResponseSchema = z.object({
+  // Mirrors the create-200 id in artifacts/api-server/src/shared-routes.ts.
+  // Zod strips keys a schema does not name: without this line the server's id
+  // reaches the page as undefined and the PDF button silently never renders.
+  id: z.number().int().positive(),
   savingsKwh: z.number(),
   co2Reduction: z.number(),
   carbonIntensity: z.number(),
@@ -283,7 +287,8 @@ export const api = {
   calculations: {
     create: {
       method: "POST" as const,
-      path: "/api/calculate",
+      // `as const` on every path: sessionFetch only accepts an "/api/..." literal type.
+      path: "/api/calculate" as const,
       input: calculationInputSchema,
       responses: {
         200: calculationResponseSchema,
@@ -291,14 +296,14 @@ export const api = {
     },
     history: {
       method: "GET" as const,
-      path: "/api/history",
+      path: "/api/history" as const,
       responses: {
         200: z.array(z.any()),
       },
     },
     optimize: {
       method: "POST" as const,
-      path: "/api/optimize",
+      path: "/api/optimize" as const,
       input: z.object({
         // 24 hourly weights describing WHEN the load happens. A shape, not a
         // magnitude: the server normalizes it to sum 1. The old prompt called
