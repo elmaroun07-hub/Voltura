@@ -230,7 +230,8 @@ const installCostUsedSchema = z.union([
 const roiUsedSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("computed"),
-    paybackYears: z.number(),
+    // null = never paid back within the horizon: a state, never a number (D7).
+    paybackYears: z.number().nullable(),
     curve: z.array(z.object({ year: z.number(), cumulativeSavings: z.number(), netPosition: z.number() })),
     lifetimeSavings: z.number(),
   }),

@@ -82,7 +82,8 @@ export type InstallCostUsed =
   | { status: "pending"; reason: InstallCostPendingReason; detail: string };
 
 export type RoiUsed =
-  | { status: "computed"; paybackYears: number; curve: RoiCurvePoint[]; lifetimeSavings: number }
+  // paybackYears null: computed, and never paid back within ROI_YEARS (D7). Not "pending".
+  | { status: "computed"; paybackYears: number | null; curve: RoiCurvePoint[]; lifetimeSavings: number }
   | { status: "pending"; detail: string };
 
 export interface MoneyBlock {

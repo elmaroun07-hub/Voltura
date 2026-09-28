@@ -20,7 +20,7 @@ import {
   carbonIntensityKgPerKwh,
   type CarbonSourceNote,
 } from "../lib/emissions/carbon-source";
-import { findCountry, formatMoney, type Currency } from "../lib/emissions/countries";
+import { findCountry, formatMoney, ROI_YEARS, type Currency } from "../lib/emissions/countries";
 import { describeSaving, resolveMoney } from "../lib/emissions/money";
 
 // Provider, endpoint and model live in ../lib/llm, env-driven. The accessor
@@ -741,12 +741,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         .text("Green Energy Savings Report", 50, 25, { align: "center" });
       doc.fillColor("#d1fae5").fontSize(11)
         .text(`Generated: ${new Date().toLocaleDateString("en-GB", { day:"numeric",month:"long",year:"numeric" })}`, 50, 52, { align: "center" });
-      doc.fillColor("#1f2937").moveDown(3);
+      doc.fillColor("#1f2937");
 
-      // Summary section
-      doc.fontSize(14).font("Helvetica-Bold").text("Summary", 50, 100);
-      doc.moveTo(50, 118).lineTo(doc.page.width - 50, 118).strokeColor("#e5e7eb").stroke();
-      doc.moveDown(0.5);
+      // Pagination (N1). `y` is kept by hand: every draw below passes its own
+      // coordinates. PDFKit starts a new page by itself when a text() call
+      // would cross the bottom margin, but `y` knows nothing of that and keeps
+      // growing, so every later draw lands past the bottom too and forces a
+      // page of its own - twelve pages, one table cell each. So nothing below
+      // is drawn without asking ensureRoom first, and it is the only addPage().
+      let y = 100;
+      const pageBottom = () => doc.page.height - doc.page.margins.bottom;
+      /** Room for a block `h` tall at `y`? If not, start a page. True when it started one. */
+      const ensureRoom = (h: number): boolean => {
+        if (y + h <= pageBottom()) return false;
+        doc.addPage();
+        y = doc.page.margins.top;
+        return true;
+      };
+      // Numbers take a pinned locale: the host default could print a narrow
+      // no-break space (fr-FR), which WinAnsi cannot encode (P.2).
+      const num = (n: number) => n.toLocaleString("en-GB");
+
+      // Summary section - the heading goes with its first row
+      ensureRoom(30 + 22);
+      doc.fontSize(14).font("Helvetica-Bold").text("Summary", 50, y);
+      doc.moveTo(50, y + 18).lineTo(doc.page.width - 50, y + 18).strokeColor("#e5e7eb").stroke();
+      y += 30;
 
       const pdfCurrency = (calc.renewableMix as { currency?: Currency } | null)?.currency;
       const pdfTariff =
@@ -758,27 +778,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const summaryRows = [
         ["Location", calc.location],
-        ["Annual Energy Usage", `${calc.energyUsage.toLocaleString()} kWh`],
-        ["PV System Size", `${calc.pvWattage.toLocaleString()} W`],
+        ["Annual Energy Usage", `${num(calc.energyUsage)} kWh`],
+        ["PV System Size", `${num(calc.pvWattage)} W`],
         ["Battery Capacity", `${calc.batteryCapacity} kWh`],
-        ["Battery Efficiency", `${((calc.batteryEfficiency ?? 0.9) * 100).toFixed(0)}%`],
+        ["Battery Efficiency", `${(calc.batteryEfficiency * 100).toFixed(0)}%`],
         ["Electricity Tariff", pdfTariff],
         ["Panel Orientation", calc.panelOrientation],
         ["Roof Angle", `${calc.roofAngle}°`],
       ];
 
-      let y = 130;
       summaryRows.forEach(([label, value], i) => {
+        ensureRoom(22);
         if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 22).fill("#f9fafb");
         doc.fillColor("#6b7280").fontSize(10).font("Helvetica").text(label, 58, y + 6);
         doc.fillColor("#111827").font("Helvetica-Bold").text(value, 0, y + 6, { align: "right", width: doc.page.width - 70 });
         y += 22;
       });
 
-      doc.moveDown(1);
       y += 10;
 
-      // Results section
+      // Results section - the heading goes with its first row
+      ensureRoom(32 + 22);
       doc.fontSize(14).font("Helvetica-Bold").fillColor("#1f2937").text("Results", 50, y);
       y += 20;
       doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").stroke();
@@ -793,19 +813,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // that was never priced (no sourced tariff), and renders "pending" - the
       // old path recomputed one here from a 900/500/1200 estimate that had no source.
       const pdfMoney = (n: number | null | undefined): string =>
-        n == null ? "pending" : pdfCurrency ? formatMoney(n, pdfCurrency) : `${Math.round(n).toLocaleString()} (currency not recorded)`;
-      const pdfPayback = calc.paybackYears != null ? `${calc.paybackYears.toFixed(1)} years` : "pending";
+        n == null ? "pending" : pdfCurrency ? formatMoney(n, pdfCurrency) : `${num(Math.round(n))} (currency not recorded)`;
+      // "Not paid back within the horizon" is a state, not a number (D7). The
+      // calculate handler writes lifetimeSavingsEur only when ROI was computed,
+      // so it tells the states apart: absent = no ROI, "pending"; present with
+      // no payback = the savings never covered the cost. Rows written before
+      // H-PDF carry 25 for "never" and still print "25.0 years" - they cannot
+      // be told from a real 25.0 without a recompute (F-f).
+      const pdfPayback =
+        calc.lifetimeSavingsEur == null
+          ? "pending"
+          : calc.paybackYears == null
+            ? `not within ${ROI_YEARS} years`
+            : `${calc.paybackYears.toFixed(1)} years`;
 
       const resultRows = [
-        ["Annual Energy Saved", `${(calc.savingsKwh ?? 0).toLocaleString()} kWh`, "#10b981"],
+        ["Annual Energy Saved", `${num(calc.savingsKwh)} kWh`, "#10b981"],
         ["Annual Cost Savings", pdfMoney(calc.annualSavingsEur), "#10b981"],
         ["Estimated Payback Period", pdfPayback, "#2563eb"],
         ["Est. 25-Year Net Gain", pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
-        ["CO₂ Emissions Reduced", `${(calc.co2Reduction ?? 0).toLocaleString()} kg`, "#059669"],
-        ["Trees Equivalent", `${Math.round((calc.co2Reduction ?? 0) / 20)} trees/year`, "#059669"],
+        // "CO2", not U+2082: a subscript two is not WinAnsi and printed as "CO ‚" (N2).
+        ["CO2 Emissions Reduced", `${num(calc.co2Reduction)} kg`, "#059669"],
+        ["Trees Equivalent", `${Math.round(calc.co2Reduction / 20)} trees/year`, "#059669"],
       ];
 
       resultRows.forEach(([label, value, color], i) => {
+        ensureRoom(22);
         if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 22).fill("#f0fdf4");
         doc.fillColor("#6b7280").fontSize(10).font("Helvetica").text(label, 58, y + 6);
         doc.fillColor(color).font("Helvetica-Bold").text(value, 0, y + 6, { align: "right", width: doc.page.width - 70 });
@@ -816,20 +849,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // Monthly breakdown table
       if (calc.monthlyData && (calc.monthlyData as MonthlyEntry[]).length > 0) {
+        const colW = (doc.page.width - 100) / 5;
+        const headers = ["Month", "Generated", "Consumed", "Saved", "Grid Import"];
+        const headerRow = () => {
+          headers.forEach((h, i) => {
+            doc.rect(50 + i * colW, y, colW, 20).fill("#10b981");
+            doc.fillColor("white").fontSize(9).font("Helvetica-Bold").text(h, 54 + i * colW, y + 6, { width: colW - 4 });
+          });
+          y += 20;
+        };
+
+        // The heading, the header row and the first month go together, so the
+        // heading is never left alone at the foot of a page.
+        ensureRoom(28 + 20 + 18);
         doc.fontSize(14).font("Helvetica-Bold").fillColor("#1f2937").text("Monthly Breakdown", 50, y);
         y += 20;
         doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").stroke();
         y += 8;
-
-        const colW = (doc.page.width - 100) / 5;
-        const headers = ["Month", "Generated", "Consumed", "Saved", "Grid Import"];
-        headers.forEach((h, i) => {
-          doc.rect(50 + i * colW, y, colW, 20).fill("#10b981");
-          doc.fillColor("white").fontSize(9).font("Helvetica-Bold").text(h, 54 + i * colW, y + 6, { width: colW - 4 });
-        });
-        y += 20;
+        headerRow();
 
         (calc.monthlyData as MonthlyEntry[]).forEach((row, i) => {
+          // A table that continues on a new page repeats its header row.
+          if (ensureRoom(18)) headerRow();
           if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 18).fill("#f9fafb");
           const cells = [row.name, `${row.generationKwh} kWh`, `${row.consumptionKwh} kWh`, `${row.savingsKwh} kWh`, `${row.gridImportKwh} kWh`];
           cells.forEach((cell, j) => {
@@ -839,8 +880,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
 
-      // Footer
+      // Footer - below the last block, or at the top of a page of its own
       y += 30;
+      ensureRoom(22);
       doc.rect(50, y, doc.page.width - 100, 1).fill("#e5e7eb");
       doc.fillColor("#9ca3af").fontSize(9).font("Helvetica")
         // No irradiance claim here, in either direction. This footer renders a
@@ -1023,6 +1065,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           money.installCost.status === "used" && money.installCost.source !== "registry_range"
             ? money.installCost.amount
             : null,
+        // The PDF reads this pair (D7): lifetime written with no payback = ROI
+        // computed and never paid back within ROI_YEARS; both null = no ROI.
         paybackYears: money.roi.status === "computed" ? money.roi.paybackYears : null,
         lifetimeSavingsEur: money.roi.status === "computed" ? money.roi.lifetimeSavings : null,
         sessionId,
