@@ -1,2 +1,4 @@
 # Fixtures are evidence: their bytes are pinned by sha256 tests. Never let git normalise line endings.
 contracts/fixtures/** -text
+# Live-run evidence (probe responses, PDFs, screenshots, network logs): bytes are pinned by sha256 in the rulings. Same rule.
+contracts/evidence/** -text
