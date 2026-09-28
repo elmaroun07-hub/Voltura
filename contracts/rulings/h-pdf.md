@@ -352,7 +352,23 @@ production deploy of both services (A13), and must be declared as one if run.
 
 ### Re-verification at the ruling commit
 
-Filled in by the next commit.
+Re-run at `d431e64` (the commit that added this file) on a second scratch ref,
+`scratch/pdf-ruling-merge-proof`, created at `main`, local and never pushed:
+
+```
+git merge --no-ff --no-edit heatshield/h-src-es-uk-live-evidence   # 5e79aa3
+git merge --no-ff --no-edit heatshield/d51-live-evidence           # 554b771
+git merge --no-ff --no-edit heatshield/pdf-report                  # b621eed — parents 554b771 d431e64
+git revert -m 1 --no-edit b621eed                                   # e6a548a, exit 0
+git diff --shortstat 554b771 b621eed                                # 10 files changed, 1065 insertions(+), 35 deletions(-)
+git diff --shortstat b621eed e6a548a                                # 10 files changed, 35 insertions(+), 1065 deletions(-)
+git diff --stat 554b771 e6a548a                                     # (empty)
+```
+
+The block merge is the 10 files of `main..heatshield/pdf-report`, the revert mirrors it, and
+the tree after it is the evidence-merge tree again (`046cfc33c6c1bcb439c97beddf34c494006057de`).
+The only later commit on the branch fills in this subsection, which a revert of the real merge
+removes with the rest.
 
 ## Named failure modes — checked against
 
@@ -367,8 +383,9 @@ Filled in by the next commit.
 
 ## RESIDUE
 
-- **Scratch ref:** `scratch/pdf-merge-proof` (at `81635d0`, after the three reverts) — local,
-  never pushed, deletable at will, following `scratch/d51-*`.
+- **Scratch refs:** `scratch/pdf-merge-proof` (at `81635d0`, after the three reverts) and
+  `scratch/pdf-ruling-merge-proof` (at `e6a548a`) — local, never pushed, deletable at will,
+  following `scratch/d51-*`.
 - **Evidence branches** `heatshield/h-src-es-uk-live-evidence` (`b7eb259`) and
   `heatshield/d51-live-evidence` (`5c38aa1`): unmerged and unpushed; §Merge merges them.
 - **N3, R1, R2**, the page size and the deploy skew: findings above, for the operator.
