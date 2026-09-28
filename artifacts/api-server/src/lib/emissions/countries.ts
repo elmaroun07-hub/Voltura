@@ -399,7 +399,17 @@ export const ROI_INFLATION = 0.015;
 export const ROI_YEARS = 25;
 
 export interface RoiCurvePoint { year: number; cumulativeSavings: number; netPosition: number }
-export interface RoiResult { paybackYears: number; curve: RoiCurvePoint[]; lifetimeSavings: number }
+export interface RoiResult {
+  /**
+   * null = the loop never finds the crossing: "not paid back" is a state, never
+   * a number (D7). Null always means not within ROI_YEARS. The converse does not
+   * hold: the loop tests one year past the curve, so a crossing in that year
+   * comes back as a number above ROI_YEARS.
+   */
+  paybackYears: number | null;
+  curve: RoiCurvePoint[];
+  lifetimeSavings: number;
+}
 
 /**
  * Both operands must be the SAME currency, or this is a compile error (TS2769
@@ -415,7 +425,12 @@ export function roi(annualSavings: Money<"GBP">, installCost: Money<"GBP">): Roi
 export function roi(annualSavings: Money<Currency>, installCost: Money<Currency>): RoiResult {
   const curve: RoiCurvePoint[] = [];
   let cumulative = 0;
-  let paybackYears: number = ROI_YEARS; // "never paid back within 25y" — rendered as ">25y"
+  // Null until the loop finds the crossing, and null if it never does: "not
+  // paid back" is a state (D7). It used to start at ROI_YEARS, and a genuine
+  // payback can also round to 25.0, so "never" and a real 25.0 were one value.
+  // A zero cost is paid back at year 0 - the crossing test needs
+  // cumulative < cost, which a zero cost never meets.
+  let paybackYears: number | null = installCost.amount <= 0 ? 0 : null;
   for (let y = 0; y <= ROI_YEARS; y++) {
     curve.push({
       year: y,

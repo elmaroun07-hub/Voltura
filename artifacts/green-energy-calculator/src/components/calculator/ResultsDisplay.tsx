@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import { type CalculationResponse } from "@/lib/api";
 import { irradianceLabel } from "@/lib/provenance";
-import { formatMoney, formatMoneyCompact, formatMoneyRange, PENDING_LABEL } from "@/lib/money";
+import { formatMoney, formatMoneyCompact, formatMoneyRange, PENDING_LABEL, type Money } from "@/lib/money";
 import { downloadCalculationPdf } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,17 @@ interface ResultsDisplayProps {
 }
 
 const PIE_COLORS = ["#10b981", "#f59e0b", "#e2e8f0"];
+
+/**
+ * "Not paid back within the horizon" arrives as a null payback - a state, not a
+ * number (D7) - so no comparison with 25 decides it, and the horizon named is
+ * the last year of the curve the server computed rather than a literal.
+ */
+function paybackText(roi: Extract<Money["roi"], { status: "computed" }>): string {
+  if (roi.paybackYears !== null) return `${roi.paybackYears}y`;
+  const last = roi.curve.length > 0 ? roi.curve[roi.curve.length - 1] : undefined;
+  return last ? `not within ${last.year} years` : "not reached";
+}
 
 export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
   if (!results) {
@@ -175,7 +186,7 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
                 <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
                   <CalendarCheck className="w-3.5 h-3.5 text-blue-600" />
                   <span data-testid="text-payback-years" className="text-xs font-bold text-blue-700">
-                    Payback: {money.roi.paybackYears < 25 ? `${money.roi.paybackYears}y` : ">25y"}
+                    Payback: {paybackText(money.roi)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-3 py-1">

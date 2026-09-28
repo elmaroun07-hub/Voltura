@@ -343,11 +343,31 @@ describe("priceSavings and roi — typed by currency, computed not guessed", () 
     expect(r.paybackYears).toBeLessThanOrEqual(25);
   });
 
-  it("roi reports >25y (payback stays 25) when the saving never covers the cost", () => {
+  it("roi returns null — a state, not 25 — when the saving never covers the cost (D7, M4)", () => {
     const annual: Money<"EUR"> = { amount: 1, currency: "EUR" };
     const cost: Money<"EUR"> = { amount: 1_000_000, currency: "EUR" };
     const r = roi(annual, cost);
+    expect(r.paybackYears).toBeNull();
+    // Still computed: the curve and the lifetime figure are there.
+    expect(r.curve).toHaveLength(26);
+    expect(r.lifetimeSavings).toBeGreaterThan(0);
+  });
+
+  it("a genuine crossing in year 24→25 stays a number, even when it rounds to 25.0 (M6)", () => {
+    // 1,000 a year rising 1.5%: 24 years sum to 28,633 and 25 years to 30,063,
+    // so a 30,000 cost is crossed 95.6% of the way through year 25 — 24.956.
+    const annual: Money<"EUR"> = { amount: 1000, currency: "EUR" };
+    const cost: Money<"EUR"> = { amount: 30_000, currency: "EUR" };
+    const r = roi(annual, cost);
+    expect(r.curve[24].netPosition).toBeLessThan(0);
+    expect(r.curve[25].netPosition).toBeGreaterThanOrEqual(0);
     expect(r.paybackYears).toBe(25);
+  });
+
+  it("a zero cost is paid back at year 0, not 'never'", () => {
+    const annual: Money<"GBP"> = { amount: 300, currency: "GBP" };
+    const cost: Money<"GBP"> = { amount: 0, currency: "GBP" };
+    expect(roi(annual, cost).paybackYears).toBe(0);
   });
 });
 
