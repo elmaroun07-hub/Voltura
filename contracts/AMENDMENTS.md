@@ -611,3 +611,21 @@ D8, D52 and D16 are as defined in the 11 Sept state report
 
 **Tickets (28 Sep).** R1 → #3, A4 (page size) → #4, L-local → #5: GitHub issues in the
 private repository.
+
+---
+
+## A23 · 2026-09-30 — R2 ticketed; D8 and D52 open as one block, to measure the mix
+
+**Operator rulings, 30 Sep 2026** (block file `contracts/blocks/h-d8-d52.md`, §0).
+
+- **(a) R2 is ticketed as #6** — a GitHub issue in the private repository, labelled `bug`,
+  with title and body from the H-PDF ruling's own R2 text, linked at `d431e64`, the first
+  commit that carries it. Self-reported: #3–#5 link the ruling at `ff44a9c`, the merge that
+  brought it to `main`, but their text was also first committed at `d431e64`. Those findings
+  read the same at both commits.
+- **(b) D8 and D52 ship as one block, H-D8D52.** Both are bookkeeping gaps in the same
+  hourly loop.
+- **(c) Direction: record the flows so the chart is measured, rather than hide it.** The
+  11 Sept report's ruling on D8 was not to show the chart, because battery discharge could
+  not be measured; this block measures it instead. Hiding the chart is reachable only
+  through the block's §STOP and an operator ruling.
