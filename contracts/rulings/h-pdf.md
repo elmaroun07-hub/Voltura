@@ -1,8 +1,9 @@
 # Ruling — Block H-PDF · Gate H-PDF
 
-**Block file:** `contracts/blocks/h-pdf.md` · **Executed:** 28 Sept 2026
-**Ruling:** OPEN — pre-merge criteria met; closes on L1–L3 after the operator's merge. The
-merge is operator-ruled (§14.2), and the block file says to stop at this ruling.
+**Block file:** `contracts/blocks/h-pdf.md` · **Executed:** 28 Sept 2026 · **Completed:** 30 Sept 2026
+**Ruling:** CLOSED (self-ruled, §14.2) on L1–L3, after the operator-ruled merge `ff44a9c`
+(28 Sept 2026). The live evidence and this completion are on `heatshield/pdf-live-evidence`,
+unmerged.
 
 ---
 
@@ -22,8 +23,24 @@ as design decisions 5 and 6; three new findings are recorded for the operator (N
 | Branch | `heatshield/pdf-report`, off `45378e9` |
 | `481db9c` | the block file, committed unmodified as the branch's first commit — blob sha256 `e4f8fd89d90ecf250da14eb5467e276208465b4073281a66d09633103433a261`, identical to the file the operator placed |
 | `9e3f4a4` | P.1–P.5 |
-| next | this ruling |
+| `d431e64`, `e468df7` | this ruling, pre-merge; then its Tier-B re-verification at `d431e64` |
+| `ff44a9c` | **the operator's merge** — `--no-ff`, parents `76b0c6a` + `e468df7`, committed 2026-09-28T00:50:02Z and pushed at 00:50:06Z (`45378e9..ff44a9c`), after the evidence merges `3312292` (parents `45378e9` + `b7eb259`) and `76b0c6a` (parents `3312292` + `5c38aa1`) |
+| Deploy (§2) | Render API, read by the executor: one deploy per service, both `trigger: new_commit` on `ff44a9c` — web `dep-dasrjfou01pc73fbjmk0` live 00:50:46.78Z, API `dep-dasrjfou01pc73fbjmeg` live 00:51:08.84Z |
+| `7ab5c62` | `heatshield/pdf-live-evidence`, off `ff44a9c`: the raw L1–L3 evidence |
+| next | this completion, and A22 |
 | Session open | Latest ruling on disk: `h-d51.md`, CLOSED (self-ruled) on L1–L4 at `45378e9`, on the unmerged `heatshield/d51-live-evidence`. |
+
+## Operator rulings, 28 and 30 Sep 2026
+
+Recorded in full as A22 (`contracts/AMENDMENTS.md`).
+
+| Date | Ruling |
+|---|---|
+| 28 Sep | **Merge authorised.** §Merge run as written (below). |
+| 28 Sep | **§2 — read Auto-Deploy from the Render API and record it as observed.** Done before the push; LIVE EVIDENCE below. |
+| 28 Sep | **R1, A4 (page size) and L-local → tickets:** issues #3, #4 and #5. |
+| 30 Sep | **L3's download evidence:** the captured page bytes are accepted as the downloaded PDF; the Brave save drop is recorded as a tooling limit. |
+| 30 Sep | **N3 is not B3's first item** — replacing the 28 Sep "N3 → B3 first item". The operator's plan order of 28 Sept 2026: **D8 → D52 → Assistant → D16 → N3**. |
 
 ## TASKS CLAIMED CLOSED
 
@@ -202,6 +219,7 @@ harness, with no production write.
 Not fixed (block text). Any location with a character outside WinAnsi — Polish, Czech,
 Turkish, Romanian or Greek names, for instance — prints wrong on the PDF. Spanish, French,
 German and Portuguese names are inside WinAnsi: `Fuengirola, Málaga, Spain` prints correctly.
+**Ticket: #5.**
 
 ## F-f — old rows
 
@@ -229,8 +247,9 @@ savings before the install cost, not net of it. It matters most on the never-pai
 the harness render of Fuengirola at a €200,000 install cost prints **"Est. 25-Year Net Gain
 €30,975"** beside "not within 25 years", for a system whose net position at year 25 is about
 −€169,000. The label predates H-SRC-ES-UK (`75fdf42^`, `routes.ts:813`, same gross figure).
-It is a claim, so B3's by this block's routing (D11 went there). The L2 second probe will
-show it live.
+Live at L2 (row 102) and L3 (rows 103, 104): "€30,975" against a year-25 net position of
+−€169,025 in the same response's curve. **Routing (A22):** not B3's first item — fifth in the
+operator's plan order of 28 Sept, D8 → D52 → Assistant → D16 → N3.
 
 **R1 — `roi()` tests one year past its curve.** The loop runs `y = 0..ROI_YEARS` and each
 pass tests for a crossing during the following year, so the last pass tests the 26th year of
@@ -241,7 +260,7 @@ years", but "not within 25 years" does not imply `null`. Nothing false is printe
 years is what the model computed), but the payback can sit past the end of the curve drawn
 beside it. Unchanged: the calculator's numbers are out of fence. The fix, if the operator
 wants it, is to test the crossing only while `y < ROI_YEARS`; that band would then read "not
-within 25 years".
+within 25 years". **Ticket: #3.**
 
 **R2 — long user text can still trigger PDFKit's own page break.** The location has no
 maximum length (`schema.ts:63`: `.min(2)` only). It is drawn right-aligned across x 0–542 at
@@ -256,17 +275,20 @@ PDFKit's default. For the operator's Letter-vs-A4 decision: on A4 (595.28 × 841
 layout would hold all twelve months on page 1 — December's row would end at 764, inside A4's
 limit of 791.89 — but the footer (a 30 pt gap plus 22 pt) would not fit and would sit **alone
 on page 2**. That is arithmetic from the layout constants, not a render. A switch to A4
-changes M1's asserted count, or needs a layout change with it.
+changes M1's asserted count, or needs a layout change with it. **Ticket: #4.**
 
 **Deploy skew.** One push deploys both services, not atomically. If the API goes live
 before the web, a never-paid-back calculation submitted from the old page in that window
 fails the old web schema (`paybackYears: z.number()`), and that request shows an error. The
-window is seconds (H-D51: web 20:59:23Z, API 20:59:43Z — the web first, that time), and it
-needs a user to enter an install cost the savings never cover within those seconds.
+window is seconds, and it needs a user to enter an install cost the savings never cover
+within those seconds. **Observed at this merge (Render API):** the web went live 22 s before
+the API (00:50:46.78Z, 00:51:08.84Z) — the harmless direction, since the new web accepts a
+number and `null` alike. The other order stays possible on a future push.
 
 **Known limit — the web schema.** Nothing local checks that `lib/api.ts:234` admits `null`:
-the web has no test runner (D44), and `paybackText`'s `!== null` type-checks either way. L3
-is the check.
+the web has no test runner (D44), and `paybackText`'s `!== null` type-checks either way.
+**Closed live at L3:** the page parsed a computed ROI with `paybackYears: null` and rendered
+the never-wording (rows 103 and 104). Still unchecked locally on the next change.
 
 ## Layout, from the real bytes
 
@@ -276,7 +298,8 @@ content stream of the harness render of the never-paid-back case (scratch analys
 gate). Page 1 carries the header, the 8 summary rows, the 6 result rows, the table heading,
 the header row and January–October, the lowest baseline at 721.1 pt against a bottom margin
 of 742. Page 2 carries the header row again (baseline 62.5), November (81.1), December (99.1)
-and the footer (152.5). L3 opens the real download.
+and the footer (152.5). L2 and L3 read production's PDFs through their bytes the same way;
+L3's screenshot is of the calculator page, not of a PDF.
 
 ## LIVE EVIDENCE — G12
 
@@ -290,15 +313,115 @@ and the footer (152.5). L3 opens the real download.
 The defects are already on the production record: H-D51 L4, rows 98 and 99, 12 pages each,
 "CO ‚ Emissions Reduced" (`h-d51.md` on `heatshield/d51-live-evidence`).
 
-### After the merge — L1–L3: PENDING
+### After the merge — L1–L3 (28 Sept 2026, 00:52–00:57Z)
+
+The raw evidence is committed under `contracts/evidence/h-pdf/` on `heatshield/pdf-live-evidence`
+(`7ab5c62`), byte-exact (`contracts/evidence/** -text`), with sha256 at the end of this
+section.
+
+**§2 — Auto-Deploy, observed.** Render API `list_services`, workspace "Houssain's workspace"
+(the account's only one), read before the push; the pre-flight fetch that followed ran at
+00:49:38Z.
+
+| Service | `autoDeploy` | trigger | branch | previews | suspended |
+|---|---|---|---|---|---|
+| `Voltura-api` (`srv-d8q8vumgvqtc73a1ik90`) | yes | commit | main | off; `pullRequestPreviewsEnabled: no` | not_suspended |
+| `Voltura-web` (`srv-d8pk09sm0tmc73avtk60`) | yes | commit | main | off; `pullRequestPreviewsEnabled: no` | not_suspended |
+
+Read by the executor at the operator's direction (A22): the first merge gate at which §2's
+state was observed rather than relayed.
 
 | | Status | Probe row ids | Session |
 |---|---|---|---|
-| L1 | pending | — | — |
-| L2 | pending | — | `probe-pdf-<date>-<sha>` |
-| L3 | pending | — | — |
+| L1 | **PASS** | — | — |
+| L2 | **PASS** | **101** (Fuengirola), **102** (Fuengirola, install cost 200,000) | `probe-pdf-2026-09-28-ff44a9c` |
+| L3 | **PASS** — download evidence per the operator's ruling of 30 Sep | **103**, **104** (Fuengirola, 200,000, from the browser) | `55840b40-d5dc-4018-b7e1-519fc85aa26f` — the browser's own `voltura.sessionId` |
 
-§2 Auto-Deploy is re-confirmed at the merge and recorded here then.
+The probe rows stay in production; none were deleted (G3). Publishing these session ids gives
+anyone with repository access those rows (F1) — probe data only, as with H0's and H-D51's.
+
+**L1 — both services serve the merge.** 00:52:11Z.
+
+| Request | Response |
+|---|---|
+| `curl -s https://voltura-api.onrender.com/api/version` | `{"sha":"ff44a9c","shaFull":"ff44a9c990b6bd75713510643cf549cbfb01bb1e","source":"render"}` |
+| `curl -s https://voltura-web.onrender.com/` | `<meta name="build-sha" content="ff44a9c" />`; bundle `/assets/index-BSyCvJei.js` |
+
+Both equal the block merge — the tip after §Merge, not either evidence merge. A background
+poll saw both services change between 00:50:22Z and 00:51:25Z; Render's deploy records put
+the web live at 00:50:46.78Z and the API at 00:51:08.84Z.
+
+**L2 — production's bytes.** Session `probe-pdf-2026-09-28-ff44a9c`, body
+`{"location":"Fuengirola, Spain","energyUsage":5000,"pvWattage":4000,"batteryCapacity":10}`,
+the second probe adding `"installationCost":200000`. Each PDF is read on the same path as
+`pdf-report.test.ts`: xref → page tree → `/Contents` inflated → `BT…ET` blocks decoded as
+windows-1252.
+
+| | Row 101 | Row 102 (install cost 200,000) |
+|---|---|---|
+| `POST /api/calculate` | 200; ROI `pending` (install cost `registry_cost_pending`) | 200; ROI `computed`, **`paybackYears: null`**, `lifetimeSavings` 30,975; the curve's year-25 `netPosition` −169,025 |
+| `GET /api/calculate/<id>/pdf` | 200, 3,932 bytes, `energy-report-101.pdf` | 200, 3,959 bytes, `energy-report-102.pdf` |
+| Pages (`/Count`, `/Kids`) | **2**, 2 — M1's count | **2**, 2 |
+| Each month exactly once | yes | yes |
+| Header row on every page with month rows | pages 1 and 2 | pages 1 and 2 |
+| `CO2 Emissions Reduced`; lines with U+201A | present; 0 | present; 0 |
+| Estimated Payback Period | "pending" | **"not within 25 years"**; "25.0 years" absent |
+| `GET /api/history` | `paybackYears` null, `lifetimeSavingsEur` null | **`paybackYears` null, `lifetimeSavingsEur` 30975** — the state is persisted, with no DDL |
+
+For contrast, the same reader on H-D51's `l2-fuengirola.pdf` (row 98, at `45378e9`): 12 pages;
+the pages carrying November and December (2 and 7) have no header row; one line holds U+201A.
+
+**L3 — a real browser.** **Brave 154.1.96.59** (`brave.exe` ProductVersion), driven by the
+Playwright MCP plugin with `--executable-path C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe`
+(its installed `.mcp.json`). In the page, `navigator.brave.isBrave()` returned `true` and the
+brands were "Chromium 154" and "Brave 154"; Brave gives pages no finer version. The MCP
+reuses its profile directory across browsers, so this Brave profile carried the
+`voltura.sessionId` of H-D51's L3 run.
+
+1. **Attempt 1 (00:52:54–00:54Z).** Location "Fuengirola, Spain", Installation Cost 200,000,
+   the form's defaults otherwise, then **Calculate Savings** → `POST
+   https://voltura-api.onrender.com/api/calculate` 200, the only `/api/` request the page had
+   made. Its body (`l3-calculate-response.json`): **`id` 103**, ROI `computed`,
+   `paybackYears: null`. The ROI card read **"Payback: not within 25 years"**, in the
+   computed card ("25-Year ROI Curve"); the pending card was absent, and `>25y` appeared
+   nowhere on the page. Full-page screenshot: `l3-results-never-paid-back.png`. The page
+   parsed a `null` payback — the known limit above, closed live. **Download:** the click
+   dropped the Playwright MCP connection; no file was written, and the MCP came back with a
+   fresh browser at `about:blank`.
+2. **Attempt 2 (00:55:20–00:56:27Z).** The same inputs → **row 104**, and the card again read
+   **"Payback: not within 25 years"**. A recorder on `HTMLAnchorElement.prototype.click`,
+   capture-only, kept the bytes `downloadCalculationPdf` hands to its `<a download>` and
+   suppressed the save: **`energy-report-104.pdf`**, a `blob:https://voltura-web.onrender.com/…`
+   URL, 3,959 bytes, `%PDF-1.3` (`l3-page-blob-energy-report-104.pdf`). Read like L2: **2
+   pages** — L2's count — each month once, the header row on both pages, `CO2` present, no
+   U+201A, and Payback "not within 25 years". With the recorder switched to pass-through, the
+   browser's real save **dropped the connection again**, and no file was written: 2 of 2.
+3. **History** (00:57:46Z), for the browser's session: rows 104 and 103, both `paybackYears`
+   null with `lifetimeSavingsEur` 30975, and H-D51's row 100.
+
+**Operator ruling, 30 Sep:** the captured page bytes are L3's download evidence, and the
+Brave save drop is a **tooling limit** — the Playwright MCP under Brave, not the product. What
+was not observed is the browser writing the file to disk; the bytes it would have written
+were read. Also not covered live: console output and attempt 2's network log, both lost with
+the dropped connections.
+
+**Evidence files** — `contracts/evidence/h-pdf/`, sha256 of the bytes as captured and as stored:
+
+| File | What | sha256 |
+|---|---|---|
+| `l1-api-version.json` | L1, API `/api/version` body | `8e895e5e8207dae2baca9cb4ed24f853f2729e056f4545796f6049ad41f9edd7` |
+| `l1-web-index.html` | L1, web `index.html` (`build-sha`) | `7107edd0715a27c93940077023be52c2af872fd0d8c05624711b165185c5dcf5` |
+| `l2-fuengirola-calculate.json` | L2, calculate 200 body (`id` 101) | `2dac9d06118083dfd1aae5213bc8a2e1b95fab21ac397db709ce7f4a0ad1bf94` |
+| `l2-fuengirola-pdf.headers` | L2, PDF response headers (101) | `b7846605902f6438c12b786391c88b595a121573b272e22bbec4ca89f1539b9f` |
+| `l2-fuengirola.pdf` | L2, `energy-report-101.pdf` | `83881ba0e9125e2fbf74b395ba739427afa653af60ed5789a35e68c23b14103c` |
+| `l2-never-calculate.json` | L2, calculate 200 body (`id` 102, install cost 200,000) | `3c1eda1745f495143c5a6a8e49a983d2a1898fa6a016cdf3e6d65d2f4ed8911c` |
+| `l2-never-pdf.headers` | L2, PDF response headers (102) | `352afee89e93d1554ad5585381c0a16305552a3524e546fc659107cb09995d9a` |
+| `l2-never.pdf` | L2, `energy-report-102.pdf` | `be5d8490687f2eacfd8ba0787658f4d2a3cc74f5f6cd157e46c252ef915791e6` |
+| `l2-history.json` | L2, history (rows 102, 101) | `372825d2687a5fce3257e813c242102bbf7b32e16518db9e59b5c558a84e4091` |
+| `l3-calculate-response.json` | L3, the page's own calculate body (`id` 103) | `44109cd07de9a16a09a2f8a39b50b32e4516d774072ce5d1a46d486950312724` |
+| `l3-results-never-paid-back.png` | L3, full-page screenshot, the ROI card's never-wording | `abbe48dd9cb3f28ec47e9d1ffde90729ea203589f10cdcbbf075317a2f266472` |
+| `l3-page-blob-energy-report-104.pdf` | L3, the page's download bytes for row 104 | `914b442b6b0e5b03081432fe9d0cfc84e8aa3f4281e260bf8429ea860132c0fc` |
+| `l3-history.json` | L3, the browser session's history (rows 104, 103, 100) | `e7a6cc106cf720f2c178d73fd4b61f117ee5a138258e93c8fa3297ed05b32f7f` |
 
 ## §Merge — proven on a scratch ref
 
@@ -318,6 +441,23 @@ git merge --no-ff --no-edit heatshield/pdf-report                  # cb29fa9 —
 
 All three exit 0, no conflict. Per merge: 7 files +203 −4; 16 files +296 −68; 9 files
 +667 −35 — the block merge touches exactly the 9 files of `main..heatshield/pdf-report`.
+
+### Executed, 28 Sept 2026
+
+On the operator's authorisation, from `main` = `origin/main` = `45378e9` (fetched at 00:49:38Z;
+branch tips `b7eb259`, `5c38aa1` and `e468df7`, as proven), exactly as the block file writes it:
+
+```
+git -C <repo> checkout main
+git -C <repo> merge --no-ff --no-edit heatshield/h-src-es-uk-live-evidence   # 3312292 — parents 45378e9 b7eb259
+git -C <repo> merge --no-ff --no-edit heatshield/d51-live-evidence           # 76b0c6a — parents 3312292 5c38aa1
+git -C <repo> merge --no-ff --no-edit heatshield/pdf-report                  # ff44a9c — parents 76b0c6a e468df7
+git -C <repo> push origin main                                               # 45378e9..ff44a9c, exit 0, 00:50:06Z
+```
+
+No conflict. The block merge is the tip, and its 10 files (+1082 −35) are the block's. One
+push produced one deploy per service, both on `ff44a9c`; neither evidence merge was built on
+its own (A13's batching).
 
 ## ROLLBACK — G8, Tier B
 
@@ -347,8 +487,8 @@ deploy has been executed and no production instance has been taken back. **A13's
 debt survives this block: it stands until one deploy-path rollback is executed deliberately
 under Tier C.**
 
-After the merge, the rollback is `git revert -m 1 <block merge>` and a push. That is a
-production deploy of both services (A13), and must be declared as one if run.
+After the merge, the rollback is `git revert -m 1 ff44a9c` and a push. That is a production
+deploy of both services (A13), and must be declared as one if run.
 
 ### Re-verification at the ruling commit
 
@@ -370,12 +510,28 @@ the tree after it is the evidence-merge tree again (`046cfc33c6c1bcb439c97beddf3
 The only later commit on the branch fills in this subsection, which a revert of the real merge
 removes with the rest.
 
+### At the real merge (`ff44a9c`)
+
+On `scratch/pdf-real-merge-revert-proof`, created at `ff44a9c`, local and never pushed:
+
+```
+git revert -m 1 --no-edit ff44a9c                    # 7896ec7, exit 0
+git diff --shortstat 76b0c6a ff44a9c                 # 10 files changed, 1082 insertions(+), 35 deletions(-)
+git diff --shortstat ff44a9c 7896ec7                 # 10 files changed, 35 insertions(+), 1082 deletions(-)
+git diff --stat 76b0c6a 7896ec7                      # (empty)
+```
+
+The same 10-file set in both directions, and the tree after the revert is `76b0c6a`'s
+(`046cfc33c6c1bcb439c97beddf34c494006057de`): both evidence merges stay standing, and the
+block merge touches none of their paths. `main` and `origin/main` stayed at `ff44a9c`. The
+deploy path is still **UNPROVEN**, as stated above.
+
 ## Named failure modes — checked against
 
 | | |
 |---|---|
 | **F-a** shrinking to fit | Not taken. Row heights are unchanged (22, 22, 20, 18) and the table breaks after October. A layout squeezed onto one page fails M1's exact count of 2. |
-| **F-b** a page count from a model | M1 counts pages in the bytes the route returns: the page tree's `/Count`, checked against the `/Kids` it lists. |
+| **F-b** a page count from a model | M1 counts pages in the bytes the route returns: the page tree's `/Count`, checked against the `/Kids` it lists. L2 and L3 count production's bytes the same way. |
 | **F-c** a new sentinel | `null` plus the `lifetimeSavingsEur` discriminant; no number means "never". M6 pins a real 25.0 as a number, and a zero cost is a real 0 (design decision 5). |
 | **F-d** pending and never collapse | M5: two rows, both with a null payback, print "pending" and "not within 25 years". On the web, pending has its own card ("Payback: pending") and never shows in the computed card ("not within 25 years"). |
 | **F-e** a guard on one label | The guard reads all 120 literals of the handler; M3b is caught in a branch no test renders. |
@@ -383,13 +539,24 @@ removes with the rest.
 
 ## RESIDUE
 
-- **Scratch refs:** `scratch/pdf-merge-proof` (at `81635d0`, after the three reverts) and
-  `scratch/pdf-ruling-merge-proof` (at `e6a548a`) — local, never pushed, deletable at will,
-  following `scratch/d51-*`.
-- **Evidence branches** `heatshield/h-src-es-uk-live-evidence` (`b7eb259`) and
-  `heatshield/d51-live-evidence` (`5c38aa1`): unmerged and unpushed; §Merge merges them.
-- **N3, R1, R2**, the page size and the deploy skew: findings above, for the operator.
+- **Scratch refs:** `scratch/pdf-merge-proof` (at `81635d0`, after the three reverts),
+  `scratch/pdf-ruling-merge-proof` (at `e6a548a`) and `scratch/pdf-real-merge-revert-proof`
+  (at `7896ec7`) — local, never pushed, deletable at will, following `scratch/d51-*`.
+- **Evidence branches:** `heatshield/h-src-es-uk-live-evidence` and
+  `heatshield/d51-live-evidence` are merged (`3312292`, `76b0c6a`).
+  `heatshield/pdf-live-evidence`, off `ff44a9c`, carries `contracts/evidence/h-pdf/`, this
+  completion and A22; it is unmerged and unpushed, and rides the next code merge (D8).
+- **Findings:** N3 is routed by A22; R1 → #3, page size → #4, L-local → #5. **R2 is recorded
+  here only** — the operator ticketed R1, A4 and L-local.
 - **F-f:** old "never" rows print "25.0 years"; their count was not measured.
+- **Probe rows in production:** 101 and 102 (session `probe-pdf-2026-09-28-ff44a9c`), 103 and
+  104 (browser session `55840b40-d5dc-4018-b7e1-519fc85aa26f`). Not deleted (G3).
+- **Playwright MCP.** The Brave save drop is a tooling limit (operator ruling, 30 Sep). The
+  MCP may only write under the repository, so its page snapshots and the base64 of the
+  captured blob landed in `.playwright-mcp/` at the repository root; they were moved to the
+  session scratchpad, uncommitted. Its profile directory is shared across browsers, so a
+  browser session id survives a change of browser.
+- **CI** for `ff44a9c` was not checked in this session.
 - **Untouched in the renderer:** the session-header comment appears twice (`routes.ts:717`
   and `:720`), and an orphaned comment with blank lines sits at `:807–811` ("Payback +
   lifetime for PDF — read persisted values…"). Neither is a task here.
@@ -405,11 +572,18 @@ removes with the rest.
 
 ## RULING
 
-**OPEN — pre-merge criteria met.** It closes on L1–L3 after the operator's merge (§14.2), and
-is self-ruled then: L1–L3 are HTTP responses, PDF bytes and a browser check.
+**CLOSED (self-ruled, §14.2)** on L1–L3 — HTTP responses, PDF bytes and a browser check —
+after the operator-ruled merge `ff44a9c` (`--no-ff`, 28 Sept 2026).
 
 - P.1–P.5 done. M1–M6 caught, plus M3b and Z. 314 → 323. Typecheck exit 0.
-- §Merge proven on a scratch ref: three clean merges; the block merge is the block's 9 files.
-- G8, Tier B: the block revert is proven to apply and to leave the evidence merges standing.
-  **The deploy path is UNPROVEN; A13's standing debt stands.**
-- For the operator: the merge (§14.2). N3 before or with B3; R1; page size.
+- **L1, L2 and L3 PASS.** Production's 12-month report is 2 pages, with the header row on both,
+  `CO2`, and no U+201A. The never-paid-back case prints "not within 25 years" in the PDF and
+  on the ROI card, and `null` is what is stored. L3's download evidence is the page's
+  captured bytes (operator ruling, 30 Sep); the Brave save drop is a tooling limit.
+- G8, Tier B: `git revert -m 1 ff44a9c` is proven on a scratch ref and leaves both evidence
+  merges standing. **The deploy path is UNPROVEN; A13's standing debt stands.**
+- Routed (A22): N3 by the operator's plan order of 28 Sept, D8 → D52 → Assistant → D16 → N3;
+  R1 #3, page size #4, L-local #5.
+
+For the operator (§14.2): merging `heatshield/pdf-live-evidence` — evidence, this completion
+and A22, no code — which rides the next code merge (D8).
