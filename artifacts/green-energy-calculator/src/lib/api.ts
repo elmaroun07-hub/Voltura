@@ -80,6 +80,8 @@ const sizingSchema = z.object({
   daysPerYear: z.number(),
 });
 
+// Mirrors monthlyEntrySchema in artifacts/api-server/src/shared-routes.ts. Nothing
+// compares the two automatically: change both.
 const monthlyEntrySchema = z.object({
   month: z.number(),
   name: z.string(),
@@ -88,6 +90,11 @@ const monthlyEntrySchema = z.object({
   savingsKwh: z.number(),
   gridImportKwh: z.number(),
   co2Kg: z.number(),
+  // The flows the engine records (H-D8D52), each rounded to 0.1 kWh.
+  pvDirectKwh: z.number(),
+  batteryChargeKwh: z.number(),
+  batteryDischargeKwh: z.number(),
+  surplusKwh: z.number(),
 });
 
 export type MonthlyEntry = z.infer<typeof monthlyEntrySchema>;

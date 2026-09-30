@@ -237,7 +237,9 @@ const moneyBlockSchema = z.object({
   roi: roiUsedSchema,
 });
 
-const monthlyEntrySchema = z.object({
+// NOTE: mirrored in artifacts/green-energy-calculator/src/lib/api.ts — keep in sync;
+// nothing compares the two automatically.
+export const monthlyEntrySchema = z.object({
   month: z.number(),
   name: z.string(),
   generationKwh: z.number(),
@@ -245,6 +247,13 @@ const monthlyEntrySchema = z.object({
   savingsKwh: z.number(),
   gridImportKwh: z.number(),
   co2Kg: z.number(),
+  // The flows the engine records (H-D8D52). Generated = pvDirect + batteryCharge
+  // + surplus; Consumed = pvDirect + batteryDischarge + gridImport. Each rounded
+  // to 0.1 kWh. A stored row written before H-D8D52 has none of them.
+  pvDirectKwh: z.number(),
+  batteryChargeKwh: z.number(),
+  batteryDischargeKwh: z.number(),
+  surplusKwh: z.number(),
 });
 
 export const api = {

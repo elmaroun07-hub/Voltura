@@ -373,6 +373,53 @@ describe("H-PDF D7 — never paid back is not a number", () => {
   });
 });
 
+// ── H-D8D52 T7 — a row stored before the flows were recorded ─────────────────
+
+// A row as the calculate handler stores it once the engine records its flows:
+// each month's Generated = PV direct + PV into battery + surplus, and
+// Consumed = PV direct + battery delivered + grid import.
+const RECORDED_MONTHS = MONTHS.map((name, i) => {
+  const surplusKwh = parseFloat((94.4 + i).toFixed(1));
+  return {
+    month: i + 1,
+    name,
+    generationKwh: parseFloat((250.1 + 55.5 + surplusKwh).toFixed(1)),
+    consumptionKwh: 416.7,
+    savingsKwh: 300.2,
+    gridImportKwh: 116.5,
+    co2Kg: 25.9,
+    pvDirectKwh: 250.1,
+    batteryChargeKwh: 55.5,
+    batteryDischargeKwh: 50.1,
+    surplusKwh,
+  };
+});
+
+describe("H-D8D52 T7 — an old row says 'Not recorded', never 0", () => {
+  it("a row without recorded flows prints no surplus column and says so; a recorded row prints the column on every table page", async () => {
+    const { base, close } = await serve();
+    try {
+      // seed()'s months carry no flow fields: a row written before this block.
+      const old = (await getPdf(base, seed({}))).pages.flat();
+      expect(old).toContain("Surplus not used: Not recorded for this calculation");
+      expect(old).not.toContain("Surplus not used");
+
+      const recorded = await getPdf(base, seed({ monthlyData: RECORDED_MONTHS }));
+      expect(recorded.count).toBe(2);
+      expect(recorded.pages.flat().some((l) => l.includes("Not recorded"))).toBe(false);
+      const withMonths = recorded.pages.filter((page) => page.some((l) => MONTHS.includes(l)));
+      expect(withMonths.length).toBeGreaterThanOrEqual(2);
+      for (const page of withMonths) expect(page).toEqual(expect.arrayContaining([...HEADER_ROW, "Surplus not used"]));
+      // January's surplus cell is its stored value, drawn after its Grid Import cell.
+      const lines = recorded.pages.flat();
+      const jan = lines.indexOf("Jan");
+      expect(lines.slice(jan, jan + 6)).toEqual(["Jan", "400 kWh", "416.7 kWh", "300.2 kWh", "116.5 kWh", "94.4 kWh"]);
+    } finally {
+      await close();
+    }
+  });
+});
+
 // ── L-local — user text outside WinAnsi: record only ─────────────────────────
 
 describe("H-PDF L-local — a location outside WinAnsi (record only, not fixed here)", () => {
