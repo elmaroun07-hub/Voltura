@@ -117,22 +117,31 @@ function run(r: (typeof REGIMES)[number]) {
 }
 
 describe("H-D8D52 — the engine records every kWh", () => {
+  // Each hourly identity is checked on all 8,760 hours in plain arithmetic and
+  // asserted once, as its worst error: one expect() per hour made a regime take
+  // up to 5.7 s and time out under load.
   it.each(REGIMES)("T1 supply, every hour: generation = PV direct + PV into battery + surplus ($name)", (r) => {
     const { hours } = run(r);
     expect(hours).toHaveLength(8760);
+    let worst = 0;
+    const negative: string[] = [];
     for (const { h } of hours) {
-      expect(Math.abs(h.generationKwh - (h.pvDirectKwh + h.batteryChargeKwh + h.surplusKwh))).toBeLessThanOrEqual(TOL);
-      for (const f of FLOWS) expect(h[f]).toBeGreaterThanOrEqual(-TOL);
+      worst = Math.max(worst, Math.abs(h.generationKwh - (h.pvDirectKwh + h.batteryChargeKwh + h.surplusKwh)));
+      for (const f of FLOWS) if (h[f] < -TOL) negative.push(`${f}=${h[f]}`);
     }
+    expect(worst).toBeLessThanOrEqual(TOL);
+    expect(negative).toEqual([]);
     // Every regime but the smallest has surplus to account for — the branch D52 is about.
     if (r.pvW >= 3391) expect(hours.some(({ h }) => h.surplusKwh > 0.01)).toBe(true);
   });
 
   it.each(REGIMES)("T2 demand, every hour: load = PV direct + battery delivered + grid import ($name)", (r) => {
     const { hours } = run(r);
+    let worst = 0;
     for (const { h } of hours) {
-      expect(Math.abs(h.consumptionKwh - (h.pvDirectKwh + h.batteryDischargeKwh + h.gridImportKwh))).toBeLessThanOrEqual(TOL);
+      worst = Math.max(worst, Math.abs(h.consumptionKwh - (h.pvDirectKwh + h.batteryDischargeKwh + h.gridImportKwh)));
     }
+    expect(worst).toBeLessThanOrEqual(TOL);
     if (r.battKwh > 0) expect(hours.some(({ h }) => h.batteryDischargeKwh > 0.01)).toBe(true);
   });
 
@@ -141,15 +150,21 @@ describe("H-D8D52 — the engine records every kWh", () => {
     const eff = Math.sqrt(r.rte); // the engine splits the round trip evenly, charge side and discharge side
     let soc = sim.socStartKwh;
     expect(soc).toBe(0);
+    let chargeLossWorst = 0, dischargeLossWorst = 0, socWorst = 0, socMin = Infinity, socMax = -Infinity;
     for (const { h } of hours) {
       // The charge loss is taken on the way in, the discharge loss on the way out.
-      expect(Math.abs(h.storedKwh - h.batteryChargeKwh * eff)).toBeLessThanOrEqual(TOL);
-      expect(Math.abs(h.batteryDischargeKwh - h.drawnKwh * eff)).toBeLessThanOrEqual(TOL);
+      chargeLossWorst = Math.max(chargeLossWorst, Math.abs(h.storedKwh - h.batteryChargeKwh * eff));
+      dischargeLossWorst = Math.max(dischargeLossWorst, Math.abs(h.batteryDischargeKwh - h.drawnKwh * eff));
       soc += h.storedKwh - h.drawnKwh;
-      expect(Math.abs(h.socKwh - soc)).toBeLessThanOrEqual(1e-6);
-      expect(h.socKwh).toBeLessThanOrEqual(r.battKwh + TOL);
-      expect(h.socKwh).toBeGreaterThanOrEqual(-TOL);
+      socWorst = Math.max(socWorst, Math.abs(h.socKwh - soc));
+      socMin = Math.min(socMin, h.socKwh);
+      socMax = Math.max(socMax, h.socKwh);
     }
+    expect(chargeLossWorst).toBeLessThanOrEqual(TOL);
+    expect(dischargeLossWorst).toBeLessThanOrEqual(TOL);
+    expect(socWorst).toBeLessThanOrEqual(1e-6);
+    expect(socMin).toBeGreaterThanOrEqual(-TOL);
+    expect(socMax).toBeLessThanOrEqual(r.battKwh + TOL);
     // Whole year: energy in, minus both losses, minus energy out, is the change in charge.
     const y = sim.year;
     const chargeLoss = y.batteryChargeKwh - y.storedKwh;
