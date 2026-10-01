@@ -575,3 +575,57 @@ is where the collision said the claim would be tracked.
 - Market-based figures (e.g. CNMC's residual mix) may be recorded as notes, never as the value.
 - Why: the product reports CO₂ avoided by self-consumption — the physical grid a panel displaces — and location-based is the only basis on which both registry countries have an official figure.
 - Consequence accepted: Spain's displayed CO₂ falls by roughly 2.4× against the 258 g/kWh in production at `9034c99`.
+
+---
+
+## A22 · 2026-09-30 — H-PDF: merge, §2 observed, L3's download evidence, the plan order
+
+**Operator rulings, 28 and 30 Sep 2026.** Ruling file: `contracts/rulings/h-pdf.md`, CLOSED
+(self-ruled) on L1–L3.
+
+**Merge (28 Sep).** Authorised, and §Merge run as written: the evidence merges `3312292` and
+`76b0c6a`, then the block merge `ff44a9c` as the tip; one push, `45378e9..ff44a9c`; one Render
+deploy per service. `main` is now **`ff44a9c`**. H-PDF's rollback is `git revert -m 1 ff44a9c`,
+proven on a scratch ref (Tier B); the deploy path is unproven, and A13's debt stands.
+
+**§2 — observed, at the operator's direction (28 Sep).** The executor read Auto-Deploy from
+the Render API before the push (`list_services`): `Voltura-api` and `Voltura-web` both
+`autoDeploy: yes`, trigger `commit`, branch `main`, previews off, not suspended. Recorded as
+observed. §2 still names the operator as the sensor; with a Render connector attached, the
+setting is observable from a coding session. Fold into §2 when it is next revised.
+
+**L3's download evidence (30 Sep).** The page's own download — the bytes
+`downloadCalculationPdf` hands to its `<a download>`, captured in the browser — is accepted as
+L3's downloaded PDF: 2 pages, L2's count. The browser's own save dropped the Playwright MCP
+connection 2 of 2 times under Brave 154.1.96.59 and wrote no file. A **tooling limit**, not a
+product finding.
+
+**N3 is not B3's first item (30 Sep).** This replaces the 28 Sep instruction "N3 → B3 first
+item". The order is the operator's plan of 28 Sept 2026:
+
+**D8 → D52 → Assistant → D16 → N3**
+
+D8, D52 and D16 are as defined in the 11 Sept state report
+(`docs/reports/voltura-heatshield-2026-09-11.md`, on branch `heatshield/report-2026-09-11` at
+`6165a42` — not on `main`); N3 is in `contracts/rulings/h-pdf.md`.
+
+**Tickets (28 Sep).** R1 → #3, A4 (page size) → #4, L-local → #5: GitHub issues in the
+private repository.
+
+---
+
+## A23 · 2026-09-30 — R2 ticketed; D8 and D52 open as one block, to measure the mix
+
+**Operator rulings, 30 Sep 2026** (block file `contracts/blocks/h-d8-d52.md`, §0).
+
+- **(a) R2 is ticketed as #6** — a GitHub issue in the private repository, labelled `bug`,
+  with title and body from the H-PDF ruling's own R2 text, linked at `d431e64`, the first
+  commit that carries it. Self-reported: #3–#5 link the ruling at `ff44a9c`, the merge that
+  brought it to `main`, but their text was also first committed at `d431e64`. Those findings
+  read the same at both commits.
+- **(b) D8 and D52 ship as one block, H-D8D52.** Both are bookkeeping gaps in the same
+  hourly loop.
+- **(c) Direction: record the flows so the chart is measured, rather than hide it.** The
+  11 Sept report's ruling on D8 was not to show the chart, because battery discharge could
+  not be measured; this block measures it instead. Hiding the chart is reachable only
+  through the block's §STOP and an operator ruling.
