@@ -1,0 +1,17 @@
+HTTP/1.1 500 Internal Server Error
+Date: Thu, 01 Oct 2026 00:06:07 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+access-control-allow-origin: https://voltura-web.onrender.com
+etag: W/"23-8NdEwgOr82p+EmFyYngVj/j+ywQ"
+rndr-id: 08c4400c-a815-4ff7
+Server: cloudflare
+vary: Origin
+vary: Accept-Encoding
+x-powered-by: Express
+x-render-origin-server: Render
+cf-cache-status: DYNAMIC
+CF-RAY: a43738323e1d127e-MRS
+alt-svc: h3=":443"; ma=86400
+

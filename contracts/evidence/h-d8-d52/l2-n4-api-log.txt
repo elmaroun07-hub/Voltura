@@ -1,0 +1,35 @@
+Render API list_logs - resource srv-d8q8vumgvqtc73a1ik90 (Voltura-api), 2026-10-01T00:06:00Z..00:06:15Z,
+read by the executor on 2026-10-01. Extract of the entries for the N4 probe (POST /api/calculate,
+batteryCapacity 4.5, session probe-d8d52-2026-10-01-0f9f7a1). Messages copied verbatim; the long
+monthly_data parameter is shortened where marked [...].
+
+2026-10-01T00:06:05.637916115Z  1b326468-98c7-48c9-a3ab-420ab8eba02d  info
+  {"level":30,...,"req":{"id":11,"method":"POST","url":"/api/calculate"},"res":{"statusCode":200},"responseTime":1031,"msg":"request completed"}
+  (the 4 kWh calculation, row 105)
+
+2026-10-01T00:06:06.100879376Z  19efa4d9-cdd5-4d8a-84ec-39a0cdf6bea6  info
+  {"level":30,...,"req":{"id":12,"method":"GET","url":"/api/calculate/105/pdf"},"res":{"statusCode":200},"responseTime":31,"msg":"request completed"}
+
+2026-10-01T00:06:07.038236286Z  bea05d78-0749-4dcb-ac05-d0b9819f79e8  error
+  Calculation error: _DrizzleQueryError: Failed query: insert into "calculations" ("id", "location", "energy_usage", "pv_wattage", "battery_capacity", "electricity_tariff", "battery_efficiency", "panel_orientation", "roof_angle", "savings_kwh", "co2_reduction", "annual_savings_eur", "carbon_footprint", "installation_cost_eur", "payback_years", "lifetime_savings_eur", "renewable_mix", "monthly_data", "session_id", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, default, $12, $13, $14, $15, $16, $17, default) returning [...]
+
+2026-10-01T00:06:07.038269377Z  711be47b-a056-492d-a5b3-c62fe2e71ef6  info
+  params: Fuengirola, Málaga, Spain,5000,3391,4.5,0.2669,0.9,south,30,3511,302,937.06,,,,{"solar":70,"wind":0,"currency":"EUR"},[{"month":1,"name":"Jan","generationKwh":220.4,"consumptionKwh":565.3,"savingsKwh":218.8,"gridImportKwh":346.6,"co2Kg":18.8,"pvDirectKwh":204.3,"batteryChargeKwh":16.1,"batteryDischargeKwh":14.5,"surplusKwh":0}, [...]],probe-d8d52-2026-10-01-0f9f7a1
+
+2026-10-01T00:06:07.038308108Z  ff0b221c-4ee9-4c67-8388-577d05c39670  info
+      at async DatabaseStorage.createCalculation (/opt/render/project/src/artifacts/api-server/src/storage.ts:30:22)
+
+2026-10-01T00:06:07.038311868Z  c3648b8d-b673-4769-a5bf-9c1f3ad3b981  info
+      at async <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/routes.ts:1145:21) {
+
+2026-10-01T00:06:07.038327528Z  77672220-a199-44ce-8525-73ad4b44f18c  info
+      4.5,
+
+2026-10-01T00:06:07.038370359Z  3e9daf13-3b34-4990-a6eb-5e8343ea3a93  error
+    cause: error: invalid input syntax for type integer: "4.5"
+
+2026-10-01T00:06:07.038405319Z  453afbd7-6c8c-4574-ac8f-ea6eea429610  error
+      severity: 'ERROR',
+
+2026-10-01T00:06:07.038407619Z  8ace6b73-35d9-430b-b929-34c4a216aa4a  info
+      code: '22P02',
