@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "../storage";
-import { api } from "../shared-routes";
+import { api, monthlyEntrySchema } from "../shared-routes";
 import { z } from "zod/v4";
 import { registerChatRoutes } from "../replit_integrations/chat";
 import { getLlmClient, llmModel } from "../lib/llm";
@@ -614,8 +614,63 @@ async function resolveLocationIrradiance(
   };
 }
 
+/**
+ * What one hour of the dispatch did with every kWh (H-D8D52). These are records
+ * of the dispatch, not a change to it: the battery charges, discharges and
+ * loses energy exactly as before. The losses stay where the dispatch takes
+ * them - on the way into the battery and on the way out.
+ */
+export interface HourFlows {
+  generationKwh: number;
+  consumptionKwh: number;
+  /** PV straight to the load. */
+  pvDirectKwh: number;
+  /** PV sent into the battery, before the charge loss. */
+  batteryChargeKwh: number;
+  /** PV that neither the load nor the battery could take. Not exported and not valued - the engine sells nothing. */
+  surplusKwh: number;
+  /** Battery energy that reached the load, after the discharge loss. */
+  batteryDischargeKwh: number;
+  gridImportKwh: number;
+  /** Added to the state of charge: the charge, less its loss. */
+  storedKwh: number;
+  /** Taken from the state of charge: the delivered energy, plus its loss. */
+  drawnKwh: number;
+  /** State of charge at the end of the hour. */
+  socKwh: number;
+}
+
+export type FlowSums = Omit<HourFlows, "socKwh">;
+
+/** A monthly row as sent and stored: the fields it always had, plus the recorded flows, each rounded to 0.1 kWh. */
+export type MonthlyFlows = MonthlyEntry &
+  Pick<FlowSums, "pvDirectKwh" | "batteryChargeKwh" | "batteryDischargeKwh" | "surplusKwh">;
+
+export interface Simulation {
+  /** Display-rounded, as the response and the stored row carry it. */
+  monthly: MonthlyFlows[];
+  /** Exact monthly sums, before display rounding. */
+  months: FlowSums[];
+  /** Exact yearly sums: the sum of `months`. */
+  year: FlowSums;
+  socStartKwh: number;
+  socEndKwh: number;
+}
+
+const noFlows = (): FlowSums => ({
+  generationKwh: 0,
+  consumptionKwh: 0,
+  pvDirectKwh: 0,
+  batteryChargeKwh: 0,
+  surplusKwh: 0,
+  batteryDischargeKwh: 0,
+  gridImportKwh: 0,
+  storedKwh: 0,
+  drawnKwh: 0,
+});
+
 // 8760-hour annual battery simulation
-function simulate8760(
+export function simulate8760(
   annualKwh: number,
   pvWattage: number,
   batteryCapacityKwh: number,
@@ -623,13 +678,15 @@ function simulate8760(
   panelFactor: number,
   irradianceMonthly: number[],
   temperatureMonthly: number[],
-  systemEfficiency: number
-): MonthlyEntry[] {
+  systemEfficiency: number,
+  /** Called once per simulated hour with that hour's record. Tests use it; the route does not. */
+  onHour?: (month: number, hour: HourFlows) => void,
+): Simulation {
   const chargeEff = Math.sqrt(batteryEfficiency);
   const dischargeEff = Math.sqrt(batteryEfficiency);
   let soc = 0; // state of charge in kWh
 
-  const monthly: MonthlyEntry[] = MONTH_NAMES.map((name, m) => ({
+  const monthly: MonthlyFlows[] = MONTH_NAMES.map((name, m) => ({
     month: m + 1,
     name,
     generationKwh: 0,
@@ -637,7 +694,12 @@ function simulate8760(
     savingsKwh: 0,
     gridImportKwh: 0,
     co2Kg: 0,
+    pvDirectKwh: 0,
+    batteryChargeKwh: 0,
+    batteryDischargeKwh: 0,
+    surplusKwh: 0,
   }));
+  const months: FlowSums[] = MONTH_NAMES.map(noFlows);
 
   // Compute total predicted consumption to scale to actual annual usage
   let totalPredicted = 0;
@@ -655,6 +717,7 @@ function simulate8760(
     const dailyIrr = irradianceMonthly[m];
     const temp = temperatureMonthly[m];
     let mGen = 0, mCons = 0, mGrid = 0;
+    const sums = months[m];
 
     for (let d = 0; d < DAYS_IN_MONTH[m]; d++) {
       for (let h = 0; h < 24; h++) {
@@ -665,16 +728,32 @@ function simulate8760(
         mGen += genH;
         mCons += consH;
 
+        // The dispatch below is unchanged; `hour` records what it did.
+        const hour: HourFlows = { ...noFlows(), generationKwh: genH, consumptionKwh: consH, socKwh: 0 };
         const net = genH - consH;
         if (net > 0) {
           const chargeAmount = Math.min(net * chargeEff, batteryCapacityKwh - soc);
           soc += chargeAmount;
+          hour.pvDirectKwh = consH;
+          hour.storedKwh = chargeAmount;
+          hour.batteryChargeKwh = chargeAmount / chargeEff;
+          // What the battery could not take (D52) - dropped here, unrecorded, before H-D8D52.
+          hour.surplusKwh = net - hour.batteryChargeKwh;
         } else {
           const needed = -net;
           const fromBattery = Math.min(needed, soc * dischargeEff);
           soc -= fromBattery / dischargeEff;
           mGrid += Math.max(0, needed - fromBattery);
+          hour.pvDirectKwh = genH;
+          // What the battery delivered (D8) - spent here, unrecorded, before H-D8D52.
+          hour.batteryDischargeKwh = fromBattery;
+          hour.drawnKwh = fromBattery / dischargeEff;
+          hour.gridImportKwh = Math.max(0, needed - fromBattery);
         }
+        hour.socKwh = soc;
+
+        for (const k of Object.keys(sums) as (keyof FlowSums)[]) sums[k] += hour[k];
+        onHour?.(m, hour);
       }
     }
 
@@ -682,9 +761,18 @@ function simulate8760(
     monthly[m].consumptionKwh = parseFloat(mCons.toFixed(1));
     monthly[m].gridImportKwh = parseFloat(mGrid.toFixed(1));
     monthly[m].savingsKwh = parseFloat(Math.max(0, mCons - mGrid).toFixed(1));
+    monthly[m].pvDirectKwh = parseFloat(sums.pvDirectKwh.toFixed(1));
+    monthly[m].batteryChargeKwh = parseFloat(sums.batteryChargeKwh.toFixed(1));
+    monthly[m].batteryDischargeKwh = parseFloat(sums.batteryDischargeKwh.toFixed(1));
+    monthly[m].surplusKwh = parseFloat(sums.surplusKwh.toFixed(1));
   }
 
-  return monthly;
+  const year = noFlows();
+  for (const sums of months) {
+    for (const k of Object.keys(year) as (keyof FlowSums)[]) year[k] += sums[k];
+  }
+
+  return { monthly, months, year, socStartKwh: 0, socEndKwh: soc };
 }
 
 /**
@@ -849,8 +937,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // Monthly breakdown table
       if (calc.monthlyData && (calc.monthlyData as MonthlyEntry[]).length > 0) {
-        const colW = (doc.page.width - 100) / 5;
-        const headers = ["Month", "Generated", "Consumed", "Saved", "Grid Import"];
+        // A row stored before H-D8D52 carries no recorded flows, so its surplus
+        // is not known: it gets no surplus column and a line saying so - never a
+        // 0 in the column (T7, F-c).
+        const recorded = monthlyEntrySchema.array().safeParse(calc.monthlyData);
+        const rows = recorded.success
+          ? recorded.data.map((r) => [r.name, `${r.generationKwh} kWh`, `${r.consumptionKwh} kWh`, `${r.savingsKwh} kWh`, `${r.gridImportKwh} kWh`, `${r.surplusKwh} kWh`])
+          : (calc.monthlyData as MonthlyEntry[]).map((r) => [r.name, `${r.generationKwh} kWh`, `${r.consumptionKwh} kWh`, `${r.savingsKwh} kWh`, `${r.gridImportKwh} kWh`]);
+        const headers = ["Month", "Generated", "Consumed", "Saved", "Grid Import", ...(recorded.success ? ["Surplus not used"] : [])];
+        const colW = (doc.page.width - 100) / headers.length;
         const headerRow = () => {
           headers.forEach((h, i) => {
             doc.rect(50 + i * colW, y, colW, 20).fill("#10b981");
@@ -868,16 +963,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         y += 8;
         headerRow();
 
-        (calc.monthlyData as MonthlyEntry[]).forEach((row, i) => {
+        rows.forEach((cells, i) => {
           // A table that continues on a new page repeats its header row.
           if (ensureRoom(18)) headerRow();
           if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 18).fill("#f9fafb");
-          const cells = [row.name, `${row.generationKwh} kWh`, `${row.consumptionKwh} kWh`, `${row.savingsKwh} kWh`, `${row.gridImportKwh} kWh`];
           cells.forEach((cell, j) => {
             doc.fillColor("#374151").fontSize(8.5).font("Helvetica").text(cell, 54 + j * colW, y + 5, { width: colW - 4 });
           });
           y += 18;
         });
+
+        if (!recorded.success) {
+          ensureRoom(22);
+          doc.fillColor("#6b7280").fontSize(9).font("Helvetica")
+            .text("Surplus not used: Not recorded for this calculation", 54, y + 6, { width: doc.page.width - 108 });
+          y += 22;
+        }
       }
 
       // Footer - below the last block, or at the top of a page of its own
@@ -962,7 +1063,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const SYSTEM_EFFICIENCY = 0.78;
 
       // 8760-hour simulation
-      const monthlyData = simulate8760(
+      const sim = simulate8760(
         input.energyUsage,
         input.pvWattage,
         input.batteryCapacity,
@@ -972,11 +1073,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         tempMonthly,
         SYSTEM_EFFICIENCY
       );
+      const monthlyData = sim.monthly;
 
       // Totals from simulation
       const totalSavingsKwh = monthlyData.reduce((a, m) => a + m.savingsKwh, 0);
       const totalGridKwh = monthlyData.reduce((a, m) => a + m.gridImportKwh, 0);
-      const totalGenKwh = monthlyData.reduce((a, m) => a + m.generationKwh, 0);
       const annualCo2Reduction = parseFloat((totalSavingsKwh * carbonIntensity).toFixed(1));
       // Money: a tariff, an install cost and a payback, each either USED with
       // its source named or PENDING with a typed reason. No default tariff, no
@@ -996,11 +1097,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         m.co2Kg = parseFloat((m.savingsKwh * carbonIntensity).toFixed(1));
       });
 
-      // Energy breakdown percentages
-      const solarDirect = Math.max(0, Math.min(input.energyUsage, totalGenKwh) - Math.max(0, totalGenKwh - input.batteryCapacity * 365 * 0.3));
+      // Energy mix (D8). Each slice is a recorded annual sum - PV straight to the
+      // load, battery energy delivered, grid import - as a share of the recorded
+      // consumption. The formula it replaces subtracted the generation share from
+      // the savings share, which can never exceed it, so "From Battery" came out
+      // 0% in every case measured at fc04551, in both generation regimes.
+      const share = (kwh: number) => Math.round((kwh / sim.year.consumptionKwh) * 100);
+      const breakdown = {
+        solar: share(sim.year.pvDirectKwh),
+        battery: share(sim.year.batteryDischargeKwh),
+        grid: share(sim.year.gridImportKwh),
+      };
+      // Coverage for the recommendation prose, computed as before (the prose is out of fence).
       const solarPct = Math.round((totalSavingsKwh / input.energyUsage) * 100);
-      const batteryPct = Math.max(0, solarPct - Math.round((Math.min(totalGenKwh, input.energyUsage) / input.energyUsage) * 100));
-      const gridPct = Math.max(0, 100 - solarPct);
 
       // Recommendation. Amounts are rendered in the calculation's own currency,
       // or the sentence says the saving is not priced. No literal symbol.
@@ -1023,11 +1132,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         avgIrradiance,
         irradianceSource,
         recommendation,
-        breakdown: {
-          solar: Math.max(0, solarPct - batteryPct),
-          battery: batteryPct,
-          grid: gridPct,
-        },
+        breakdown,
         monthlyData,
         money,
         resolution,

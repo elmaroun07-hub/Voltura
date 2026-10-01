@@ -48,11 +48,15 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
     { name: "Grid Import", value: results.breakdown.grid },
   ];
 
+  // "Surplus not used" is the PV the battery could not take (D52): it explains
+  // the gap between Generation and what the house used. Nothing is exported or
+  // valued - the engine sells nothing.
   const barData = results.monthlyData.map((m) => ({
     name: m.name,
     Generation: m.generationKwh,
     Savings: m.savingsKwh,
     "Grid Import": m.gridImportKwh,
+    "Surplus not used": m.surplusKwh,
   }));
 
   const trees = Math.round(results.co2Reduction / 20);
@@ -138,6 +142,7 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
                 <Bar dataKey="Generation" fill="#10b981" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="Savings" fill="#f59e0b" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="Grid Import" fill="#e5e7eb" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="Surplus not used" fill="#94a3b8" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
