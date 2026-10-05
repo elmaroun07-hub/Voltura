@@ -1,0 +1,33 @@
+N4 - what the live page showed. Values transcribed from the executor's tool output, not captured
+by a machine into this file. The 1 Oct 00:0x-00:15Z readings were taken in the session that ran
+L3 and exist only in that session's transcript; the 23:07Z reading was taken when this file was
+written. Browser: the Claude desktop app's built-in browser, Chromium 152.0.7977.130
+(Claude/2.16120.0 at 00:09Z, Claude/2.19675.0 at 23:07Z). Page: https://voltura-web.onrender.com,
+build-sha 0f9f7a1.
+
+1. The battery slider steps by 0.5 kWh.
+   2026-10-01T00:09Z   thumb focused: aria-valuemin 0, aria-valuemax 50, aria-valuenow "10"
+   one ArrowLeft       aria-valuenow "9.5"
+   eleven more         aria-valuenow "4"   (the L3 calculation, row 106)
+
+2. The Optimizer shows its sizing and offers nothing that carries it to the calculator.
+   2026-10-01T00:15:12Z   "Run AI Optimization" clicked: location "Fuengirola, Málaga, Spain", usage 5000
+   2026-10-01T00:15:20Z   result text: "Recommended Configuration NASA POWER satellite data, 2019-2023
+                          mean · 5.05 kWh/m²/day at 36.5388, -4.6234 Recommended PV 3391 W 3.391 kWp
+                          Battery Storage 4.1 kWh covers 2.955 kWh overnight How this was computed ..."
+                          buttons and links in <main>: one - button "Run AI Optimization"
+                          localStorage keys: voltura.sessionId only
+
+3. (a) The calculator was not prefilled after the Optimizer run.
+   2026-10-01T00:15:35Z   same tab, navigated to the calculator: battery aria-valuenow "10",
+                          PV "4000"; voltura.sessionId 9ea6d045-f2fb-4702-b020-ad9a52fe7c6b
+   2026-10-01T23:07:44Z   a cold load in a fresh profile (localStorage empty): location "",
+                          usage "5000", PV "4000", battery aria-valuenow "10", tariff "", install cost ""
+   The values after the run are the cold defaults, not the Optimizer's 3391 W / 4.1 kWh.
+
+4. (b) The Optimizer run wrote no row.
+   Request log for 00:15:00-00:15:45Z: OPTIONS and POST /api/optimize, then the executor's
+   GET /api/history; no /api/calculate (n4-optimizer-window-api-log.txt).
+   History of the browser session at 00:15:36Z and again at 23:07:15Z: one row, id 106, created
+   00:10:28.298Z, before the run (l3-history-browser-session.json, n4-history-browser-session-recheck.json,
+   byte-identical).

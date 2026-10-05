@@ -1,0 +1,14 @@
+Render API list_logs - resource srv-d8q8vumgvqtc73a1ik90 (Voltura-api), 2026-10-01T00:15:00Z..00:15:45Z,
+read by the executor on 2026-10-01T23:07Z. This is the complete result for the window (hasMore: false):
+three requests, in the instance's own request-id order 21, 22, 23. The Optimizer ran in it.
+There is no /api/calculate request and no insert.
+
+2026-10-01T00:15:12.999764616Z  8e67f9fa-58cb-4d2f-8b9d-6d10a2a99ec7  info
+  {"level":30,"time":1790813712981,"pid":71,"hostname":"srv-d8q8vumgvqtc73a1ik90-677884457d-dq9n9","req":{"id":21,"method":"OPTIONS","url":"/api/optimize"},"res":{"statusCode":204},"responseTime":1,"msg":"request completed"}
+
+2026-10-01T00:15:16.773134784Z  fa67d375-c7ef-498e-8eea-840ae68e8547  info
+  {"level":30,"time":1790813716772,"pid":71,"hostname":"srv-d8q8vumgvqtc73a1ik90-677884457d-dq9n9","req":{"id":22,"method":"POST","url":"/api/optimize"},"res":{"statusCode":200},"responseTime":3658,"msg":"request completed"}
+
+2026-10-01T00:15:36.817701127Z  454fafa4-fbd1-4f13-bc27-b96848d8f98d  info
+  {"level":30,"time":1790813736817,"pid":71,"hostname":"srv-d8q8vumgvqtc73a1ik90-677884457d-dq9n9","req":{"id":23,"method":"GET","url":"/api/history"},"res":{"statusCode":200},"responseTime":11,"msg":"request completed"}
+  (the executor's own read of the browser session's history: l3-history-browser-session.json)

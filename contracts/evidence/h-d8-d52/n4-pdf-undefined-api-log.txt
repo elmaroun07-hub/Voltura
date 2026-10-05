@@ -1,0 +1,38 @@
+Render API list_logs - resource srv-d8q8vumgvqtc73a1ik90 (Voltura-api), 2026-10-01T00:05:30Z..00:05:40Z,
+read by the executor on 2026-10-01T23:07Z. Extract of the entries for GET /api/calculate/undefined/pdf
+(request id 6; session probe-d8d52-2026-10-01-0f9f7a1). Messages copied verbatim; the select's column
+list is shortened where marked [...].
+
+2026-10-01T00:05:35.293864121Z  7ec8c298-9030-45b3-a32c-496a55bca957  info
+  {"level":30,...,"req":{"id":5,"method":"POST","url":"/api/calculate"},"res":{"statusCode":422},"responseTime":199,"msg":"request completed"}
+  (the first L2 attempt: the location arrived mis-encoded, geocoding failed, no id came back)
+
+2026-10-01T00:05:35.801727746Z  a19c43e2-0c79-4b0b-a769-6949de0f59f6  error
+  PDF generation error: _DrizzleQueryError: Failed query: select "id", "location", [...] "created_at" from "calculations" where ("calculations"."id" = $1 and "calculations"."session_id" = $2)
+
+2026-10-01T00:05:35.801747906Z  31106011-7281-4a68-8d06-18244642855d  info
+  params: NaN,probe-d8d52-2026-10-01-0f9f7a1
+
+2026-10-01T00:05:35.801766107Z  f273771a-e52b-4bb1-b5a0-cee1fcd5c160  info
+      at async DatabaseStorage.getCalculationById (/opt/render/project/src/artifacts/api-server/src/storage.ts:42:19)
+
+2026-10-01T00:05:35.801782267Z  37a9b5a3-c02e-48a7-ac6a-4c02266e77ee  info
+      at async <anonymous> (/opt/render/project/src/artifacts/api-server/src/routes/routes.ts:818:20) {
+
+2026-10-01T00:05:35.801791207Z  48fccfb8-ad9a-45b1-bc73-08eb4d490e11  info
+    params: [ NaN, 'probe-d8d52-2026-10-01-0f9f7a1' ],
+
+2026-10-01T00:05:35.801795098Z  4a4913ae-4400-4f9d-9696-cce21ec91851  error
+    cause: error: invalid input syntax for type integer: "NaN"
+
+2026-10-01T00:05:35.801847829Z  126fe5bf-f04e-402f-a8c3-5d9e4b8a1bb3  info
+      code: '22P02',
+
+2026-10-01T00:05:35.801877789Z  b7883fe9-3cb9-4ea7-a386-7813e36a8863  info
+      file: 'numutils.c',
+
+2026-10-01T00:05:35.801884329Z  4a7b1741-e261-43ec-80c0-163a64974571  info
+      routine: 'pg_strtoint32_safe'
+
+2026-10-01T00:05:35.803037064Z  a199188a-8091-4769-9a34-6c94be4721a7  error
+  {"level":30,...,"req":{"id":6,"method":"GET","url":"/api/calculate/undefined/pdf"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500",...},"responseTime":6,"msg":"request errored"}
