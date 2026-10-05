@@ -68,7 +68,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "https://nominatim.openstreetmap.org/search",
   },
-  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over several years. If NASA cannot be reached, it uses a latitude-based estimate and labels it as one.": {
+  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over 2019-2023: twelve monthly values, not hourly data. Temperature affects only the modelled household consumption, not the solar generation. If NASA reports missing data for that point, there is no result. If NASA gives no usable answer (no reply, an error status or a malformed reply), Voltura estimates irradiance and temperature from the latitude instead, and labels the result as that estimate in the API response and on the page.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "export function fallbackIrradiance(",
   },
@@ -80,7 +80,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "function panelEfficiencyFactor(",
   },
-  "Shows the annual energy saved in kWh and a monthly chart of generation, savings, grid import and \"Surplus not used\" - solar energy neither the home nor the battery could take, which Voltura puts no value on.": {
+  "Shows the annual energy saved in kWh - the consumption covered by solar or the battery - and a monthly chart with four series: Generation, Savings, Grid Import and \"Surplus not used\" (solar energy neither the home nor the battery could take, which Voltura puts no value on). The monthly chart has no battery series.": {
     file: "artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx",
     symbol: '"Surplus not used": m.surplusKwh',
   },
@@ -88,27 +88,27 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx",
     symbol: 'name: "From Battery"',
   },
-  "Estimates the CO2 avoided with a location-based grid carbon factor: official sourced figures for Spain (REE, per electric system) and the UK (DESNZ), an older unsourced table for some other countries, and otherwise a plain statement that it has no figure for that place.": {
+  "Estimates the CO2 avoided with a location-based grid carbon factor. Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. United Kingdom: the official DESNZ factor. Australia, Austria, Belgium, Brazil, Canada, China, Denmark, Finland, France, Germany, Greece, India, Ireland, Italy, Japan, Mexico, Morocco, Netherlands, Norway, Poland, Portugal, Romania, South Korea, Sweden, Switzerland, Turkey and United States: an older factor with no cited source, which the results page does not mark as unsourced. Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.": {
     file: "artifacts/api-server/src/lib/emissions/carbon-source.ts",
     symbol: "export function resolveCarbonSource(",
   },
-  "Prices the saving with the user's own electricity tariff, or a sourced national tariff for Spain or the UK. Elsewhere the saving is shown as not priced.": {
+  "Prices the saving only for Spain and the UK. There, a tariff the user types is always used; if none is typed, Spain uses Eurostat's 2025-S2 national household average while that figure is current, and the UK has no sourced tariff yet, so a UK saving stays unpriced. For any other country there is no money figure, even if the user types a tariff.": {
     file: "artifacts/api-server/src/lib/emissions/money.ts",
     symbol: "export function resolveMoney(",
   },
-  "Computes a payback period and a 25-year ROI curve against the installation cost the user enters, or a sourced PV-only cost for Spain or the UK.": {
+  "Computes a payback period and a 25-year ROI curve (savings rising 1.5% a year) when the saving is priced and an installation cost is known: the cost the user types (Spain and the UK only), or, in the UK only, DESNZ's average cost for PV-only systems up to 10 kW, which is not used when a battery is included. Spain has no sourced installation cost yet. Without a cost, payback shows as pending.": {
     file: "artifacts/api-server/src/lib/emissions/countries.ts",
     symbol: "export function roi(",
   },
-  "Produces a downloadable PDF report of a calculation.": {
+  "Produces a downloadable PDF report of a calculation: its inputs, the result figures and the monthly table. The PDF has no charts.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: 'app.get("/api/calculate/:id/pdf"',
   },
-  "Keeps a history of past calculations made in the same browser.": {
+  "Keeps a history of past calculations tied to an id stored in this browser. Another browser or device, or cleared site data, shows a different history; there are no user accounts.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "app.get(api.calculations.history.path",
   },
-  "The AI Optimizer recommends a PV size and battery capacity from annual usage, a daily load pattern and NASA irradiance. A formula computes the sizes; the AI only writes the explanation.": {
+  "The AI Optimizer recommends a PV size and battery capacity from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. A formula sizes the array so its yearly generation equals 100% of yearly use, and the battery for the profile's night-time share; the AI only writes the explanation.": {
     file: "artifacts/api-server/src/lib/sizing.ts",
     symbol: "export function sizePvAndBattery(",
   },
