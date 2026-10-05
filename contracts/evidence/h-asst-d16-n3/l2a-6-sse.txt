@@ -1,0 +1,122 @@
+data: {"content":"No"}
+
+data: {"content":"."}
+
+data: {"content":" Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" does"}
+
+data: {"content":" not"}
+
+data: {"content":" calculate"}
+
+data: {"content":" feed"}
+
+data: {"content":"‑"}
+
+data: {"content":"in"}
+
+data: {"content":" tariffs"}
+
+data: {"content":"."}
+
+data: {"content":" It"}
+
+data: {"content":" only"}
+
+data: {"content":" estimates"}
+
+data: {"content":" the"}
+
+data: {"content":" value"}
+
+data: {"content":" of"}
+
+data: {"content":" the"}
+
+data: {"content":" electricity"}
+
+data: {"content":" you"}
+
+data: {"content":" avoid"}
+
+data: {"content":" buying"}
+
+data: {"content":" from"}
+
+data: {"content":" the"}
+
+data: {"content":" grid"}
+
+data: {"content":" ("}
+
+data: {"content":"using"}
+
+data: {"content":" your"}
+
+data: {"content":" own"}
+
+data: {"content":" tariff"}
+
+data: {"content":" or"}
+
+data: {"content":" a"}
+
+data: {"content":" sourced"}
+
+data: {"content":" national"}
+
+data: {"content":" tariff"}
+
+data: {"content":" for"}
+
+data: {"content":" Spain"}
+
+data: {"content":" or"}
+
+data: {"content":" the"}
+
+data: {"content":" UK"}
+
+data: {"content":")."}
+
+data: {"content":" Anything"}
+
+data: {"content":" beyond"}
+
+data: {"content":" that"}
+
+data: {"content":","}
+
+data: {"content":" such"}
+
+data: {"content":" as"}
+
+data: {"content":" feed"}
+
+data: {"content":"‑"}
+
+data: {"content":"in"}
+
+data: {"content":" payments"}
+
+data: {"content":","}
+
+data: {"content":" isn"}
+
+data: {"content":"’t"}
+
+data: {"content":" part"}
+
+data: {"content":" of"}
+
+data: {"content":" its"}
+
+data: {"content":" calculations"}
+
+data: {"content":"."}
+
+data: {"done":true}
+

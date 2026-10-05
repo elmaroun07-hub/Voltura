@@ -1,0 +1,202 @@
+data: {"content":"Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" does"}
+
+data: {"content":" not"}
+
+data: {"content":" calculate"}
+
+data: {"content":" a"}
+
+data: {"content":" net"}
+
+data: {"content":"‑"}
+
+data: {"content":"present"}
+
+data: {"content":"‑"}
+
+data: {"content":"value"}
+
+data: {"content":" ("}
+
+data: {"content":"NP"}
+
+data: {"content":"V"}
+
+data: {"content":")"}
+
+data: {"content":" figure"}
+
+data: {"content":"."}
+
+data: {"content":"  \n"}
+
+data: {"content":"It"}
+
+data: {"content":" does"}
+
+data: {"content":" provide"}
+
+data: {"content":":\n\n"}
+
+data: {"content":"*"}
+
+data: {"content":" the"}
+
+data: {"content":" **"}
+
+data: {"content":"pay"}
+
+data: {"content":"back"}
+
+data: {"content":" period"}
+
+data: {"content":"**"}
+
+data: {"content":" ("}
+
+data: {"content":"how"}
+
+data: {"content":" many"}
+
+data: {"content":" years"}
+
+data: {"content":" until"}
+
+data: {"content":" the"}
+
+data: {"content":" savings"}
+
+data: {"content":" cover"}
+
+data: {"content":" the"}
+
+data: {"content":" installation"}
+
+data: {"content":" cost"}
+
+data: {"content":"),"}
+
+data: {"content":" and"}
+
+data: {"content":"  \n"}
+
+data: {"content":"*"}
+
+data: {"content":" a"}
+
+data: {"content":" **"}
+
+data: {"content":"25"}
+
+data: {"content":"‑"}
+
+data: {"content":"year"}
+
+data: {"content":" ROI"}
+
+data: {"content":" curve"}
+
+data: {"content":"**"}
+
+data: {"content":" that"}
+
+data: {"content":" shows"}
+
+data: {"content":" cumulative"}
+
+data: {"content":" savings"}
+
+data: {"content":" over"}
+
+data: {"content":" time"}
+
+data: {"content":".\n\n"}
+
+data: {"content":"If"}
+
+data: {"content":" you"}
+
+data: {"content":" need"}
+
+data: {"content":" an"}
+
+data: {"content":" N"}
+
+data: {"content":"PV"}
+
+data: {"content":" analysis"}
+
+data: {"content":" you"}
+
+data: {"content":" would"}
+
+data: {"content":" have"}
+
+data: {"content":" to"}
+
+data: {"content":" apply"}
+
+data: {"content":" a"}
+
+data: {"content":" discount"}
+
+data: {"content":" rate"}
+
+data: {"content":" to"}
+
+data: {"content":" the"}
+
+data: {"content":" yearly"}
+
+data: {"content":" cash"}
+
+data: {"content":"‑"}
+
+data: {"content":"flow"}
+
+data: {"content":" data"}
+
+data: {"content":" yourself"}
+
+data: {"content":"."}
+
+data: {"content":" Let"}
+
+data: {"content":" me"}
+
+data: {"content":" know"}
+
+data: {"content":" if"}
+
+data: {"content":" you"}
+
+data: {"content":"’d"}
+
+data: {"content":" like"}
+
+data: {"content":" help"}
+
+data: {"content":" extracting"}
+
+data: {"content":" those"}
+
+data: {"content":" numbers"}
+
+data: {"content":" from"}
+
+data: {"content":" a"}
+
+data: {"content":" Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" run"}
+
+data: {"content":"."}
+
+data: {"done":true}
+

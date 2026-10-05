@@ -1,0 +1,16 @@
+HTTP/1.1 200 OK
+Date: Mon, 05 Oct 2026 02:35:12 GMT
+Content-Type: application/pdf
+Transfer-Encoding: chunked
+Connection: keep-alive
+access-control-allow-origin: https://voltura-web.onrender.com
+content-disposition: attachment; filename=energy-report-109.pdf
+rndr-id: 749baa9d-7250-4db0
+Server: cloudflare
+vary: Origin
+x-powered-by: Express
+x-render-origin-server: Render
+cf-cache-status: DYNAMIC
+CF-RAY: a45908193b290c79-MRS
+alt-svc: h3=":443"; ma=86400
+
