@@ -4,7 +4,7 @@ import { loadCountries } from "./countries";
 
 describe("resolveCarbonSource — the five honest states", () => {
   it("a mainland Spanish address resolves to the sourced PENINSULAR factor (A21), not the legacy table", () => {
-    const source = resolveCarbonSource("Spain", "Toledo, Spain", "ES-CM");
+    const source = resolveCarbonSource("es", "Spain", "Toledo, Spain", "ES-CM");
     expect(source.status).toBe("sourced");
     if (source.status === "sourced") {
       expect(source.country).toBe("spain");
@@ -13,13 +13,13 @@ describe("resolveCarbonSource — the five honest states", () => {
     }
   });
 
-  it("is case- and whitespace-insensitive on the geocoded country for Spain", () => {
-    expect(resolveCarbonSource("  SPAIN  ", "x", "ES-AN").status).toBe("sourced");
-    expect(resolveCarbonSource("spain", "x", "ES-AN").status).toBe("sourced");
+  it("is case- and whitespace-insensitive on the geocoded country code for Spain", () => {
+    expect(resolveCarbonSource("  ES  ", "Spain", "x", "ES-AN").status).toBe("sourced");
+    expect(resolveCarbonSource("es", "Spain", "x", "ES-AN").status).toBe("sourced");
   });
 
   it("the United Kingdom resolves through the registry, and is absent from the legacy table", () => {
-    const source = resolveCarbonSource("United Kingdom", "London", "GB-ENG");
+    const source = resolveCarbonSource("gb", "United Kingdom", "London", "GB-ENG");
     expect(source.status).toBe("sourced");
     if (source.status === "sourced") {
       expect(source.factor.system).toBe("gb");
@@ -30,7 +30,7 @@ describe("resolveCarbonSource — the five honest states", () => {
   it.each(["ES-IB", "ES-CN", "ES-CE", "ES-ML"])(
     "an address on %s is PENDING, never the peninsular factor (A21)",
     (code) => {
-      const source = resolveCarbonSource("Spain", "an island", code);
+      const source = resolveCarbonSource("es", "Spain", "an island", code);
       expect(source.status).toBe("pending");
       if (source.status === "pending") expect(source.reason).toBe("system_factor_pending");
       expect(() => carbonIntensityKgPerKwh(source)).toThrow(/must reject/);
@@ -39,14 +39,14 @@ describe("resolveCarbonSource — the five honest states", () => {
 
   it("a Spanish address whose region code is missing is pending, not assumed peninsular", () => {
     for (const code of ["", "  ", "not-a-code", "GB-ENG"]) {
-      const source = resolveCarbonSource("Spain", "somewhere", code);
+      const source = resolveCarbonSource("es", "Spain", "somewhere", code);
       expect(source.status).toBe("pending");
       if (source.status === "pending") expect(source.reason).toBe("system_undetermined");
     }
   });
 
   it("a country still on the legacy table resolves as unsourced_legacy, unchanged in value", () => {
-    const source = resolveCarbonSource("Morocco", "Tétouan");
+    const source = resolveCarbonSource("ma", "Morocco", "Tétouan");
     expect(source.status).toBe("unsourced_legacy");
     if (source.status === "unsourced_legacy") {
       expect(source.valueKgPerKwh).toBe(0.543);
@@ -54,15 +54,15 @@ describe("resolveCarbonSource — the five honest states", () => {
   });
 
   it("D15: an unknown country is a typed rejection, never a substituted number", () => {
-    const source = resolveCarbonSource("Bhutan", "Thimphu");
+    const source = resolveCarbonSource("bt", "Bhutan", "Thimphu");
     expect(source.status).toBe("unknown_country");
     if (source.status === "unknown_country") {
       expect(source.attempted).toBe("Bhutan");
     }
   });
 
-  it("an empty geocoded country with unresolvable free text is also unknown_country", () => {
-    const source = resolveCarbonSource("", "somewhere unrecognisable");
+  it("an empty geocoded country code is also unknown_country", () => {
+    const source = resolveCarbonSource("", "", "somewhere unrecognisable");
     expect(source.status).toBe("unknown_country");
   });
 });
@@ -72,7 +72,7 @@ describe("carbonIntensityKgPerKwh", () => {
     const spain = loadCountries().find((c) => c.key === "spain")!;
     const entry = spain.carbonFactor.systems.peninsular;
     if (entry.status !== "current") throw new Error("peninsular entry must be current");
-    const source = resolveCarbonSource("Spain", "x", "ES-AN");
+    const source = resolveCarbonSource("es", "Spain", "x", "ES-AN");
     expect(carbonIntensityKgPerKwh(source)).toBeCloseTo(entry.value / 1000, 12);
   });
 

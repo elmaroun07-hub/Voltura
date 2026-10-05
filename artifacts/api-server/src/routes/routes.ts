@@ -73,7 +73,9 @@ function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
 }
 
 // Geocode location string to lat/lon via Nominatim
-async function geocode(location: string): Promise<{ lat: number; lon: number; country: string; regionCode: string } | null> {
+async function geocode(
+  location: string,
+): Promise<{ lat: number; lon: number; country: string; countryCode: string; regionCode: string } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1&accept-language=en`;
     const res = await fetch(url, {
@@ -87,6 +89,10 @@ async function geocode(location: string): Promise<{ lat: number; lon: number; co
       lat: parseFloat(data[0].lat),
       lon: parseFloat(data[0].lon),
       country: data[0].address?.country ?? "",
+      // ISO 3166-1 alpha-2, lowercase ("sg"). The carbon lookup keys on this
+      // and nothing else (D16); `country` above is a label. Empty when
+      // Nominatim gave none, and empty resolves to no figure.
+      countryCode: data[0].address?.country_code ?? "",
       // ISO 3166-2 level-4 code (e.g. "ES-CN"). Decides which REE electric
       // system a Spanish address is on. Empty when Nominatim gave none, and
       // empty is never read as "peninsular" (see spainElectricSystem).
@@ -541,7 +547,7 @@ async function resolveLocationIrradiance(
   // registry nor the legacy table carried (D15). This function never
   // substitutes; it names one of four states, and the caller decides what to
   // do with "unknown_country" (see the /api/calculate handler below).
-  const carbonSource = resolveCarbonSource(geo.country, locationInput, geo.regionCode);
+  const carbonSource = resolveCarbonSource(geo.countryCode, geo.country, locationInput, geo.regionCode);
   const nasaProbe = await fetchNasaPower(lat, lon);
 
   // H1.0 / H1.8. A data defect is fatal to the request: NASA answered and the

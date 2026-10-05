@@ -50,61 +50,71 @@ export const CARBON_INTENSITY_BY_COUNTRY: Record<string, number> = {
   us: 0.386,
 };
 
-/** Split a location string into lowercase word tokens. */
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    // Unicode-aware: "Málaga" and "Tétouan" must not split on their accents.
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean);
+/**
+ * ISO 3166-1 alpha-2 code -> the country key both carbon tables use: this one
+ * and the registry's `match` names (`data/sources/countries.yaml`). The code
+ * is Nominatim's structured `address.country_code`, which every resolved
+ * geocode carries. A code with no entry here has no figure.
+ *
+ * A name, not a value: adding a country here adds no number. Spain and the
+ * United Kingdom map to their registry keys and are still absent from the
+ * bare table above.
+ */
+export const COUNTRY_KEY_BY_ISO: Record<string, string> = {
+  at: "austria",
+  au: "australia",
+  be: "belgium",
+  br: "brazil",
+  ca: "canada",
+  ch: "switzerland",
+  cn: "china",
+  de: "germany",
+  dk: "denmark",
+  es: "spain",
+  fi: "finland",
+  fr: "france",
+  gb: "united kingdom",
+  gr: "greece",
+  ie: "ireland",
+  in: "india",
+  it: "italy",
+  jp: "japan",
+  kr: "south korea",
+  ma: "morocco",
+  mx: "mexico",
+  nl: "netherlands",
+  no: "norway",
+  pl: "poland",
+  pt: "portugal",
+  ro: "romania",
+  se: "sweden",
+  tr: "turkey",
+  us: "united states",
+};
+
+/** The table key for a geocoder country code, or null. Case- and whitespace-insensitive. */
+export function countryKeyForIso(countryCode: string): string | null {
+  return COUNTRY_KEY_BY_ISO[countryCode.trim().toLowerCase()] ?? null;
 }
 
 /**
- * Look up a country's grid intensity.
+ * Look up a country's grid intensity by its ISO code.
  *
- * H1.5 — the previous implementation was `loc.includes(country)` over the whole
- * concatenated string, which is a SUBSTRING match:
+ * H1.5 replaced `loc.includes(country)` - "Indianapolis" resolved to India,
+ * 0.708 against the United States' 0.386 - with whole-token matching that put
+ * the geocoded country NAME first and walked the user's free text after it.
  *
- *   "Indianapolis, Indiana, United States"  ->  contains "india"  ->  0.708
+ * D16 (H-ASST-D16-N3): the walk was the defect one step on. A country in
+ * neither table fell through to it, and any table country named anywhere in
+ * the text won: "Little Italy, Cairo, Egypt" got Italy's factor, and on
+ * 5 Oct 2026 "Little India, Singapore" - geocoded to Singapore - got India's.
+ * The free text is no longer read at all. The country is the geocoder's
+ * structured code, and the display name is not parsed either (B-a).
  *
- * India's grid is 0.708 and the United States' is 0.386, so an Indianapolis
- * calculation reported roughly 1.8x its real CO2 saving. The keys make this
- * worse than it looks: `us` is a two-letter key, so any word containing "us"
- * was a candidate, and iteration order was the only thing deciding which
- * wrong answer you got.
- *
- * Now: whole-token matching only, and the GEOCODED COUNTRY is consulted first.
- * Nominatim is asked with `accept-language=en` and returns the country as its
- * own field, so it is a far better signal than anything scraped out of the
- * user's free text. The free text is the fallback, and even there a key only
- * matches if every one of its words appears as a whole token in sequence.
- *
- * Returns null when nothing matches. The caller decides what an unknown
- * country means — this function does not invent a number.
+ * Returns null when the code has no figure. The caller decides what an
+ * unknown country means - this function does not invent a number.
  */
-export function lookupCarbonIntensity(
-  geocodedCountry: string,
-  locationInput: string,
-): number | null {
-  // 1. Exact match on the geocoded country. "United States" -> "united states".
-  const country = geocodedCountry.trim().toLowerCase();
-  if (country && country in CARBON_INTENSITY_BY_COUNTRY) {
-    return CARBON_INTENSITY_BY_COUNTRY[country];
-  }
-
-  // 2. Whole-token match over the geocoded country plus the user's text.
-  //    Multi-word keys ("south korea") must appear as consecutive tokens.
-  const tokens = tokenize(`${geocodedCountry} ${locationInput}`);
-  for (const [key, intensity] of Object.entries(CARBON_INTENSITY_BY_COUNTRY)) {
-    const keyTokens = key.split(" ");
-    for (let i = 0; i + keyTokens.length <= tokens.length; i++) {
-      let hit = true;
-      for (let j = 0; j < keyTokens.length; j++) {
-        if (tokens[i + j] !== keyTokens[j]) { hit = false; break; }
-      }
-      if (hit) return intensity;
-    }
-  }
-
-  return null;
+export function lookupCarbonIntensity(countryCode: string): number | null {
+  const key = countryKeyForIso(countryCode);
+  return key !== null && key in CARBON_INTENSITY_BY_COUNTRY ? CARBON_INTENSITY_BY_COUNTRY[key] : null;
 }
