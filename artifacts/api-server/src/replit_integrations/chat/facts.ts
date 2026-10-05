@@ -42,8 +42,11 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
     text:
       `Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over ${NASA_FACT.start}-${NASA_FACT.end}: twelve ${NASA_FACT.resolution} values, not hourly data. ` +
       "Temperature affects only the modelled household consumption, not the solar generation. " +
-      "If NASA reports missing data for that point, there is no result. " +
-      "If NASA gives no usable answer (no reply, an error status or a malformed reply), Voltura estimates irradiance and temperature from the latitude instead, and labels the result as that estimate in the API response and on the page.",
+      // H-ASST-ACC2 (E1): the estimate's trigger stands on its own, ahead of and
+      // apart from what missing data does - the model fused the old pair.
+      "The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read. " +
+      "Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page. " +
+      "When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.",
   },
   {
     id: "simulation",
@@ -74,7 +77,10 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
     id: "tariff",
     text:
       "Prices the saving only for Spain and the UK. " +
-      "There, a tariff the user types is always used; if none is typed, Spain uses Eurostat's 2025-S2 national household average while that figure is current, and the UK has no sourced tariff yet, so a UK saving stays unpriced. " +
+      "There, a tariff the user types is always used. " +
+      "With no tariff typed, Spain uses Eurostat's 2025-S2 national household average while that figure is current. " +
+      // H-ASST-ACC2 (P2): the UK case in one sentence, condition included.
+      "The UK has no national tariff in Voltura, so a UK saving is priced only when the user types a tariff. " +
       "For any other country there is no money figure, even if the user types a tariff.",
   },
   {
@@ -86,17 +92,25 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
   },
   {
     id: "pdf",
-    text: "Produces a downloadable PDF report of a calculation: its inputs, the result figures and the monthly table. The PDF has no charts.",
+    // H-ASST-ACC2 (P1): the inputs it prints, named, and the one it does not.
+    text:
+      "Produces a downloadable PDF report of a calculation: the location and the inputs (annual usage, PV size, battery capacity and efficiency, tariff, panel orientation and roof angle), the result figures and the monthly table. " +
+      "The installation cost is not printed, and the PDF has no charts.",
   },
   {
     id: "history",
-    text: "Keeps a history of past calculations tied to an id stored in this browser. Another browser or device, or cleared site data, shows a different history; there are no user accounts.",
+    // H-ASST-ACC2 (E2): where the calculations are, and what the browser keeps.
+    text:
+      "Keeps a history of past calculations. The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them. " +
+      "Another browser or device, or cleared site data, gets a new id and so an empty history; there are no user accounts.",
   },
   {
     id: "optimizer",
     text:
-      "The AI Optimizer recommends a PV size and battery capacity from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. " +
-      `A formula sizes the array so its yearly generation equals ${percent(SIZING_DEFAULTS.coverageTarget)} of yearly use, and the battery for the profile's night-time share; the AI only writes the explanation.`,
+      // H-ASST-ACC2 (E3): it returns numbers; the AI's part is the prose beside them.
+      "The AI Optimizer returns a recommended PV size in watts and a battery capacity in kWh as numbers, computed by a formula from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. " +
+      `The formula sizes the array so its yearly generation equals ${percent(SIZING_DEFAULTS.coverageTarget)} of yearly use, and the battery for the profile's night-time share. ` +
+      "The AI writes only the explanation shown with those numbers; it cannot change them.",
   },
   {
     id: "assistant",

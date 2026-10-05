@@ -68,7 +68,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "https://nominatim.openstreetmap.org/search",
   },
-  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over 2019-2023: twelve monthly values, not hourly data. Temperature affects only the modelled household consumption, not the solar generation. If NASA reports missing data for that point, there is no result. If NASA gives no usable answer (no reply, an error status or a malformed reply), Voltura estimates irradiance and temperature from the latitude instead, and labels the result as that estimate in the API response and on the page.": {
+  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over 2019-2023: twelve monthly values, not hourly data. Temperature affects only the modelled household consumption, not the solar generation. The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read. Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page. When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "export function fallbackIrradiance(",
   },
@@ -92,7 +92,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/lib/emissions/carbon-source.ts",
     symbol: "export function resolveCarbonSource(",
   },
-  "Prices the saving only for Spain and the UK. There, a tariff the user types is always used; if none is typed, Spain uses Eurostat's 2025-S2 national household average while that figure is current, and the UK has no sourced tariff yet, so a UK saving stays unpriced. For any other country there is no money figure, even if the user types a tariff.": {
+  "Prices the saving only for Spain and the UK. There, a tariff the user types is always used. With no tariff typed, Spain uses Eurostat's 2025-S2 national household average while that figure is current. The UK has no national tariff in Voltura, so a UK saving is priced only when the user types a tariff. For any other country there is no money figure, even if the user types a tariff.": {
     file: "artifacts/api-server/src/lib/emissions/money.ts",
     symbol: "export function resolveMoney(",
   },
@@ -100,15 +100,15 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/lib/emissions/countries.ts",
     symbol: "export function roi(",
   },
-  "Produces a downloadable PDF report of a calculation: its inputs, the result figures and the monthly table. The PDF has no charts.": {
+  "Produces a downloadable PDF report of a calculation: the location and the inputs (annual usage, PV size, battery capacity and efficiency, tariff, panel orientation and roof angle), the result figures and the monthly table. The installation cost is not printed, and the PDF has no charts.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: 'app.get("/api/calculate/:id/pdf"',
   },
-  "Keeps a history of past calculations tied to an id stored in this browser. Another browser or device, or cleared site data, shows a different history; there are no user accounts.": {
+  "Keeps a history of past calculations. The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them. Another browser or device, or cleared site data, gets a new id and so an empty history; there are no user accounts.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "app.get(api.calculations.history.path",
   },
-  "The AI Optimizer recommends a PV size and battery capacity from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. A formula sizes the array so its yearly generation equals 100% of yearly use, and the battery for the profile's night-time share; the AI only writes the explanation.": {
+  "The AI Optimizer returns a recommended PV size in watts and a battery capacity in kWh as numbers, computed by a formula from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. The formula sizes the array so its yearly generation equals 100% of yearly use, and the battery for the profile's night-time share. The AI writes only the explanation shown with those numbers; it cannot change them.": {
     file: "artifacts/api-server/src/lib/sizing.ts",
     symbol: "export function sizePvAndBattery(",
   },

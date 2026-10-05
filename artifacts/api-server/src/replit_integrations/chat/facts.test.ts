@@ -162,7 +162,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     ["fill", "nasa_fill_value"],
     ["partial", "nasa_partial_coverage"],
   ] as const)("nasa: missing data (%s) is no result - a typed 422", async (mode, code) => {
-    expect(fact("nasa")).toContain("If NASA reports missing data for that point, there is no result.");
+    expect(fact("nasa")).toContain("When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.");
     nasaMode = mode;
     const r = await calculate({});
     expect(r.status).toBe(422);
@@ -172,7 +172,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
 
   it.each(["http-500", "malformed"] as const)("nasa: no usable answer (%s) -> the labelled latitude estimate", async (mode) => {
     expect(fact("nasa")).toContain(
-      "If NASA gives no usable answer (no reply, an error status or a malformed reply), Voltura estimates irradiance and temperature from the latitude instead, and labels the result as that estimate in the API response and on the page.",
+      "The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read. Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page.",
     );
     nasaMode = mode;
     const r = await calculate({});
@@ -281,7 +281,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
   it("tariff: priced only for Spain and the UK; typed wins; Spain Eurostat 2025-S2; UK none", async () => {
     const t = fact("tariff");
     expect(t).toContain("Prices the saving only for Spain and the UK.");
-    expect(t).toContain("Spain uses Eurostat's 2025-S2 national household average while that figure is current, and the UK has no sourced tariff yet");
+    expect(t).toContain("With no tariff typed, Spain uses Eurostat's 2025-S2 national household average while that figure is current. The UK has no national tariff in Voltura, so a UK saving is priced only when the user types a tariff.");
     expect(t).toContain("For any other country there is no money figure, even if the user types a tariff.");
     const [spain, uk] = ["spain", "united kingdom"].map((k) => loadCountries().find((c) => c.key === k)!);
     expect(spain.tariff.status).toBe("current");
@@ -325,7 +325,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
   });
 
   it("pdf: inputs, result rows and the monthly table; no charts", () => {
-    expect(fact("pdf")).toContain("its inputs, the result figures and the monthly table. The PDF has no charts.");
+    expect(fact("pdf")).toContain("the result figures and the monthly table. The installation cost is not printed, and the PDF has no charts.");
     const routes = source("artifacts/api-server/src/routes/routes.ts");
     const handler = routes.slice(routes.indexOf('app.get("/api/calculate/:id/pdf"'), routes.indexOf("app.post(api.calculations.create.path"));
     for (const h of ['text("Summary"', 'text("Results"', 'text("Monthly Breakdown"']) expect(handler).toContain(h);
@@ -333,7 +333,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
   });
 
   it("history: an id kept in this browser, sent as X-Session-Id; no accounts", async () => {
-    expect(fact("history")).toContain("tied to an id stored in this browser");
+    expect(fact("history")).toContain("The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them.");
     const qc = source("artifacts/green-energy-calculator/src/lib/queryClient.ts");
     expect(qc).toContain('const SESSION_ID_KEY = "voltura.sessionId";');
     expect(qc).toContain("sessionId = crypto.randomUUID();");
