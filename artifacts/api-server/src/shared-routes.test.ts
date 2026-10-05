@@ -40,7 +40,7 @@ const sizing = {
 // H-SRC-ES-UK — the fixture's carbonSource is produced by the real resolver, not
 // typed by hand, so this file holds no carbon literal (and cannot drift from the
 // registry). Shape assertions below are about the schema, not the registry.
-const carbonSource = resolveCarbonSource("Spain", "Toledo, Spain", "ES-CM");
+const carbonSource = resolveCarbonSource("es", "Spain", "Toledo, Spain", "ES-CM");
 if (carbonSource.status !== "sourced") throw new Error("fixture must be sourced");
 
 const resolution = {
@@ -205,7 +205,7 @@ describe("optimize response — resolution.carbonSource (H-SRC-ES)", () => {
   });
 
   it("accepts the pending shape (an island system with no sourced factor)", () => {
-    const pending = resolveCarbonSource("Spain", "Palma", "ES-IB");
+    const pending = resolveCarbonSource("es", "Spain", "Palma", "ES-IB");
     expect(pending.status).toBe("pending");
     const result = schema.parse({ ...base, explanation: "ok", resolution: { ...resolution, carbonSource: pending } });
     expect(result.resolution.carbonSource).toEqual(pending);

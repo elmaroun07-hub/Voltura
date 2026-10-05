@@ -10,7 +10,7 @@
  * `CarbonSourceNote` is a closed set of five honest states. There is no sixth
  * where the code emits a number without saying which of these it is.
  */
-import { lookupCarbonIntensity } from "../carbon-intensity";
+import { countryKeyForIso, lookupCarbonIntensity } from "../carbon-intensity";
 import {
   carbonFactorFor,
   electricSystemFor,
@@ -39,13 +39,22 @@ export type CarbonSourceNote =
   // Geocoding itself failed, so there is no country to resolve a figure for.
   | { status: "not_reached" };
 
+/**
+ * D16 (H-ASST-D16-N3): the country is the geocoder's structured ISO code -
+ * never the user's free text, and never parsed out of a display name (B-a).
+ * `geocodedCountry` and `locationInput` are labels only: they name what was
+ * attempted in the states below, and decide nothing. A code neither table
+ * carries is "unknown_country", the existing no-figure path.
+ */
 export function resolveCarbonSource(
+  countryCode: string,
   geocodedCountry: string,
   locationInput: string,
   regionCode = "",
   countries?: CountryEntry[],
 ): CarbonSourceNote {
-  const country = findCountry(geocodedCountry, countries);
+  const key = countryKeyForIso(countryCode);
+  const country = key === null ? null : findCountry(key, countries);
   if (country) {
     const result = carbonFactorFor(country, electricSystemFor(country, regionCode));
     if (result.status === "sourced") {
@@ -60,7 +69,7 @@ export function resolveCarbonSource(
     };
   }
 
-  const legacy = lookupCarbonIntensity(geocodedCountry, locationInput);
+  const legacy = lookupCarbonIntensity(countryCode);
   if (legacy !== null) {
     return {
       status: "unsourced_legacy",

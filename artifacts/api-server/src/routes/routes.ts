@@ -73,7 +73,9 @@ function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
 }
 
 // Geocode location string to lat/lon via Nominatim
-async function geocode(location: string): Promise<{ lat: number; lon: number; country: string; regionCode: string } | null> {
+async function geocode(
+  location: string,
+): Promise<{ lat: number; lon: number; country: string; countryCode: string; regionCode: string } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1&accept-language=en`;
     const res = await fetch(url, {
@@ -87,6 +89,10 @@ async function geocode(location: string): Promise<{ lat: number; lon: number; co
       lat: parseFloat(data[0].lat),
       lon: parseFloat(data[0].lon),
       country: data[0].address?.country ?? "",
+      // ISO 3166-1 alpha-2, lowercase ("sg"). The carbon lookup keys on this
+      // and nothing else (D16); `country` above is a label. Empty when
+      // Nominatim gave none, and empty resolves to no figure.
+      countryCode: data[0].address?.country_code ?? "",
       // ISO 3166-2 level-4 code (e.g. "ES-CN"). Decides which REE electric
       // system a Spanish address is on. Empty when Nominatim gave none, and
       // empty is never read as "peninsular" (see spainElectricSystem).
@@ -541,7 +547,7 @@ async function resolveLocationIrradiance(
   // registry nor the legacy table carried (D15). This function never
   // substitutes; it names one of four states, and the caller decides what to
   // do with "unknown_country" (see the /api/calculate handler below).
-  const carbonSource = resolveCarbonSource(geo.country, locationInput, geo.regionCode);
+  const carbonSource = resolveCarbonSource(geo.countryCode, geo.country, locationInput, geo.regionCode);
   const nasaProbe = await fetchNasaPower(lat, lon);
 
   // H1.0 / H1.8. A data defect is fatal to the request: NASA answered and the
@@ -915,11 +921,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             ? `not within ${ROI_YEARS} years`
             : `${calc.paybackYears.toFixed(1)} years`;
 
+      // N3: lifetimeSavingsEur is the GROSS 25-year saving, and was printed as
+      // "Net Gain" - "€30,975" on a row whose install cost was 200,000. The net
+      // is computed here, at render time, from the two persisted figures the
+      // ROI curve was built from (written together, see the calculate handler),
+      // so old rows get it with no migration. The row exists only when the cost
+      // is known: a missing cost is never 0. The sign is a literal ASCII
+      // hyphen-minus rather than whatever the locale data supplies, because
+      // U+2212 is not WinAnsi (N2's class).
+      const pdfNet = (lifetime: number, cost: number): string => {
+        const net = lifetime - cost;
+        return net < 0 ? `-${pdfMoney(-net)}` : pdfMoney(net);
+      };
+      const netRows =
+        calc.installationCostEur == null
+          ? []
+          : [[
+              "Est. 25-Year Net (after install cost)",
+              calc.lifetimeSavingsEur == null ? "pending" : pdfNet(calc.lifetimeSavingsEur, calc.installationCostEur),
+              "#2563eb",
+            ]];
+
       const resultRows = [
         ["Annual Energy Saved", `${num(calc.savingsKwh)} kWh`, "#10b981"],
         ["Annual Cost Savings", pdfMoney(calc.annualSavingsEur), "#10b981"],
         ["Estimated Payback Period", pdfPayback, "#2563eb"],
-        ["Est. 25-Year Net Gain", pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
+        ["Est. 25-Year Savings", pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
+        ...netRows,
         // "CO2", not U+2082: a subscript two is not WinAnsi and printed as "CO ‚" (N2).
         ["CO2 Emissions Reduced", `${num(calc.co2Reduction)} kg`, "#059669"],
         ["Trees Equivalent", `${Math.round(calc.co2Reduction / 20)} trees/year`, "#059669"],
