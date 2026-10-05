@@ -1,13 +1,13 @@
 # H-ASST-D16-N3 — gate ruling
 
-**Ruling:** CLOSED (self-ruled, §14.2) at the gate, before the merge. Parts A, B and C meet
-every mechanical criterion: the tests, the G9 mutations, the §Merge dry run and G8 Tier B.
-Part B ran under the operator's ruling (b) on refusal B.1, 5 Oct 2026.
+**Ruling:** CLOSED (self-ruled, §14.2) on L1–L3, after the operator's merge `0192cd6`. That
+merge was run by hand in Git Bash on 5 Oct 2026 and pushed as `0f9f7a1..0192cd6`. The
+post-merge record is in **§After the merge**, below.
 
-**This ruling closes the gate, not the block.**
-- §Merge is operator-ruled under §14.2, and nothing is merged or pushed. `main` is untouched.
-- Part A closes only on L2-A's live transcripts (A-d).
-- L1 to L3 run after the merge.
+**At the gate (pre-merge, `b61121d`):** CLOSED (self-ruled). Parts A, B and C met every
+mechanical criterion: the tests, the G9 mutations, the §Merge dry run and G8 Tier B. Part B
+ran under the operator's ruling (b) on refusal B.1, 5 Oct 2026. The pre-merge text below is
+unchanged from `b61121d`, apart from this header and the sections added after it.
 
 | | |
 |---|---|
@@ -312,16 +312,197 @@ Byte-exact (`contracts/evidence/** -text`). Files 1–6 are also the fixtures of
 | `b1-nominatim-6.json` | "Little Italy, Cairo" → a kebab shop in Chicago, United States | `86ed74d5ee1440ce5c6aad8ee1e99cb7ddfdf6e388f90ea2981e19b5667698f4` |
 | `b1-lookup-at-0f9f7a1.jsonl` | `resolveCarbonSource` at `0f9f7a1` on six (country, string) pairs | `8ad28e3a53a3b7ca23bb0d3eb61d6612176ddf07557a4c99648fdb4a67315952` |
 
+## After the merge — §2 and L1–L3 (5 Oct 2026, 02:33–02:37Z)
+
+Recorded on `heatshield/asst-d16-n3-live-evidence`, off `0192cd6`. That branch is unmerged
+and unpushed, and it rides the next code merge. The raw evidence is under
+`contracts/evidence/h-asst-d16-n3/`, byte-exact, with sha256 at the end of this section.
+
+**§Merge, as the operator ran it, verified from git after `git fetch`.**
+- `main` == `origin/main` == `0192cd6`.
+- `9f751ea` is "Merge heatshield/d8-d52-live-evidence: H-D8D52 gate evidence", parents
+  `0f9f7a1` + **`109bc19`**, 02:31:13Z. It touches nothing under `artifacts/`.
+- `0192cd6` is "Merge heatshield/asst-d16-n3: H-ASST-D16-N3 (Assistant, D16, N3)", parents
+  `9f751ea` + **`b61121d`**, the block tip, 02:31:15Z.
+- Both are `--no-ff` merges and carry the tips the gate ruled on. The tree of `9f751ea` is
+  `b084f81a…`, the same as the dry run's evidence merge `6512c20`.
+
+**§2 — read from the Render API after the merge,** not at merge time: the merge ran before
+this session resumed.
+
+| Service | `autoDeploy` | Trigger | Branch | Deploy for `0192cd6` | Started | Live |
+|---|---|---|---|---|---|---|
+| Voltura-api `srv-d8q8vumgvqtc73a1ik90` | yes | commit | main | `dep-db1go3g473hc73934ku0` | 02:31:42.821Z | **02:32:46.014Z** |
+| Voltura-web `srv-d8pk09sm0tmc73avtk60` | yes | commit | main | `dep-db1go3g473hc73934l3g` | 02:31:42.882Z | **02:32:14.773Z** |
+
+- One deploy per service, both on `0192cd6`, both started at 02:31:42Z as the operator said.
+  The `0f9f7a1` deploys are now `deactivated`.
+- **The web went live 31.2 s before the API.** This block changed no web code (the bundle is
+  still `index-Be0JX2ta.js`) and no response shape, so the gap carries none of #7's risk this
+  time. That conclusion is reasoned, not observed: no request was made in the gap.
+- The poll found both services serving `0192cd6` at its first reading, 02:33:11Z, before any
+  L-check.
+
+| | Status | Probe rows / conversations |
+|---|---|---|
+| L1 | **PASS** | — |
+| L2-A | **PASS** on the criterion. Paraphrase slips are recorded below | conversations **36–43** |
+| L2-B | **PASS** | row **108** (Atlanta). Egypt and Singapore wrote none |
+| L2-C | **PASS** | row **109** (€200,000); old rows 102 and 105 read, not written |
+| L3 | **PASS**: built-in browser, as accepted for H-D8D52 | conversation **44**; row 109's PDF |
+
+Session for L2: `probe-asst-d16-n3-2026-10-05-0192cd6`.
+
+**L1.**
+- 02:33:11Z: `/api/version` →
+  `{"sha":"0192cd6","shaFull":"0192cd62400975e1a3cb08a1000f825a59120dce","source":"render"}`.
+- The web page carries `<meta name="build-sha" content="0192cd6" />` and bundle
+  `/assets/index-Be0JX2ta.js`.
+- **CI on `main`:** run `37255756507` ("CI", push, `0192cd6`): completed, **success**,
+  02:31:44Z–02:32:58Z.
+
+**L2-A — eight paid calls, each in a fresh conversation, 02:33:29–02:33:48Z.** The raw SSE
+stream and the stored conversation are both saved. Each was checked against TA1's
+13-line map:
+
+| # | Conv | Question | Result |
+|---|---|---|---|
+| 1–5 | 36–40 | "What is Voltura?" | **No feature absent from the map** in any of the five. No feed-in, export, NPV, compliance, or any other off-list product feature. Each describes Voltura from the list |
+| 6 | 41 | "Does Voltura calculate feed-in tariffs?" | **"No. Voltura does not calculate feed‑in tariffs."** |
+| 7 | 42 | "Does it give net present value?" | **"Voltura does not calculate a net‑present‑value (NPV) figure."** It names payback and the 25-year ROI curve instead |
+| 8 | 43 | "Is Voltura EU AI Act compliant?" | "Voltura does not make any claim regarding compliance with the EU AI Act." That is B1's position unchanged: the prompt line "say Voltura makes no such claim" is the same as at B1, and `system-prompt.test.ts` still pins it |
+
+**Paraphrase slips, recorded rather than ruled away.** None of them names a feature that
+isn't on the list, so the criterion holds. But they are model restatements, and they are not
+all accurate:
+- Conversation 38 says "hourly‑averaged solar irradiance". The data is a multi-year
+  **monthly** mean; the prompt says "monthly".
+- Conversations 37, 39 and 40 say other countries get "a generic statement". That drops the
+  legacy table: the prompt says "an older unsourced table for some other countries, and
+  otherwise a plain statement that it has no figure".
+- Conversation 37 says the monthly breakdown shows "battery‑supplied energy". The monthly
+  chart shows generation, savings, grid import and "Surplus not used"; the battery share is
+  in the annual mix.
+- Conversations 36, 38, 39 and 44 attach "≈90 % round‑trip efficiency". That is the
+  prompt's own sizing guideline and the input's default, not a fixed property.
+
+None of this is A-a, A-b or A-c. Whether paraphrase accuracy should become a criterion is the
+operator's call. It isn't one in this block.
+
+**L2-B — D16 live,** 02:34:25–33Z. Same body each time, sent as UTF-8:
+`energyUsage 4000, pvWattage 3000, batteryCapacity 5`.
+
+| Location | Response | Factor and provenance |
+|---|---|---|
+| "Little Italy, Cairo, Egypt" | **422 `geocode_failed`** | `carbonSource: not_reached`. Never Italy's |
+| "Atlanta, Georgia, United States" | **200**, row 108, `nasa-live` | **0.386**, `unsourced_legacy` "United States". Not Georgia's (Georgia has none) |
+| "Little India, Singapore" (added by ruling (b)) | **400 `unknown_carbon_country`**, no row | `unknown_country`, attempted "Singapore". At `0f9f7a1` this gave India's 0.708 |
+
+**L2-C — N3 live.**
+- **New row 109.** 02:35:09Z: Fuengirola, 5,000 kWh, 4,000 W, 10 kWh, install 200,000.
+  The response gives 3,860 kWh, €1,030.34, ROI computed, payback `null`, lifetime 30,975, and
+  curve year 25 `{cumulativeSavings 30975, netPosition -169025}`. This matches live row 102
+  and the local fixture.
+- **Row 109's PDF** (200, 4,202 B, 2 pages): "Est. 25-Year Savings" **€30,975**, and "Est.
+  25-Year Net (after install cost)" **-€169,025**, whose first code point is **0x2D**. There
+  is no U+2212, and the only non-ASCII characters are WinAnsi (`á € °`). No line contains
+  "Gain". Payback reads "not within 25 years".
+- **Old row 102** (session `probe-pdf-2026-09-28-ff44a9c`, written 28 Sep at `ff44a9c`): the
+  PDF (200, 4,108 B, 2 pages) prints the same **€30,975 / -€169,025**, computed at render
+  time. `/api/history` shows its stored figures unmoved: cost 200,000, lifetime 30,975,
+  payback `null`, annual 1,030.34.
+- **No install cost: row 105** (session `probe-d8d52-2026-10-01-0f9f7a1`, cost `null`,
+  lifetime `null`). The PDF (200, 4,116 B, 2 pages) has savings "pending" and **no net row**.
+  No new row was written for this case.
+
+**L3 — the built-in browser.** Claude desktop `Claude/2.19675.0`, **Chromium 152.0.7977.130**,
+cold profile, page `build-sha` `0192cd6`.
+1. **Assistant.** "What is Voltura?" was typed into the page and sent with Enter. Conversation
+   **44** is under the browser's own session `3dd07f62-699c-49f5-a181-cd5a542356e6`, read back
+   from the API at 02:36:07Z. The answer is on-list, with the same "generic table" and "≈ 90 %"
+   slips as above.
+2. **PDF from the €200,000 row.** The page's session was set to the L2 probe session. History
+   listed rows 109 and 108, and row 109's PDF button (`button-pdf-109`) was clicked with the
+   pointer.
+   - The bytes `downloadCalculationPdf` handed to its `<a download>` were captured as ruled on
+     30 Sept: `energy-report-109.pdf`, 4,202 B. The sha256 was computed in the page and again
+     on disk, and both read `38c8fa1c…262b`.
+   - The browser's own save was suppressed by the capture hook, and no file was written by
+     the browser. The page's session id was restored afterwards.
+   - The PDF prints **€30,975** and **-€169,025** (0x2D) on 2 pages.
+   - It differs in bytes from L2-C's copy of row 109 (`8d82e5a8…`, same size) only because
+     each render stamps its own `CreationDate` and `/ID`. The extracted text is identical.
+
+Not covered live: the browser writing a file to disk, and the page's console. The first
+pointer click failed because the pane wasn't drawing (a tooling state, not a page fault); the
+retry clicked.
+
+**Tier B at the real merge,** on scratch ref `scratch/asst-d16-n3-real-merge-revert-proof`
+(worktree removed, nothing pushed):
+
+```
+git revert --no-edit -m 1 0192cd6          # -> 0040e95
+tree 0040e95 = b084f81a16428481b8ed696f6acb87ca01f6cd33
+tree 9f751ea = b084f81a16428481b8ed696f6acb87ca01f6cd33   # the evidence merge: identical
+git diff --stat 9f751ea 0040e95            # (empty)
+git diff --shortstat 9f751ea 0192cd6       # 19 files changed, 1159 insertions(+), 132 deletions(-)
+git diff --shortstat 0f9f7a1 b61121d       # 19 files changed, 1159 insertions(+), 132 deletions(-)
+```
+
+The rollback is **`git revert -m 1 0192cd6`**. It takes back exactly the block's 19 files and
+leaves H-D8D52's evidence merge standing. **The deploy path is UNPROVEN.** Every proof here
+is git mechanics. No rollback deploy has been executed and no production instance has been
+taken back. **A13's standing debt stands.**
+
+**Probe rows and conversations left in production** (not deleted, G3):
+- **Calculation rows:** **108** (Atlanta) and **109** (€200,000), both in session
+  `probe-asst-d16-n3-2026-10-05-0192cd6`.
+- **Conversations:** **36–43** (L2-A, the same session) and **44** (L3, session
+  `3dd07f62-699c-49f5-a181-cd5a542356e6`).
+- Publishing these session ids gives anyone with repository access those rows and
+  conversations (F1). They hold probe data only.
+- **Row 107** exists, between H-D8D52's 106 and this block's 108. It was **not** written by
+  this session, and its owner is not known here.
+
+**Post-merge evidence files** — `contracts/evidence/h-asst-d16-n3/`, sha256 of the bytes as
+stored:
+
+| File | What | Bytes | sha256 |
+|---|---|---|---|
+| `l1-api-version.json` | L1 API | 88 | `64004966633dc86c751d8430be4996e5b634d11eb6560d7f68c51e6da44c4fc0` |
+| `l1-web-index.html` | L1 web | 2,976 | `f77694218bf993bf7f89d4256a57740931a42311136518ef53ebaa2bc2cd5d57` |
+| `l2a-1-conversation.json` / `-sse.txt` | conv 36 | 2,044 / 9,615 | `65551ff085afe732ba993ffe83b45a1de721caffd62250b8079014fdce008584` / `fd30e5d1ae2cc59dd886d66fc0c940866e5d79ae643cdd77e57b1f0c3dd7c51e` |
+| `l2a-2-…` | conv 37 | 1,841 / 8,466 | `db53ff43fd482881b9e9095cdc998ad7592878cbec7d5d43de296981feeead8d` / `aa5dc0ae6cff93cb3c242205b21f7ebb2ab360ca1e1662e8adb315066495a4c3` |
+| `l2a-3-…` | conv 38 | 2,523 / 12,844 | `37e57a26d0835b61a24b78ab4c796bf8f1e17a0c90576b04e2e5f1dcfbc02ef8` / `0e3acbafafc96770434d6bd82174fdbe2fb995b9c50d288ebcc305a007b984b7` |
+| `l2a-4-…` | conv 39 | 2,047 / 9,574 | `78ae5d5c88d2e8d21d6374eb4bdf6c4b653f743ad3ca4c091739a5c09b7a5ece` / `bb27a954d2639939f18ba56969ff4d512e6c2d705740a68f6398727c6cdb768d` |
+| `l2a-5-…` | conv 40 | 1,904 / 9,277 | `85d445e33363fcc4a81ed46f0c770322cd019201237022634b8c7586e2ad12f9` / `e0624535546080d3605c160f6414e0b091be8d68ebb5eb02419b02a64fffd078` |
+| `l2a-6-…` | conv 41, feed-in | 656 / 1,626 | `3f0cc3b1d428043953c74c91d513a5fe0a5ffccf786348657c9544b1ba85cb1f` / `f455b4a87ba2e3c6bb48f5bee80eea2d0e269e343b7552fdd24a870b2179f6d5` |
+| `l2a-7-…` | conv 42, NPV | 805 / 2,663 | `28962756073ef3298d8411681a8542a6803203e1be1106fc4343fa742ae5e0f4` / `0e6aa4fe92e36405ea1a0fa03311dcc0986974f5a4950078ff8c5eb37b06b5fe` |
+| `l2a-8-…` | conv 43, AI Act | 435 / 423 | `3870a29e7bad26852553ed8d97c535c7386cbd1e0d7afd9a9860fd98249dffa7` / `1bf0abca453bb8787f445621093eebfb468e22111e9e3a1e26ccb79f37aa10e6` |
+| `l2b-1-calculate.json` | Egypt, 422 | 471 | `7fcd827cd18540bcb601fce1935dd1ef75bc55fd4fc3a179b5a9666915def151` |
+| `l2b-2-calculate.json` | Atlanta, row 108 | 3,868 | `898ba9f94ef323959da217e36a08a7a0aa795b35d84e31382d7f4726341b5202` |
+| `l2b-3-calculate.json` | Singapore, 400 | 657 | `642715e57c8a5c46168cd6758c387559998c9f35d18c6bb236b9c2b12c8c9f0d` |
+| `l2c-1-calculate-200k.json` | row 109 | 6,060 | `92dd0295b3dbbff94baaa7770ef55d7f942b0bd448c4f38521c5cd88196e3191` |
+| `l2c-1-pdf-109.pdf` / `.headers` | row 109's PDF | 4,202 / 471 | `8d82e5a8bfe923790f6a114b68e4b5a17a7b795f0a96fbd5f9d50cbdb09d6d9e` / `4e8d9738474d87bab4d99aa9b5efa464c57b677e13c35623cc819dd361da67d8` |
+| `l2c-2-pdf-102.pdf` / `.headers` | old row 102's PDF | 4,108 / 471 | `551fb5ec01d42be6a3fa0c1f2ad4a8a9d91b63c064889ee1cc9a977500348db0` / `6632ef3d4e4532a91be569254b074a8e3de6c14b3ff23ef32c8edd5c7e60f4ca` |
+| `l2c-3-pdf-105.pdf` / `.headers` | no-cost row 105's PDF | 4,116 / 471 | `1db20e13e2cdf8e8fccb5e9f964a7c379440c65f1b80a9799746284db56e3b21` / `628cd3629c29e5a620abd6e6b2c3fa9c9a57af60d820c7885b0d64a3ff71c6ca` |
+| `l3-conversation-44.json` | L3 Assistant | 1,743 | `d501e21ecba833cbf61a26fea5ec9bdbff551d6c508df53aff66c3d8d99371a2` |
+| `l3-history-blob-energy-report-109.pdf` | L3 download bytes | 4,202 | `38c8fa1ca1517573f6049921fdad26fab04c80845a5f41aca521bfea226a262b` |
+
 ## RESIDUE
 
 - **Probe traffic.** Six Nominatim queries were sent from this machine on 5 Oct for B.1.
-  Nothing was sent to production: no row and no conversation was written.
+  Nothing was sent to production then. The post-merge probes are listed in §After the merge.
+- **L2-A paraphrase slips** (§After the merge). They are not a criterion here, and flagged
+  for the operator.
 - **Unwired web locale.** `artifacts/green-energy-calculator/src/locales/en.json:27` still
   reads `"results_net_25yr": "25-Year Net Gain"`. It's imported by nothing, as its
   `README.md` says, so it's out of Part C's fence. It is a C-a hazard the day the locales are
   wired.
 - **Carried, not touched:** D12, R1 #3, A4 #4, L-local #5, R2 #6, #7 deploy order, #8, #9 N4,
   and the `0.4` substitution.
+- **Scratch ref** `scratch/asst-d16-n3-real-merge-revert-proof` (`0040e95`) is kept,
+  unpushed.
 - **Scratch ref** `scratch/asst-d16-n3-merge-proof` (`c07d116`) is kept, unpushed, as
   earlier blocks' proof refs were.
 - **Clean tree.** After this commit, `git status --porcelain` is empty. The two scratch probe
@@ -339,6 +520,22 @@ Byte-exact (`contracts/evidence/** -text`). Files 1–6 are also the fixtures of
 - **Merges:** both are clean in the dry run, with no overlap.
 - **Tier B:** proven. **The deploy path is UNPROVEN; A13's standing debt stands.**
 
-**Next: §Merge, operator-ruled.** It runs only on "merge authorised". Then §2 from the Render
-API, and L1, L2-A (Part A closes here), L2-B, L2-C and L3, on
-`heatshield/asst-d16-n3-live-evidence`.
+**After the merge: CLOSED (self-ruled, §14.2) on L1–L3.**
+- **The merge.** It was run by the operator as `0192cd6` (evidence `9f751ea`) and pushed
+  `0f9f7a1..0192cd6`.
+- **§2.** Read from the Render API: both services autoDeploy on `main`, and both serve
+  `0192cd6`.
+- **L1.** CI run `37255756507` succeeded.
+- **L2-A.** Part A closes on eight live transcripts: no off-list feature, and "no" to feed-in
+  tariffs and to NPV. B1's answer stands. Paraphrase slips are recorded.
+- **L2-B.** No wrong-country factor: Egypt gets no figure, Atlanta gets the US factor, and
+  Singapore now gets the 400 rather than India's 0.708.
+- **L2-C.** The new row and old row 102 both print €30,975 and -€169,025 with an ASCII
+  hyphen. The no-cost row has no net row. Stored figures are unmoved.
+- **L3.** Passed in the built-in browser.
+- **Tier B at the real merge:** `git revert -m 1 0192cd6` restores `9f751ea`'s tree. **The
+  deploy path is UNPROVEN; A13's standing debt stands.**
+- **Probe rows** 108 and 109 and **conversations** 36–44 stay in production.
+
+`heatshield/asst-d16-n3-live-evidence` stays unmerged and unpushed. It rides the next code
+merge.

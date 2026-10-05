@@ -1,0 +1,970 @@
+data: {"content":"Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" is"}
+
+data: {"content":" a"}
+
+data: {"content":" web"}
+
+data: {"content":"‑"}
+
+data: {"content":"based"}
+
+data: {"content":" tool"}
+
+data: {"content":" that"}
+
+data: {"content":" lets"}
+
+data: {"content":" residential"}
+
+data: {"content":" owners"}
+
+data: {"content":" model"}
+
+data: {"content":" a"}
+
+data: {"content":" solar"}
+
+data: {"content":"‑"}
+
+data: {"content":"PV"}
+
+data: {"content":" "}
+
+data: {"content":"+"}
+
+data: {"content":" "}
+
+data: {"content":"battery"}
+
+data: {"content":" system"}
+
+data: {"content":" for"}
+
+data: {"content":" their"}
+
+data: {"content":" home"}
+
+data: {"content":"."}
+
+data: {"content":" It"}
+
+data: {"content":" works"}
+
+data: {"content":" like"}
+
+data: {"content":" this"}
+
+data: {"content":":\n\n"}
+
+data: {"content":"*"}
+
+data: {"content":" **"}
+
+data: {"content":"Location"}
+
+data: {"content":" lookup"}
+
+data: {"content":"**"}
+
+data: {"content":" –"}
+
+data: {"content":" you"}
+
+data: {"content":" type"}
+
+data: {"content":" an"}
+
+data: {"content":" address"}
+
+data: {"content":" or"}
+
+data: {"content":" place"}
+
+data: {"content":" name"}
+
+data: {"content":" and"}
+
+data: {"content":" Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" finds"}
+
+data: {"content":" the"}
+
+data: {"content":" exact"}
+
+data: {"content":" coordinates"}
+
+data: {"content":" with"}
+
+data: {"content":" Open"}
+
+data: {"content":"Street"}
+
+data: {"content":"Map"}
+
+data: {"content":"’s"}
+
+data: {"content":" N"}
+
+data: {"content":"omin"}
+
+data: {"content":"atim"}
+
+data: {"content":" service"}
+
+data: {"content":"."}
+
+data: {"content":"  \n"}
+
+data: {"content":"*"}
+
+data: {"content":" **"}
+
+data: {"content":"Solar"}
+
+data: {"content":" resource"}
+
+data: {"content":" data"}
+
+data: {"content":"**"}
+
+data: {"content":" –"}
+
+data: {"content":" it"}
+
+data: {"content":" pulls"}
+
+data: {"content":" hourly"}
+
+data: {"content":"‑"}
+
+data: {"content":"aver"}
+
+data: {"content":"aged"}
+
+data: {"content":" solar"}
+
+data: {"content":" irradi"}
+
+data: {"content":"ance"}
+
+data: {"content":" and"}
+
+data: {"content":" temperature"}
+
+data: {"content":" for"}
+
+data: {"content":" that"}
+
+data: {"content":" point"}
+
+data: {"content":" from"}
+
+data: {"content":" NASA"}
+
+data: {"content":" "}
+
+data: {"content":"POWER"}
+
+data: {"content":" ("}
+
+data: {"content":"or"}
+
+data: {"content":","}
+
+data: {"content":" if"}
+
+data: {"content":" NASA"}
+
+data: {"content":" is"}
+
+data: {"content":" unavailable"}
+
+data: {"content":","}
+
+data: {"content":" a"}
+
+data: {"content":" latitude"}
+
+data: {"content":"‑"}
+
+data: {"content":"based"}
+
+data: {"content":" estimate"}
+
+data: {"content":")."}
+
+data: {"content":"  \n"}
+
+data: {"content":"*"}
+
+data: {"content":" **"}
+
+data: {"content":"Year"}
+
+data: {"content":"‑"}
+
+data: {"content":"long"}
+
+data: {"content":" simulation"}
+
+data: {"content":"**"}
+
+data: {"content":" –"}
+
+data: {"content":" using"}
+
+data: {"content":" the"}
+
+data: {"content":" location"}
+
+data: {"content":" data"}
+
+data: {"content":","}
+
+data: {"content":" your"}
+
+data: {"content":" annual"}
+
+data: {"content":" electricity"}
+
+data: {"content":" use"}
+
+data: {"content":","}
+
+data: {"content":" the"}
+
+data: {"content":" PV"}
+
+data: {"content":" size"}
+
+data: {"content":" ("}
+
+data: {"content":"W"}
+
+data: {"content":")"}
+
+data: {"content":" and"}
+
+data: {"content":" battery"}
+
+data: {"content":" capacity"}
+
+data: {"content":" ("}
+
+data: {"content":"k"}
+
+data: {"content":"Wh"}
+
+data: {"content":")"}
+
+data: {"content":" you"}
+
+data: {"content":" provide"}
+
+data: {"content":","}
+
+data: {"content":" Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" runs"}
+
+data: {"content":" a"}
+
+data: {"content":" "}
+
+data: {"content":"8"}
+
+data: {"content":","}
+
+data: {"content":"760"}
+
+data: {"content":"‑"}
+
+data: {"content":"hour"}
+
+data: {"content":" ("}
+
+data: {"content":"one"}
+
+data: {"content":"‑"}
+
+data: {"content":"year"}
+
+data: {"content":")"}
+
+data: {"content":" model"}
+
+data: {"content":" that"}
+
+data: {"content":":\n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" Generates"}
+
+data: {"content":" PV"}
+
+data: {"content":" output"}
+
+data: {"content":" hour"}
+
+data: {"content":" by"}
+
+data: {"content":" hour"}
+
+data: {"content":" ("}
+
+data: {"content":"adjust"}
+
+data: {"content":"ed"}
+
+data: {"content":" for"}
+
+data: {"content":" panel"}
+
+data: {"content":" orientation"}
+
+data: {"content":" and"}
+
+data: {"content":" tilt"}
+
+data: {"content":")."}
+
+data: {"content":"  \n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" Dis"}
+
+data: {"content":"tributes"}
+
+data: {"content":" your"}
+
+data: {"content":" household"}
+
+data: {"content":" consumption"}
+
+data: {"content":" over"}
+
+data: {"content":" the"}
+
+data: {"content":" day"}
+
+data: {"content":" based"}
+
+data: {"content":" on"}
+
+data: {"content":" a"}
+
+data: {"content":" typical"}
+
+data: {"content":" residential"}
+
+data: {"content":" load"}
+
+data: {"content":" profile"}
+
+data: {"content":"."}
+
+data: {"content":"  \n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" Tracks"}
+
+data: {"content":" battery"}
+
+data: {"content":" charge"}
+
+data: {"content":"/dis"}
+
+data: {"content":"charge"}
+
+data: {"content":" with"}
+
+data: {"content":" a"}
+
+data: {"content":" ~"}
+
+data: {"content":"90"}
+
+data: {"content":" "}
+
+data: {"content":"%"}
+
+data: {"content":" round"}
+
+data: {"content":"‑"}
+
+data: {"content":"trip"}
+
+data: {"content":" efficiency"}
+
+data: {"content":"."}
+
+data: {"content":"  \n"}
+
+data: {"content":"*"}
+
+data: {"content":" **"}
+
+data: {"content":"Results"}
+
+data: {"content":" overview"}
+
+data: {"content":"**"}
+
+data: {"content":" –"}
+
+data: {"content":" after"}
+
+data: {"content":" the"}
+
+data: {"content":" simulation"}
+
+data: {"content":" you"}
+
+data: {"content":" get"}
+
+data: {"content":":\n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" Annual"}
+
+data: {"content":" k"}
+
+data: {"content":"Wh"}
+
+data: {"content":" saved"}
+
+data: {"content":","}
+
+data: {"content":" plus"}
+
+data: {"content":" a"}
+
+data: {"content":" monthly"}
+
+data: {"content":" chart"}
+
+data: {"content":" showing"}
+
+data: {"content":" PV"}
+
+data: {"content":" generation"}
+
+data: {"content":","}
+
+data: {"content":" self"}
+
+data: {"content":"‑"}
+
+data: {"content":"cons"}
+
+data: {"content":"umption"}
+
+data: {"content":","}
+
+data: {"content":" grid"}
+
+data: {"content":" import"}
+
+data: {"content":" and"}
+
+data: {"content":" “"}
+
+data: {"content":"sur"}
+
+data: {"content":"plus"}
+
+data: {"content":" not"}
+
+data: {"content":" used"}
+
+data: {"content":"”."}
+
+data: {"content":"  \n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" Energy"}
+
+data: {"content":"‑"}
+
+data: {"content":"mix"}
+
+data: {"content":" breakdown"}
+
+data: {"content":" ("}
+
+data: {"content":"direct"}
+
+data: {"content":" solar"}
+
+data: {"content":","}
+
+data: {"content":" from"}
+
+data: {"content":" battery"}
+
+data: {"content":","}
+
+data: {"content":" grid"}
+
+data: {"content":" import"}
+
+data: {"content":")."}
+
+data: {"content":"  \n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" CO"}
+
+data: {"content":"₂"}
+
+data: {"content":"‑"}
+
+data: {"content":"avoid"}
+
+data: {"content":"ance"}
+
+data: {"content":" estimate"}
+
+data: {"content":" ("}
+
+data: {"content":"using"}
+
+data: {"content":" official"}
+
+data: {"content":" grid"}
+
+data: {"content":"‑"}
+
+data: {"content":"carbon"}
+
+data: {"content":" factors"}
+
+data: {"content":" for"}
+
+data: {"content":" Spain"}
+
+data: {"content":","}
+
+data: {"content":" the"}
+
+data: {"content":" UK"}
+
+data: {"content":","}
+
+data: {"content":" or"}
+
+data: {"content":" a"}
+
+data: {"content":" generic"}
+
+data: {"content":" table"}
+
+data: {"content":" where"}
+
+data: {"content":" available"}
+
+data: {"content":")."}
+
+data: {"content":"  \n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" Monetary"}
+
+data: {"content":" savings"}
+
+data: {"content":" calculated"}
+
+data: {"content":" with"}
+
+data: {"content":" your"}
+
+data: {"content":" own"}
+
+data: {"content":" tariff"}
+
+data: {"content":" ("}
+
+data: {"content":"or"}
+
+data: {"content":" a"}
+
+data: {"content":" sourced"}
+
+data: {"content":" national"}
+
+data: {"content":" tariff"}
+
+data: {"content":" for"}
+
+data: {"content":" Spain"}
+
+data: {"content":"/"}
+
+data: {"content":"UK"}
+
+data: {"content":")."}
+
+data: {"content":"  \n"}
+
+data: {"content":" "}
+
+data: {"content":" *"}
+
+data: {"content":" Pay"}
+
+data: {"content":"‑"}
+
+data: {"content":"back"}
+
+data: {"content":" period"}
+
+data: {"content":" and"}
+
+data: {"content":" a"}
+
+data: {"content":" "}
+
+data: {"content":"25"}
+
+data: {"content":"‑"}
+
+data: {"content":"year"}
+
+data: {"content":" ROI"}
+
+data: {"content":" curve"}
+
+data: {"content":" based"}
+
+data: {"content":" on"}
+
+data: {"content":" the"}
+
+data: {"content":" installation"}
+
+data: {"content":" cost"}
+
+data: {"content":" you"}
+
+data: {"content":" enter"}
+
+data: {"content":" ("}
+
+data: {"content":"or"}
+
+data: {"content":" a"}
+
+data: {"content":" sourced"}
+
+data: {"content":" PV"}
+
+data: {"content":"‑"}
+
+data: {"content":"only"}
+
+data: {"content":" cost"}
+
+data: {"content":" for"}
+
+data: {"content":" Spain"}
+
+data: {"content":"/"}
+
+data: {"content":"UK"}
+
+data: {"content":")."}
+
+data: {"content":"  \n"}
+
+data: {"content":"*"}
+
+data: {"content":" **"}
+
+data: {"content":"Report"}
+
+data: {"content":" &"}
+
+data: {"content":" history"}
+
+data: {"content":"**"}
+
+data: {"content":" –"}
+
+data: {"content":" you"}
+
+data: {"content":" can"}
+
+data: {"content":" download"}
+
+data: {"content":" a"}
+
+data: {"content":" PDF"}
+
+data: {"content":" of"}
+
+data: {"content":" the"}
+
+data: {"content":" full"}
+
+data: {"content":" calculation"}
+
+data: {"content":" and"}
+
+data: {"content":" Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" keeps"}
+
+data: {"content":" a"}
+
+data: {"content":" history"}
+
+data: {"content":" of"}
+
+data: {"content":" past"}
+
+data: {"content":" runs"}
+
+data: {"content":" in"}
+
+data: {"content":" the"}
+
+data: {"content":" same"}
+
+data: {"content":" browser"}
+
+data: {"content":"."}
+
+data: {"content":"  \n"}
+
+data: {"content":"*"}
+
+data: {"content":" **"}
+
+data: {"content":"Optimizer"}
+
+data: {"content":"**"}
+
+data: {"content":" –"}
+
+data: {"content":" an"}
+
+data: {"content":" AI"}
+
+data: {"content":"‑"}
+
+data: {"content":"dr"}
+
+data: {"content":"iven"}
+
+data: {"content":" helper"}
+
+data: {"content":" that"}
+
+data: {"content":","}
+
+data: {"content":" from"}
+
+data: {"content":" your"}
+
+data: {"content":" annual"}
+
+data: {"content":" usage"}
+
+data: {"content":","}
+
+data: {"content":" daily"}
+
+data: {"content":" load"}
+
+data: {"content":" pattern"}
+
+data: {"content":" and"}
+
+data: {"content":" the"}
+
+data: {"content":" site"}
+
+data: {"content":"’s"}
+
+data: {"content":" irradi"}
+
+data: {"content":"ance"}
+
+data: {"content":","}
+
+data: {"content":" suggests"}
+
+data: {"content":" a"}
+
+data: {"content":" PV"}
+
+data: {"content":" size"}
+
+data: {"content":" and"}
+
+data: {"content":" battery"}
+
+data: {"content":" capacity"}
+
+data: {"content":"."}
+
+data: {"content":" It"}
+
+data: {"content":" explains"}
+
+data: {"content":" the"}
+
+data: {"content":" reasoning"}
+
+data: {"content":" but"}
+
+data: {"content":" does"}
+
+data: {"content":" not"}
+
+data: {"content":" perform"}
+
+data: {"content":" the"}
+
+data: {"content":" calculation"}
+
+data: {"content":" itself"}
+
+data: {"content":"."}
+
+data: {"content":"  \n\n"}
+
+data: {"content":"In"}
+
+data: {"content":" short"}
+
+data: {"content":","}
+
+data: {"content":" Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" combines"}
+
+data: {"content":" location"}
+
+data: {"content":"‑"}
+
+data: {"content":"specific"}
+
+data: {"content":" solar"}
+
+data: {"content":" data"}
+
+data: {"content":","}
+
+data: {"content":" a"}
+
+data: {"content":" household"}
+
+data: {"content":"‑"}
+
+data: {"content":"load"}
+
+data: {"content":" model"}
+
+data: {"content":","}
+
+data: {"content":" and"}
+
+data: {"content":" battery"}
+
+data: {"content":" behavior"}
+
+data: {"content":" to"}
+
+data: {"content":" show"}
+
+data: {"content":" you"}
+
+data: {"content":" how"}
+
+data: {"content":" much"}
+
+data: {"content":" self"}
+
+data: {"content":"‑"}
+
+data: {"content":"cons"}
+
+data: {"content":"umption"}
+
+data: {"content":","}
+
+data: {"content":" cost"}
+
+data: {"content":" saving"}
+
+data: {"content":" and"}
+
+data: {"content":" CO"}
+
+data: {"content":"₂"}
+
+data: {"content":" reduction"}
+
+data: {"content":" you"}
+
+data: {"content":" can"}
+
+data: {"content":" expect"}
+
+data: {"content":" from"}
+
+data: {"content":" a"}
+
+data: {"content":" residential"}
+
+data: {"content":" solar"}
+
+data: {"content":"‑"}
+
+data: {"content":"plus"}
+
+data: {"content":"‑"}
+
+data: {"content":"storage"}
+
+data: {"content":" system"}
+
+data: {"content":"."}
+
+data: {"done":true}
+
