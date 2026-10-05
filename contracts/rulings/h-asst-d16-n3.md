@@ -1,8 +1,13 @@
 # H-ASST-D16-N3 — gate ruling
 
-**Ruling:** OPEN. Parts A and C are done to the gate's mechanical criteria. **Part B is held
-on a §5 refusal (below)**: the block's drop condition is met while the defect it tests
-still reproduces. Nothing is merged and nothing is pushed. `main` is untouched.
+**Ruling:** CLOSED (self-ruled, §14.2) at the gate, before the merge. Parts A, B and C meet
+every mechanical criterion: the tests, the G9 mutations, the §Merge dry run and G8 Tier B.
+Part B ran under the operator's ruling (b) on refusal B.1, 5 Oct 2026.
+
+**This ruling closes the gate, not the block.**
+- §Merge is operator-ruled under §14.2, and nothing is merged or pushed. `main` is untouched.
+- Part A closes only on L2-A's live transcripts (A-d).
+- L1 to L3 run after the merge.
 
 | | |
 |---|---|
@@ -15,7 +20,7 @@ still reproduces. Nothing is merged and nothing is pushed. `main` is untouched.
 
 - **H-D8D52 is CLOSED.** `contracts/rulings/h-d8-d52.md` at `109bc19`, on
   `heatshield/d8-d52-live-evidence`. That branch is unmerged and rides this block's §Merge,
-  step 1. The operator confirmed today that it is done and gets no additions.
+  step 1. The operator confirmed on 5 Oct that it is done and gets no additions.
 - **Tip.** After `git fetch`, `main` == `origin/main` == `0f9f7a1`.
 - **§2, read from the Render API** (`list_services` and `list_deploys`, workspace
   `tea-d7s87mv7f7vs73dg3eag`):
@@ -36,14 +41,25 @@ still reproduces. Nothing is merged and nothing is pushed. `main` is untouched.
 | `53dd625` | The block file, unmodified. sha256 `70394b40ed07e0595fb6f804de87e8d4fd128f8e086bf27b9501e268776b332a`, 10,996 B, checked against the operator's prompt before copying. The blob hash equals the file hash (LF only) |
 | `9f6c2cd` | Part A |
 | `813aad2` | Part C |
-| this commit | This ruling (OPEN) and the B.1 evidence |
+| `5f94d08` | This ruling (OPEN, at refusal B.1) and the B.1 evidence |
+| `5fdbe09` | Part B, after ruling (b) |
+| this commit | This ruling, gate CLOSED |
 
-**DIFF SUMMARY** `0f9f7a1..813aad2`: 5 files, +526 −2. Code is two files:
-`replit_integrations/chat/routes.ts` (+22 −1, prompt only) and `routes/routes.ts` (+22 −1,
-the PDF money rows). The rest is tests and the block file.
+**DIFF SUMMARY** `0f9f7a1..5fdbe09`: 19 files, +1055 −132. Under `artifacts/` it's 10 files,
++620 −132. Code is five files:
+- `replit_integrations/chat/routes.ts`: the prompt only.
+- `routes/routes.ts`: the PDF money rows, and `geocode()` passing through `country_code`.
+- `lib/carbon-intensity.ts`, `lib/emissions/carbon-source.ts`: the lookup.
 
-**TEST EVIDENCE.** Suite **280 → 302** in api-server (23 files), and `lib/cte` stays at
-72/72. `pnpm -r typecheck` exits 0 before and after.
+The rest is tests, the block file, this ruling and the evidence.
+
+**TEST EVIDENCE.** api-server goes **280 → 308** across 24 files:
+- +17 for Part A (`feature-map.test.ts`);
+- +5 for Part C;
+- +9 for Part B (`d16-country.test.ts`);
+- −3 net in `carbon-intensity.test.ts`, where 10 token-walk tests became 7 code tests.
+
+`lib/cte` stays at 72/72. `pnpm -r typecheck` exits 0 before and after.
 
 ---
 
@@ -91,7 +107,9 @@ dropped. Two lines needed wording choices, but none needed a judgement call on w
 
 **A-d: Part A is not closed.** It closes only on L2-A's live transcripts, after the merge.
 
-## Part B — D16: HELD, §5 refusal
+## Part B — D16: DONE to the gate, under ruling (b)
+
+### B.1 — reproduce first: §5 refusal, ruled (b) on 5 Oct 2026
 
 ```
 REFUSAL — H-ASST-D16-N3.B.1
@@ -101,46 +119,89 @@ Reality:       That string no longer reaches the lookup. Nominatim, queried toda
                app's own query (b1-nominatim-1.json), returns [] for it, so the route answers
                422 geocode_failed before any carbon figure exists. But the defect is in the
                lookup, not the string, and it still reproduces:
-               - lookupCarbonIntensity (carbon-intensity.ts:73-101) at 0f9f7a1, given
-                 geocodedCountry "Egypt" and that string, returns 0.351 (Italy). It is
-                 labelled country "Egypt" in the provenance (b1-lookup-at-0f9f7a1.jsonl).
+               - lookupCarbonIntensity at 0f9f7a1, given geocodedCountry "Egypt" and that
+                 string, returns 0.351 (Italy). It is labelled country "Egypt" in the
+                 provenance (b1-lookup-at-0f9f7a1.jsonl).
                - Live today: "Little India, Singapore" geocodes to Singapore (country_code
                  "sg", b1-nominatim-5.json). Singapore is in neither table, the free-text walk
                  hits "india", and the result is 0.708 kg/kWh, India's factor, shown as
                  unsourced_legacy "Singapore".
                - The other three strings geocode to "United States" (country_code "us") and
-                 get US 0.386 from step 1's exact match. They are correct today.
+                 get US 0.386 from the exact match. They are correct today.
 Conflict:      The block's drop condition is met to the letter, but "don't fix what doesn't
-               reproduce" doesn't hold: the defect reproduces. §5: the reading of the code
-               wins over the literal instruction, and two clauses can't both be satisfied.
-Options:       (a) Drop B as written. Record D16 as live through "Little India, Singapore"
-                   and ticket it. Cost: a known wrong-country CO2 figure stays in production.
-               (b) Run B with "Little India, Singapore" added to B.3's four strings. B.4 as
-                   written: resolve by Nominatim's structured `address.country_code`, which
-                   every successful response carries (b1-nominatim-2..6). That means the
-                   geocoder returns one more field it already receives. The fence puts "the
-                   geocoder itself" OUT and "how [the lookup] receives the country" IN, and
-                   this sits between them, so it needs the ruling too.
-               (c) As (b), but only delete the free-text walk (step 2) and pass no new field.
-                   A country outside the table then goes to the existing no-match path. Cost:
-                   step 1 still matches on the display name, and the "structured" half of B.4
-                   isn't met.
+               reproduce" doesn't hold. §5: the reading of the code wins.
+Options:       (a) drop B and ticket it; (b) run B with "Little India, Singapore" added,
+               keyed on Nominatim's country_code; (c) delete the walk only.
 Recommendation: (b).
 ```
 
-**B.2 read so far.** `geocode()` (`routes.ts:76`) returns `country`, which is Nominatim's
-English display name (`address.country`), and `regionCode` (`ISO3166-2-lvl4`). It doesn't
-return `address.country_code`, even though the response carries it.
+**Operator ruling, 5 Oct 2026: (b).**
+- Run Part B with "Little India, Singapore" added to the probe strings.
+- The country comes from Nominatim's ISO code, which the geocoder already receives. Passing
+  it through is ruled IN.
+- A code missing from the tables takes the existing no-figure path.
+- The 0.4 behaviour stays unchanged.
+- No response shape the web parses may change.
 
-The no-match path today, end to end: `resolveCarbonSource` returns `unknown_country`, and
-`/api/calculate` answers **400 `unknown_carbon_country`** with "We do not have a sourced
-carbon-intensity figure for "<country>". Try including the country, or a nearby major city."
-No row is written and there is no PDF.
+### B.2 — read
 
-**B-a note:** a fix must not derive the country from `display_name` or from the string in
-`country`.
+- **Before.** `geocode()` (`routes.ts:76` at `0f9f7a1`) returned `country`, Nominatim's
+  English display name (`address.country`), and `regionCode` (`ISO3166-2-lvl4`).
+  `resolveCarbonSource` tried the registry by that name, then
+  `lookupCarbonIntensity(name, text)`: an exact name match first, then a whole-token walk
+  over the name and the free text.
+- **The no-figure path, end to end, unchanged.** `unknown_country`, then `/api/calculate`
+  answers **400 `unknown_carbon_country`** with "We do not have a sourced carbon-intensity
+  figure for "<attempted>". Try including the country, or a nearby major city." No row is
+  written and there is no PDF. `attempted` is still the geocoded name, else the input.
+- **The `0.4`.** The only `0.4` on these paths is the panel-efficiency floor
+  (`routes.ts:72`, `Math.max(0.4, …)`). The carbon `0.4` became this typed 400 at
+  H-SRC-ES (D15). Neither is touched.
 
-Part B has no code and no tests on the branch. MB1 and MB2 haven't run.
+### B.3 — tests first
+
+`routes/d16-country.test.ts` runs `POST /api/calculate` on the raw Nominatim responses
+recorded on 5 Oct, which are this block's evidence files, read as files. NASA answers 404,
+so the route takes its labelled fallback; the carbon decision doesn't depend on irradiance.
+
+| Case | Unmodified lookup | After |
+|---|---|---|
+| "Little Italy, Cairo, Egypt", as Nominatim answers today (`[]`) | 422 `geocode_failed`: pass | pass |
+| the same string, geocoded to Egypt / `eg` (synthetic, labelled: the shape it had when D16 was found) | **fail**: 200 at Italy's 0.351 | 400 `unknown_carbon_country`, attempted "Egypt" |
+| "Little India, Singapore" / `sg` | **fail**: 200 at India's 0.708 | 400 `unknown_carbon_country`, attempted "Singapore" |
+| "Jordan, Minnesota, United States" / `us` | pass: US 0.386 | pass |
+| "Lebanon, Pennsylvania, United States" / `us` | pass | pass |
+| "Atlanta, Georgia, United States" / `us` | pass | pass |
+| "Little Italy, Cairo" → Chicago / `us` (its display string names "Little Italy"; B-a) | pass | pass |
+| unit: the code alone decides (empty name, "Estados Unidos", "España") | **fail** | pass |
+| unit: a name with no code is the no-figure path ("Italy", "India", the D16 string) | **fail** | pass |
+
+The three US strings and Chicago's "Little Italy" were already right at `0f9f7a1`. They pass
+both ways and act as pins. The defect was only ever reachable for a country outside the
+tables.
+
+### B.4 — implemented
+
+- `geocode()` also returns `countryCode: address.country_code ?? ""`, which it already
+  received (ruled IN). It stays inside the server, so the resolution record, the response
+  bodies and `shared-routes` are unchanged.
+- `resolveCarbonSource(countryCode, geocodedCountry, locationInput, regionCode?)` keys on the
+  code only, through `COUNTRY_KEY_BY_ISO`. That table maps codes to the existing keys of both
+  tables: no value changes and no country added. The name and the input are labels in the
+  existing states, and neither is parsed (B-a).
+- `lookupCarbonIntensity(countryCode)` replaces `(name, text)`, and the token walk is
+  deleted. A test pins that every legacy country, apart from the aliases `maroc`, `usa` and
+  `us`, has a code, so no country silently lost its figure. Every registry key has one too.
+- An empty or unmapped code is `unknown_country`: the existing path, unchanged.
+- `carbon-intensity.test.ts`, `carbon-source.test.ts` and `shared-routes.test.ts` moved to
+  the code-keyed signature with their intent kept. H1.5's Indianapolis case is now pinned on
+  the code.
+
+**What changes for a user, stated plainly.** A calculation for a place whose country is in
+neither table now gets the 400 every time. Before, it sometimes got another country's factor
+because the text happened to name a table country. A place Nominatim returns without a
+`country_code` also gets the 400 rather than a guess. Of the 14 recorded responses, only
+the hand-trimmed Thimphu fixture lacks one, and Bhutan has no figure either way.
 
 ## Part C — N3: DONE to the gate
 
@@ -184,7 +245,7 @@ stored, and keeping it would take a column, which needs a migration and is a §S
 Separately, a cumulative whose fraction is exactly .5 rounds differently for a negative net.
 That isn't seen in practice.
 
-## G9 — mutations (A and C), each caught and restored
+## G9 — mutations, each caught and restored
 
 The work was committed before any mutation. After each one, the file was restored and its
 `git hash-object` matched the `HEAD` blob.
@@ -194,22 +255,52 @@ The work was committed before any mutation. After each one, the file was restore
 | MA1 | add "- Feed-in tariff calculations." to the prompt's list | TA1 (feature not in map), A-c: 2 failed |
 | MA2a | delete the PDF row from the feature map | TA1: 1 failed |
 | MA2b | remove the mapped symbol (`name: "From Battery"` → `"Battery"` in `ResultsDisplay.tsx`) | TA1 symbol row: 1 failed |
-| MB1, MB2 | — | **not run, Part B held** |
+| MB1 | restore the free-text token walk, as a fallback after the code lookup | Egypt and Singapore route cases, the "name with no code" unit: 3 failed |
+| MB2 | read the country from the display string (the key is the first table key found inside the geocoded name) | "the code alone decides" and "name with no code" units: 2 failed |
 | MC1 | print `lifetimeSavings` as net | TC1, TC2, TC3: 3 failed |
 | MC2 | treat a null cost as 0 (net row always, `lifetime − null`) | TC1, TC4, M1: 3 failed |
 | MC3 | swap `-` for U+2212 | TC2, TC3, M3 (static WinAnsi scan): 3 failed |
 
-## Not yet run
+## §Merge dry run — scratch ref `scratch/asst-d16-n3-merge-proof`, 5 Oct 2026
 
-- **§Merge dry run:** both merges clean, no overlap.
-- **G8 Tier B:** the revert on a scratch ref.
+Run in a scratch worktree off `0f9f7a1` (since removed), as §Merge would run it:
 
-Both depend on the final branch tip, which waits on Part B. When they run, this ruling will
-carry, verbatim: **the deploy path is UNPROVEN, and A13's standing debt stands.**
+| Step | Result |
+|---|---|
+| Evidence branch | `heatshield/d8-d52-live-evidence` at `109bc19` (confirmed by name and tip) |
+| Block branch | `heatshield/asst-d16-n3` at `5fdbe09` |
+| Overlap | none. The evidence branch touches only `contracts/evidence/h-d8-d52/**` and `contracts/rulings/h-d8-d52.md`, and no path is in both diffs |
+| 1. `merge --no-ff heatshield/d8-d52-live-evidence` | clean, `6512c20` |
+| 2. `merge --no-ff heatshield/asst-d16-n3` | clean, `762331a`, tree `eec6720e8be45ba760a8a35bfd730f73fcbb1a1a` |
+
+This ruling's own commit comes after `5fdbe09` and touches only this file, which is on
+neither side of the overlap. Pushed: nothing.
+
+## ROLLBACK — G8, Tier B
+
+Code ships to two production containers at the merge, and no drill is authorised: **Tier B**.
+
+```
+git revert --no-edit -m 1 762331a          # the scratch block merge -> c07d116
+tree c07d116 = b084f81a16428481b8ed696f6acb87ca01f6cd33
+tree 6512c20 = b084f81a16428481b8ed696f6acb87ca01f6cd33   # the evidence merge: identical
+git diff --stat 6512c20 c07d116            # (empty)
+git diff --shortstat c07d116 762331a       # 19 files changed, 1055 insertions(+), 132 deletions(-)
+```
+
+The revert takes back exactly this block's 19 files: the same count and line totals as
+`0f9f7a1..5fdbe09`. It leaves the H-D8D52 evidence merge standing. At the real merge the
+command is `git revert -m 1 <block merge sha>`, and it must be re-proven there.
+
+**The deploy path is UNPROVEN.** Every proof in this section is git mechanics. No rollback
+deploy has been executed and no production instance has been taken back. **A13's standing
+debt stands.** It survives until one deploy-path rollback is executed deliberately under
+Tier C, declared as production deploys with the window stated.
 
 ## Evidence — `contracts/evidence/h-asst-d16-n3/`, 5 Oct 2026 ~02:06Z
 
-Byte-exact (`contracts/evidence/** -text`).
+Byte-exact (`contracts/evidence/** -text`). Files 1–6 are also the fixtures of
+`d16-country.test.ts`.
 
 | File | What | sha256 |
 |---|---|---|
@@ -223,18 +314,31 @@ Byte-exact (`contracts/evidence/** -text`).
 
 ## RESIDUE
 
-- **Part B:** held (above).
+- **Probe traffic.** Six Nominatim queries were sent from this machine on 5 Oct for B.1.
+  Nothing was sent to production: no row and no conversation was written.
 - **Unwired web locale.** `artifacts/green-energy-calculator/src/locales/en.json:27` still
   reads `"results_net_25yr": "25-Year Net Gain"`. It's imported by nothing, as its
   `README.md` says, so it's out of Part C's fence. It is a C-a hazard the day the locales are
   wired.
 - **Carried, not touched:** D12, R1 #3, A4 #4, L-local #5, R2 #6, #7 deploy order, #8, #9 N4,
   and the `0.4` substitution.
+- **Scratch ref** `scratch/asst-d16-n3-merge-proof` (`c07d116`) is kept, unpushed, as
+  earlier blocks' proof refs were.
 - **Clean tree.** After this commit, `git status --porcelain` is empty. The two scratch probe
-  test files used for B.1 and TC5's pin values were deleted, not committed. The worktree
-  used for H-D8D52's Tier B re-run is removed.
+  test files used for B.1 and TC5's pin values were deleted, not committed. The worktrees
+  used for H-D8D52's Tier B re-run and for this block's dry run are removed.
 
 ## RULING
 
-**OPEN.** Next: the operator rules on REFUSAL B.1, picking (a), (b) or (c). Then Part B,
-MB1 and MB2, the §Merge dry run and Tier B. The executor stops there, before §Merge.
+**CLOSED (self-ruled, §14.2)** at the gate.
+- **A, B, C:** every new test failed first on unmodified code, except the pins (A-c, TA3,
+  TC5, and B.3's four US cases, which were already right). All pass after.
+- **Suite and typecheck:** 280 → 308, typecheck 0.
+- **Mutations:** MA1, MA2, MB1, MB2, MC1, MC2 and MC3 are each caught and restored to the
+  `HEAD` blob.
+- **Merges:** both are clean in the dry run, with no overlap.
+- **Tier B:** proven. **The deploy path is UNPROVEN; A13's standing debt stands.**
+
+**Next: §Merge, operator-ruled.** It runs only on "merge authorised". Then §2 from the Render
+API, and L1, L2-A (Part A closes here), L2-B, L2-C and L3, on
+`heatshield/asst-d16-n3-live-evidence`.
