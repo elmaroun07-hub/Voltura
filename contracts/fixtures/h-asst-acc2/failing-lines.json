@@ -1,0 +1,115 @@
+{
+ "source": "heatshield/asst-accuracy-live-evidence at aba05a5, contracts/evidence/h-asst-accuracy/l2-01..08-conversation.json (conv 46-53) and l3-conversation-57.json; assistant lines copied verbatim",
+ "lines": [
+  {
+   "conversation": 46,
+   "id": "E1",
+   "line": "* **Location lookup** – you enter an address; Voltura geocodes it and pulls monthly solar‑irradiance and temperature data (2019‑2023) from NASA POWER (or estimates from latitude if NASA data are missing).  "
+  },
+  {
+   "conversation": 46,
+   "id": "E2",
+   "line": "* **Outputs** – a downloadable PDF report (inputs, figures, monthly table, no charts) and a history of past calculations stored locally in your browser.  "
+  },
+  {
+   "conversation": 47,
+   "id": "E1",
+   "line": "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). If NASA data are missing, it falls back to a latitude‑based estimate and marks the result as an estimate.  "
+  },
+  {
+   "conversation": 47,
+   "id": "E2",
+   "line": "* Stores a history of past calculations in your browser (tied to a local ID; different browsers or cleared data give a different history).  "
+  },
+  {
+   "conversation": 48,
+   "id": "E1",
+   "line": "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023); if NASA data are missing it falls back to a latitude‑based estimate and marks the result as an estimate.  "
+  },
+  {
+   "conversation": 48,
+   "id": "E2",
+   "line": "* Stores a history of past calculations in the browser (tied to a local ID; different browsers or cleared data show a different history).  "
+  },
+  {
+   "conversation": 49,
+   "id": "E1",
+   "line": "* **Solar data** – for that point it pulls monthly solar‑irradiance and temperature averages (2019‑2023) from NASA POWER. If NASA data are missing, it falls back to a latitude‑based estimate and marks the result as an estimate.  "
+  },
+  {
+   "conversation": 49,
+   "id": "P1",
+   "line": "* **PDF report** – a downloadable PDF containing all inputs, result figures and the monthly table (no charts).  "
+  },
+  {
+   "conversation": 49,
+   "id": "E2",
+   "line": "* **History** – calculations are stored locally in the browser under an ID; a different browser or cleared data shows a separate history.  "
+  },
+  {
+   "conversation": 49,
+   "id": "E3",
+   "line": "* **AI Optimizer** – an explanatory tool that recommends a PV size and battery capacity based on your annual usage and location, using a standard daily usage profile (not your specific load shape). It only provides the recommendation text, not a full calculation.  "
+  },
+  {
+   "conversation": 50,
+   "id": "E1",
+   "line": "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). If NASA data are missing, it falls back to a latitude‑based estimate and labels the result as an estimate.  "
+  },
+  {
+   "conversation": 50,
+   "id": "E2",
+   "line": "* Stores a history of past calculations in the browser (tied to a local ID; different browsers or cleared data give a different history).  "
+  },
+  {
+   "conversation": 51,
+   "id": "E1",
+   "line": "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). If NASA data are missing, it falls back to latitude‑based estimates and flags the result as an estimate.  "
+  },
+  {
+   "conversation": 51,
+   "id": "P2",
+   "line": "* Prices the savings only for Spain (using a user‑provided tariff or Eurostat’s 2025‑S2 average) and the UK (using a user‑provided tariff; no sourced UK tariff, so savings stay unpriced).  "
+  },
+  {
+   "conversation": 51,
+   "id": "E2",
+   "line": "* Stores a history of past calculations in the browser (tied to a local ID; different browsers or cleared data show a different history).  "
+  },
+  {
+   "conversation": 51,
+   "id": "E3",
+   "line": "* Offers an AI Optimizer that recommends a PV size and battery capacity based on your annual usage and location, using a standard daily usage profile (the optimizer’s recommendation is explained, not a full calculation).  "
+  },
+  {
+   "conversation": 52,
+   "id": "E1",
+   "line": "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). If NASA data are missing, it falls back to a latitude‑based estimate and flags the result as an estimate.  "
+  },
+  {
+   "conversation": 52,
+   "id": "E2",
+   "line": "* Stores a **history of past calculations** in the browser (tied to a local ID). Switching browsers or clearing site data gives a different history; there are no user accounts.  "
+  },
+  {
+   "conversation": 52,
+   "id": "E3",
+   "line": "* Offers an **AI Optimizer** that, based on your annual usage and location’s NASA irradiance, recommends a PV size (generation ≈ 100 % of yearly use) and a battery capacity (sized for the night‑time share of a standard daily profile). It only provides the explanation, not a numeric result unless you run a full calculation."
+  },
+  {
+   "conversation": 53,
+   "id": "E2",
+   "line": "* Stores a history of your past calculations locally in the browser (different browsers or cleared data give a different history).  "
+  },
+  {
+   "conversation": 57,
+   "id": "E1",
+   "line": "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). If NASA data are missing, it falls back to a latitude‑based estimate and flags the result as an estimate.  "
+  },
+  {
+   "conversation": 57,
+   "id": "E2",
+   "line": "* Stores a history of past calculations in your browser (tied to a local ID; different browsers or cleared data give a different history).  "
+  }
+ ]
+}

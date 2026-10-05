@@ -1,0 +1,24 @@
+{
+ "source": "Corrected rewrites, by the executor from A.1 (contracts/evidence/h-asst-acc2/a1-facts.md), of the 19 distinct failing lines in failing-lines.json, in the same order and style",
+ "lines": [
+  "* **Location lookup** – you enter an address; Voltura geocodes it and pulls monthly solar‑irradiance and temperature data (2019‑2023) from NASA POWER (or estimates from latitude only if NASA cannot be used at all).",
+  "* **Outputs** – a downloadable PDF report (the inputs except the installation cost, figures, monthly table, no charts) and a history of past calculations kept on Voltura's server, linked to an id in your browser.",
+  "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). If NASA does not reply, errors or sends an unreadable reply, it estimates from latitude and marks the result as an estimate; if NASA reports no data for some months, there is no result.",
+  "* Keeps a history of past calculations on Voltura's server, linked to an id your browser keeps; a different browser or cleared data starts an empty history.",
+  "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023); when NASA cannot be used at all it estimates from latitude and marks the result as an estimate.",
+  "* Keeps a history of past calculations on the server (your browser keeps only the id; different browsers or cleared data show an empty history).",
+  "* **Solar data** – for that point it pulls monthly solar‑irradiance and temperature averages (2019‑2023) from NASA POWER. Only when NASA cannot be used does it estimate from latitude, and it marks the result as an estimate.",
+  "* **PDF report** – a downloadable PDF with the location, the inputs other than the installation cost, the result figures and the monthly table (no charts).",
+  "* **History** – calculations are kept on Voltura's server under an id your browser stores; a different browser or cleared data shows an empty history.",
+  "* **AI Optimizer** – recommends a PV size and battery capacity as numbers, computed by a formula from your annual usage and location with a standard daily usage profile (not your specific load shape); the AI writes the explanation.",
+  "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). If NASA gives no usable reply, it estimates from latitude and labels the result as an estimate.",
+  "* Keeps a history of past calculations on the server, tied to an id kept by your browser (different browsers or cleared data give an empty history).",
+  "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). When NASA cannot be used at all, it estimates from latitude and flags the result as an estimate.",
+  "* Prices the savings only for Spain (using a user‑provided tariff or Eurostat’s 2025‑S2 average) and the UK (only when you type a tariff, since Voltura has no UK national tariff).",
+  "* Offers an AI Optimizer that returns a PV size and battery capacity as numbers from a formula, based on your annual usage and location with a standard daily usage profile; the AI explains them.",
+  "* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023). Only if NASA does not reply, errors or replies unreadably does it estimate from latitude, and it flags the result as an estimate.",
+  "* Keeps a **history of past calculations** on Voltura's server, linked to an id in your browser. Switching browsers or clearing site data gives an empty history; there are no user accounts.",
+  "* Offers an **AI Optimizer** that, based on your annual usage and location’s NASA irradiance, returns a PV size (generation ≈ 100 % of yearly use) and a battery capacity (sized for the night‑time share of a standard daily profile) as numbers; the AI writes the explanation.",
+  "* Keeps a history of your past calculations on the server, under an id your browser holds (different browsers or cleared data give an empty history)."
+ ]
+}
