@@ -1,0 +1,88 @@
+data: {"content":"No"}
+
+data: {"content":"."}
+
+data: {"content":" Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" does"}
+
+data: {"content":" not"}
+
+data: {"content":" calculate"}
+
+data: {"content":" feed"}
+
+data: {"content":"‑"}
+
+data: {"content":"in"}
+
+data: {"content":" tariffs"}
+
+data: {"content":"."}
+
+data: {"content":" It"}
+
+data: {"content":" only"}
+
+data: {"content":" uses"}
+
+data: {"content":" the"}
+
+data: {"content":" electricity"}
+
+data: {"content":" tariff"}
+
+data: {"content":" you"}
+
+data: {"content":" provide"}
+
+data: {"content":" ("}
+
+data: {"content":"or"}
+
+data: {"content":" the"}
+
+data: {"content":" default"}
+
+data: {"content":" household"}
+
+data: {"content":" average"}
+
+data: {"content":" in"}
+
+data: {"content":" Spain"}
+
+data: {"content":")"}
+
+data: {"content":" to"}
+
+data: {"content":" estimate"}
+
+data: {"content":" the"}
+
+data: {"content":" value"}
+
+data: {"content":" of"}
+
+data: {"content":" the"}
+
+data: {"content":" energy"}
+
+data: {"content":" you"}
+
+data: {"content":" save"}
+
+data: {"content":" from"}
+
+data: {"content":" your"}
+
+data: {"content":" own"}
+
+data: {"content":" consumption"}
+
+data: {"content":"."}
+
+data: {"done":true}
+

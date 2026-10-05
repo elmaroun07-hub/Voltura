@@ -1,0 +1,132 @@
+data: {"content":"Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" does"}
+
+data: {"content":" not"}
+
+data: {"content":" calculate"}
+
+data: {"content":" a"}
+
+data: {"content":" net"}
+
+data: {"content":"‑"}
+
+data: {"content":"present"}
+
+data: {"content":"‑"}
+
+data: {"content":"value"}
+
+data: {"content":" ("}
+
+data: {"content":"NP"}
+
+data: {"content":"V"}
+
+data: {"content":")."}
+
+data: {"content":" It"}
+
+data: {"content":" can"}
+
+data: {"content":" show"}
+
+data: {"content":" a"}
+
+data: {"content":" pay"}
+
+data: {"content":"‑"}
+
+data: {"content":"back"}
+
+data: {"content":" period"}
+
+data: {"content":" and"}
+
+data: {"content":" a"}
+
+data: {"content":" "}
+
+data: {"content":"25"}
+
+data: {"content":"‑"}
+
+data: {"content":"year"}
+
+data: {"content":" ROI"}
+
+data: {"content":" curve"}
+
+data: {"content":" ("}
+
+data: {"content":"assuming"}
+
+data: {"content":" savings"}
+
+data: {"content":" grow"}
+
+data: {"content":" "}
+
+data: {"content":"1"}
+
+data: {"content":"."}
+
+data: {"content":"5"}
+
+data: {"content":" "}
+
+data: {"content":"%"}
+
+data: {"content":" per"}
+
+data: {"content":" year"}
+
+data: {"content":")"}
+
+data: {"content":" when"}
+
+data: {"content":" a"}
+
+data: {"content":" monetary"}
+
+data: {"content":" saving"}
+
+data: {"content":" and"}
+
+data: {"content":" an"}
+
+data: {"content":" installation"}
+
+data: {"content":" cost"}
+
+data: {"content":" are"}
+
+data: {"content":" available"}
+
+data: {"content":","}
+
+data: {"content":" but"}
+
+data: {"content":" N"}
+
+data: {"content":"PV"}
+
+data: {"content":" isn"}
+
+data: {"content":"’t"}
+
+data: {"content":" part"}
+
+data: {"content":" of"}
+
+data: {"content":" its"}
+
+data: {"content":" output"}
+
+data: {"content":"."}
+
+data: {"done":true}
+
