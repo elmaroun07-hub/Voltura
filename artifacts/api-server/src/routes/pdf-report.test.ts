@@ -439,3 +439,112 @@ describe("H-PDF L-local — a location outside WinAnsi (record only, not fixed h
     }
   });
 });
+
+// ── H-ASST-D16-N3 Part C — the PDF's net figure is actually net ──────────────
+
+// N3: "Est. 25-Year Net Gain" printed lifetimeSavingsEur, the GROSS 25-year
+// saving. Live row 102 (an install cost of 200,000) read "Net Gain €30,975"
+// while its ROI curve ended at -€169,025.
+const SAVINGS = "Est. 25-Year Savings";
+const NET = "Est. 25-Year Net (after install cost)";
+
+describe("H-ASST-D16-N3 N3 — gross and net are two rows, and net is net", () => {
+  it("TC1: savings is always shown; net only when the install cost is known", async () => {
+    const { base, close } = await serve();
+    try {
+      const known = (await getPdf(base, seed({ installationCostEur: 9200, paybackYears: 8.4, lifetimeSavingsEur: 30975 }))).pages.flat();
+      expect(valueOf({ count: 0, pages: [known] }, SAVINGS)).toBe("€30,975");
+      expect(valueOf({ count: 0, pages: [known] }, NET)).toBe("€21,775");
+
+      const unknown = (await getPdf(base, seed({}))).pages.flat();
+      expect(valueOf({ count: 0, pages: [unknown] }, SAVINGS)).toBe("pending");
+      expect(unknown).not.toContain(NET);
+
+      // C-a: no "Gain" anywhere, on a figure that can be negative.
+      expect([...known, ...unknown].filter((l) => /gain/i.test(l))).toEqual([]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("TC2: net equals the ROI curve's year-25 value exactly, for the curve the web draws", async () => {
+    const { base, close } = await serve();
+    try {
+      for (const installationCost of [200000, 9200, 31000, 1]) {
+        const calc = await calculate(base, { installationCost });
+        expect(calc.status).toBe(200);
+        const year25 = calc.body.money.roi.curve[25];
+        expect(year25.year).toBe(25);
+        const pdf = await getPdf(base, calc.body.id);
+        const printed = valueOf(pdf, NET);
+        const expected = `${year25.netPosition < 0 ? "-" : ""}€${Math.abs(year25.netPosition).toLocaleString("en-GB")}`;
+        expect(printed, `install cost ${installationCost}`).toBe(expected);
+        // C-b: the cost behind the net is the cost the curve was built from.
+        expect(year25.cumulativeSavings - year25.netPosition).toBe(installationCost);
+      }
+    } finally {
+      await close();
+    }
+  });
+
+  it("TC3: the 200,000 never case prints -€169,025 with an ASCII hyphen-minus, and no U+2212 reaches the bytes", async () => {
+    const { base, close } = await serve();
+    try {
+      const calc = await calculate(base, { installationCost: 200000 });
+      const pdf = await getPdf(base, calc.body.id);
+      expect(valueOf(pdf, SAVINGS)).toBe("€30,975");
+      const net = valueOf(pdf, NET);
+      expect(net).toBe("-€169,025");
+      expect(net.codePointAt(0)).toBe(0x2d);
+      // A U+2212 drawn by a standard font goes out as the hex "2212" and decodes
+      // to two stray bytes (N2's shape), so any non-WinAnsi char is the check.
+      expect(pdf.pages.flat().flatMap(notWinAnsi).map(codePoint)).toEqual([]);
+    } finally {
+      await close();
+    }
+  });
+
+  it("TC4: an absent install cost prints no net row - never a net computed from 0", async () => {
+    const { base, close } = await serve();
+    try {
+      // A lifetime figure with no stored cost: a net from 0 would print €30,975.
+      const lines = (await getPdf(base, seed({ installationCostEur: null, lifetimeSavingsEur: 30975 }))).pages.flat();
+      // Not vacuous: the report has its 25-year block, and the net is what is missing.
+      expect(valueOf({ count: 0, pages: [lines] }, SAVINGS)).toBe("€30,975");
+      expect(lines).not.toContain(NET);
+      expect(lines.filter((l) => l === "€30,975")).toHaveLength(1); // the savings row only
+
+      // Through the route: no cost entered, battery outside the registry cost.
+      const calc = await calculate(base, {});
+      expect(store.rows.get(calc.body.id).installationCostEur).toBeNull();
+      expect((await getPdf(base, calc.body.id)).pages.flat()).not.toContain(NET);
+    } finally {
+      await close();
+    }
+  });
+
+  it("TC5: money pin - stored savings, payback and lifetimeSavings are unchanged", async () => {
+    // Values read from POST /api/calculate on these fixtures at 0f9f7a1, before Part C.
+    const { base, close } = await serve();
+    try {
+      const pinned = [
+        { installationCost: 200000, annualSavingsEur: 1030.34, installationCostEur: 200000, paybackYears: null, lifetimeSavingsEur: 30975 },
+        { installationCost: 9200, annualSavingsEur: 1030.34, installationCostEur: 9200, paybackYears: 8.4, lifetimeSavingsEur: 30975 },
+        { installationCost: undefined, annualSavingsEur: 1030.34, installationCostEur: null, paybackYears: null, lifetimeSavingsEur: null },
+      ];
+      for (const { installationCost, ...stored } of pinned) {
+        const calc = await calculate(base, installationCost === undefined ? {} : { installationCost });
+        const row = store.rows.get(calc.body.id);
+        expect(row.savingsKwh).toBe(3860);
+        expect({
+          annualSavingsEur: row.annualSavingsEur,
+          installationCostEur: row.installationCostEur,
+          paybackYears: row.paybackYears,
+          lifetimeSavingsEur: row.lifetimeSavingsEur,
+        }).toEqual(stored);
+      }
+    } finally {
+      await close();
+    }
+  });
+});

@@ -915,11 +915,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             ? `not within ${ROI_YEARS} years`
             : `${calc.paybackYears.toFixed(1)} years`;
 
+      // N3: lifetimeSavingsEur is the GROSS 25-year saving, and was printed as
+      // "Net Gain" - "€30,975" on a row whose install cost was 200,000. The net
+      // is computed here, at render time, from the two persisted figures the
+      // ROI curve was built from (written together, see the calculate handler),
+      // so old rows get it with no migration. The row exists only when the cost
+      // is known: a missing cost is never 0. The sign is a literal ASCII
+      // hyphen-minus rather than whatever the locale data supplies, because
+      // U+2212 is not WinAnsi (N2's class).
+      const pdfNet = (lifetime: number, cost: number): string => {
+        const net = lifetime - cost;
+        return net < 0 ? `-${pdfMoney(-net)}` : pdfMoney(net);
+      };
+      const netRows =
+        calc.installationCostEur == null
+          ? []
+          : [[
+              "Est. 25-Year Net (after install cost)",
+              calc.lifetimeSavingsEur == null ? "pending" : pdfNet(calc.lifetimeSavingsEur, calc.installationCostEur),
+              "#2563eb",
+            ]];
+
       const resultRows = [
         ["Annual Energy Saved", `${num(calc.savingsKwh)} kWh`, "#10b981"],
         ["Annual Cost Savings", pdfMoney(calc.annualSavingsEur), "#10b981"],
         ["Estimated Payback Period", pdfPayback, "#2563eb"],
-        ["Est. 25-Year Net Gain", pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
+        ["Est. 25-Year Savings", pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
+        ...netRows,
         // "CO2", not U+2082: a subscript two is not WinAnsi and printed as "CO ‚" (N2).
         ["CO2 Emissions Reduced", `${num(calc.co2Reduction)} kg`, "#059669"],
         ["Trees Equivalent", `${Math.round(calc.co2Reduction / 20)} trees/year`, "#059669"],
