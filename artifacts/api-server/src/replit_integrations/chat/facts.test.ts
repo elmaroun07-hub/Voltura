@@ -26,7 +26,9 @@ type Fixture = { lat: number; lon: number; nominatim: any[]; nasa: any };
 const fixtures: Record<string, Fixture> = JSON.parse(
   readFileSync(new URL("../../routes/calculate.fixtures.json", import.meta.url), "utf8"),
 );
-const source = (repoPath: string) => readFileSync(new URL(`../../../../../${repoPath}`, import.meta.url), "utf8");
+// Line endings folded: a Windows checkout writes CRLF, and the pins compare code text.
+const source = (repoPath: string) =>
+  readFileSync(new URL(`../../../../../${repoPath}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const fact = (id: string) => {
   const f = VOLTURA_FACTS.find((x) => x.id === id);
   if (!f) throw new Error(`no fact "${id}"`);
@@ -149,8 +151,9 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
 
   it("nasa: temperature changes the modelled consumption, never the generation", () => {
     expect(fact("nasa")).toContain("Temperature affects only the modelled household consumption, not the solar generation.");
-    const run = (t: number) => simulate8760(5000, 4000, 10, 0.9, 1, FLAT_IRR, Array(12).fill(t), 0.78).monthly;
-    const cold = run(0), warm = run(20);
+    // Temperatures that differ by month: a uniform shift scales out against the annual kWh.
+    const run = (temps: number[]) => simulate8760(5000, 4000, 10, 0.9, 1, FLAT_IRR, temps, 0.78).monthly;
+    const cold = run(Array(12).fill(15)), warm = run([0, 2, 6, 10, 16, 22, 30, 31, 25, 16, 8, 2]);
     expect(cold.map((m) => m.generationKwh)).toEqual(warm.map((m) => m.generationKwh));
     expect(cold.map((m) => m.consumptionKwh)).not.toEqual(warm.map((m) => m.consumptionKwh));
   });
