@@ -1,0 +1,28 @@
+data: {"content":"Volt"}
+
+data: {"content":"ura"}
+
+data: {"content":" makes"}
+
+data: {"content":" no"}
+
+data: {"content":" claim"}
+
+data: {"content":" about"}
+
+data: {"content":" compliance"}
+
+data: {"content":" with"}
+
+data: {"content":" the"}
+
+data: {"content":" EU"}
+
+data: {"content":" AI"}
+
+data: {"content":" Act"}
+
+data: {"content":"."}
+
+data: {"done":true}
+
