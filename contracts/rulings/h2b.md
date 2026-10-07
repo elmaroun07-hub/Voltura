@@ -262,3 +262,46 @@ sentences and the PDF in Spanish by default, English on request.
 2b.5 stays **HELD** (operator's ruling). Whether H3's precondition "H2b closed" is met with
 those two open is a judgment, not a check — the operator's to rule (§14.2) before H3 opens,
 along with H3's own open question: which municipality first.
+
+---
+
+# 2b.3 — closed under A24 (7 October 2026)
+
+**Operator ruling, 7 Oct 2026:** the vocabulary is cited to the **Estrategia Nacional contra la
+Pobreza Energética 2026–2030** (MITECO; Council of Ministers, 17 Feb 2026), in its own wording.
+Recorded as amendment **A24**; the block file's 2b.3 row is amended in place.
+
+**Evidence.** The full PDF (89 pages, SHA-256 `0ad93712…faeb6f`, supplied by the operator, read
+7 Oct 2026) was searched end to end — not the truncated fetch the refusal relied on:
+
+| Term | Count in the strategy | Cited page |
+|---|---|---|
+| pobreza energética | 173 | 12 (the definition) |
+| pobreza energética en verano | — | 26 |
+| rehabilitación | 45 | 18 |
+| parque edificatorio | 2 | 18 (and 30) |
+| cribado | 2 | 61 |
+| *refrigerar* | 0 | — (why "viviendas difíciles de refrigerar" is gone) |
+| *parque de viviendas* | 0 | — (why it became "parque edificatorio") |
+
+Each excerpt in `lib/i18n/src/vocabulary.ts` was matched verbatim against its page's text.
+*Cribado* is recorded with its sense in the source (screening **people** in primary care) and
+the wider sense HeatShield gives it (screening the **building stock**).
+
+**Correction to the refusal above:** it said *cribado* had no official source. That was read
+from a truncated copy of the 2019–2024 strategy and a search; the 2026–2030 strategy has it on
+p. 61. Self-reported.
+
+**Tests:** `lib/i18n/src/vocabulary.test.ts`, 6 cases (exact term list; the two dropped terms
+absent; each term verbatim in its excerpt on a real page, excerpt under 15 words; complete
+source record incl. hash; the wider-sense note; P7). `lib/i18n` 17 passed; typecheck exit 0.
+G9: V1 old term restored → 3 failed; V2 excerpt loses its term → 1; V3 wider-sense note
+dropped → 1; V4 hash removed → 1. All killed.
+
+**Not wired to any screen yet.** The current screens are the solar calculator; these are H3's
+words. P6 says unwired is unshipped — the vocabulary is a record H3 must draw from, and H3's
+gate is where its use is checked.
+
+## RULING — 2b.3
+
+**2b.3 CLOSED** (A24). Block H2b now waits on **2b.5 alone**.
