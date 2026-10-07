@@ -5,10 +5,12 @@ import { CalculatorForm } from "@/components/calculator/CalculatorForm";
 import { ResultsDisplay } from "@/components/calculator/ResultsDisplay";
 import { useCalculate } from "@/hooks/use-calculations";
 import { type CalculationInput, type CalculationResponse } from "@/lib/api";
+import { useI18n } from "@/i18n";
 
 export default function Home() {
   const [results, setResults] = useState<CalculationResponse | null>(null);
   const calculateMutation = useCalculate();
+  const { t } = useI18n();
 
   const handleCalculate = async (data: CalculationInput) => {
     const result = await calculateMutation.mutateAsync(data);
@@ -25,10 +27,10 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2"
             >
-              Voltura
+              {t("brand.name")}
             </motion.h1>
             <p className="text-muted-foreground max-w-xl">
-              Solar + battery savings, modeled on NASA POWER irradiance and country-level grid carbon intensity
+              {t("home.subtitle")}
             </p>
           </div>
         </div>

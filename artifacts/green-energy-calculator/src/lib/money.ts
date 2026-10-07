@@ -1,4 +1,5 @@
 import type { CalculationResponse } from "@/lib/api";
+import { INTL_LOCALE, type Locale } from "@workspace/i18n";
 
 export type Currency = "EUR" | "GBP";
 export type Money = CalculationResponse["money"];
@@ -11,9 +12,13 @@ export type Money = CalculationResponse["money"];
  * no default currency: a caller that does not have one cannot format an amount.
  * (The old render path printed a hard-coded euro sign on every figure,
  * whatever country it was for.)
+ *
+ * H2b: the reader's language decides the punctuation and where the symbol
+ * goes (1.050 € in Spanish, €1,050 in English); the currency still comes from
+ * the server. No default locale either: the caller passes the one in use.
  */
-export function formatMoney(amount: number, currency: Currency, maximumFractionDigits = 0): string {
-  return new Intl.NumberFormat("en-GB", {
+export function formatMoney(locale: Locale, amount: number, currency: Currency, maximumFractionDigits = 0): string {
+  return new Intl.NumberFormat(INTL_LOCALE[locale], {
     style: "currency",
     currency,
     maximumFractionDigits,
@@ -22,8 +27,8 @@ export function formatMoney(amount: number, currency: Currency, maximumFractionD
 }
 
 /** Compact axis ticks in the figure's own currency. */
-export function formatMoneyCompact(amount: number, currency: Currency): string {
-  return new Intl.NumberFormat("en-GB", {
+export function formatMoneyCompact(locale: Locale, amount: number, currency: Currency): string {
+  return new Intl.NumberFormat(INTL_LOCALE[locale], {
     style: "currency",
     currency,
     notation: "compact",
@@ -32,9 +37,6 @@ export function formatMoneyCompact(amount: number, currency: Currency): string {
 }
 
 /** A range renders as a range. There is no midpoint here or anywhere. */
-export function formatMoneyRange(low: number, high: number, currency: Currency): string {
-  return `${formatMoney(low, currency)}–${formatMoney(high, currency)}`;
+export function formatMoneyRange(locale: Locale, low: number, high: number, currency: Currency): string {
+  return `${formatMoney(locale, low, currency)}–${formatMoney(locale, high, currency)}`;
 }
-
-/** Text for a money slot that has no figure: says so, and says why in words. */
-export const PENDING_LABEL = "pending";

@@ -1,4 +1,6 @@
 import * as React from "react"
+import { useI18n } from "@/i18n"
+import { T } from "@/i18n/T"
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
 } from "embla-carousel-react"
@@ -83,6 +85,7 @@ const Carousel = React.forwardRef<
       api?.scrollNext()
     }, [api])
 
+    const { t } = useI18n()
     const handleKeyDown = React.useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "ArrowLeft") {
@@ -137,7 +140,7 @@ const Carousel = React.forwardRef<
           onKeyDownCapture={handleKeyDown}
           className={cn("relative", className)}
           role="region"
-          aria-roledescription="carousel"
+          aria-roledescription={t("ui.carousel")}
           {...props}
         >
           {children}
@@ -175,12 +178,13 @@ const CarouselItem = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
   const { orientation } = useCarousel()
+  const { t } = useI18n()
 
   return (
     <div
       ref={ref}
       role="group"
-      aria-roledescription="slide"
+      aria-roledescription={t("ui.slide")}
       className={cn(
         "min-w-0 shrink-0 grow-0 basis-full",
         orientation === "horizontal" ? "pl-4" : "pt-4",
@@ -215,7 +219,7 @@ const CarouselPrevious = React.forwardRef<
       {...props}
     >
       <ArrowLeft className="h-4 w-4" />
-      <span className="sr-only">Previous slide</span>
+      <span className="sr-only"><T k="ui.prevSlide" /></span>
     </Button>
   )
 })
@@ -244,7 +248,7 @@ const CarouselNext = React.forwardRef<
       {...props}
     >
       <ArrowRight className="h-4 w-4" />
-      <span className="sr-only">Next slide</span>
+      <span className="sr-only"><T k="ui.nextSlide" /></span>
     </Button>
   )
 })

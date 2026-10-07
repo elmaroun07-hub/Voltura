@@ -1,4 +1,6 @@
 import * as React from "react"
+import { useI18n } from "@/i18n"
+import { T } from "@/i18n/T"
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronRight, MoreHorizontal } from "lucide-react"
 
@@ -9,7 +11,10 @@ const Breadcrumb = React.forwardRef<
   React.ComponentPropsWithoutRef<"nav"> & {
     separator?: React.ReactNode
   }
->(({ ...props }, ref) => <nav ref={ref} aria-label="breadcrumb" {...props} />)
+>(({ ...props }, ref) => {
+  const { t } = useI18n()
+  return <nav ref={ref} aria-label={t("ui.breadcrumb")} {...props} />
+})
 Breadcrumb.displayName = "Breadcrumb"
 
 const BreadcrumbList = React.forwardRef<
@@ -99,7 +104,7 @@ const BreadcrumbEllipsis = ({
     {...props}
   >
     <MoreHorizontal className="h-4 w-4" />
-    <span className="sr-only">More</span>
+    <span className="sr-only"><T k="ui.more" /></span>
   </span>
 )
 BreadcrumbEllipsis.displayName = "BreadcrumbElipssis"

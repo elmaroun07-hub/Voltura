@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getLocale } from "@/i18n";
 
 const SESSION_ID_KEY = "voltura.sessionId";
 
@@ -58,6 +59,10 @@ export async function sessionFetch(path: ApiPath, init?: RequestInit): Promise<R
 
   const headers = new Headers(init?.headers);
   headers.set("X-Session-Id", sessionId);
+  // H2b: the API answers in the language the person chose — its error
+  // messages, the recommendation and the PDF. Exactly one tag, never the
+  // browser's own list: the choice on screen is the choice sent.
+  headers.set("Accept-Language", getLocale());
 
   return fetch(API_BASE + path, { ...init, headers });
 }

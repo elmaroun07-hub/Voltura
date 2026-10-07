@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 export const calculationInputSchema = z.object({
-  location: z.string().min(2, "Please enter a valid location"),
+  // No message here: the form maps zod's issue codes to the catalog (H2b), and
+  // a message written on the schema would override that in English.
+  location: z.string().min(2),
   energyUsage: z.number().min(100).max(100000),
   pvWattage: z.number().min(100).max(100000),
   batteryCapacity: z.number().min(0).max(200),
@@ -56,7 +58,8 @@ function normalizeText(value: unknown, depth = 0): string {
 const modelProseSchema = z
   .unknown()
   .transform((value) => normalizeText(value))
-  .pipe(z.string().min(1, "could not be normalized to readable text"));
+  // A failed pipe is logged (useOptimize's safeParse), never shown; no prose here.
+  .pipe(z.string().min(1));
 
 // H-OPT sizing record. Every field is computed server-side by lib/sizing.ts from
 // NASA POWER irradiance and the household's metered annual usage; none of it
@@ -318,8 +321,9 @@ export const api = {
         // this "24h Energy Pattern (kWh)" and this client's fixed profile sums
         // to 102, so every recommendation was sized for a 102 kWh/day house.
         energyPattern: z
-          .array(z.number().min(0, "an hourly weight cannot be negative"))
-          .length(24, "energyPattern must carry one weight per hour of the day"),
+          // One non-negative weight per hour of the day.
+          .array(z.number().min(0))
+          .length(24),
         location: z.string(),
         // The magnitude, and it is REQUIRED. Bounds match energyUsage above so
         // the two routes cannot disagree about what a plausible household is.
