@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Zap, Satellite, CalendarCheck } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { useI18n, tNow } from "@/i18n";
 
 /**
  * Default usage SHAPE — hourly weights, not kWh.
@@ -25,11 +26,14 @@ const DEFAULT_PATTERN = [
 const DEFAULT_USAGE_KWH = 5000;
 
 export default function Optimizer() {
-  const [location, setLocation] = useState("San Francisco, CA");
+  // The prefilled example is a place name; it lives in the catalog like every
+  // other visible string, the same in both languages.
+  const [location, setLocation] = useState(() => tNow()("opt.defaultLocation"));
   // A string, so the field can be empty while it is being retyped. An empty
   // field submits NaN, which the schema rejects — it never becomes a default.
   const [usage, setUsage] = useState(String(DEFAULT_USAGE_KWH));
   const optimizeMutation = useOptimize();
+  const { t, num } = useI18n();
 
   const handleOptimize = () => {
     optimizeMutation.mutate({
@@ -46,11 +50,9 @@ export default function Optimizer() {
     <Shell>
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-display font-bold mb-2">AI Optimizer</h1>
+          <h1 className="text-3xl font-display font-bold mb-2">{t("nav.optimizer")}</h1>
           <p className="text-muted-foreground">
-            Your system is sized from NASA POWER satellite irradiance for your location and
-            your own annual consumption. The assistant explains the result; it does not
-            choose it.
+            {t("opt.intro")}
           </p>
         </div>
 
@@ -59,23 +61,23 @@ export default function Optimizer() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Configuration</CardTitle>
-                <CardDescription>Define your location, your usage and your load profile</CardDescription>
+                <CardTitle>{t("opt.configTitle")}</CardTitle>
+                <CardDescription>{t("opt.configDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="optimizer-location">Location</Label>
+                  <Label htmlFor="optimizer-location">{t("common.location")}</Label>
                   <Input
                     id="optimizer-location"
                     data-testid="input-optimizer-location"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Enter city..."
+                    placeholder={t("opt.locationPlaceholder")}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="optimizer-usage">Annual electricity use (kWh/year)</Label>
+                  <Label htmlFor="optimizer-usage">{t("opt.usage")}</Label>
                   <Input
                     id="optimizer-usage"
                     data-testid="input-optimizer-usage"
@@ -84,18 +86,17 @@ export default function Optimizer() {
                     max={100000}
                     value={usage}
                     onChange={(e) => setUsage(e.target.value)}
-                    placeholder="e.g. 5000"
+                    placeholder={t("opt.usagePlaceholder")}
                   />
                   <p className="text-xs text-muted-foreground">
-                    From your bill. The profile below says <em>when</em> you use power; this
-                    says how much.
+                    {t("opt.usageHelpBefore")} <em>{t("opt.usageHelpWhen")}</em> {t("opt.usageHelpAfter")}
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="flex justify-between">
-                    <span>Typical Daily Usage Pattern</span>
-                    <span className="text-xs text-muted-foreground italic">Standard Profile</span>
+                    <span>{t("opt.pattern")}</span>
+                    <span className="text-xs text-muted-foreground italic">{t("opt.standardProfile")}</span>
                   </Label>
                   <div className="h-32 w-full border rounded-md p-2 bg-muted/20">
                     <ResponsiveContainer width="100%" height="100%">
@@ -109,12 +110,12 @@ export default function Optimizer() {
                         <XAxis dataKey="hour" hide />
                         <YAxis hide />
                         <Tooltip />
-                        <Area type="monotone" dataKey="usage" stroke="#10b981" fillOpacity={1} fill="url(#colorUsage)" />
+                        <Area type="monotone" dataKey="usage" name={t("opt.relativeLoad")} stroke="#10b981" fillOpacity={1} fill="url(#colorUsage)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Relative shape only — the hours, not the kilowatt-hours.
+                    {t("opt.patternHelp")}
                   </p>
                 </div>
 
@@ -124,9 +125,9 @@ export default function Optimizer() {
                   disabled={optimizeMutation.isPending}
                 >
                   {optimizeMutation.isPending ? (
-                    <><Loader2 className="mr-2 animate-spin" /> Optimizing...</>
+                    <><Loader2 className="mr-2 animate-spin" /> {t("opt.running")}</>
                   ) : (
-                    <><Zap className="mr-2 w-4 h-4" /> Run AI Optimization</>
+                    <><Zap className="mr-2 w-4 h-4" /> {t("opt.run")}</>
                   )}
                 </Button>
               </CardContent>
@@ -139,7 +140,7 @@ export default function Optimizer() {
               <Card className="bg-primary/5 border-primary/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-primary">
-                    <Satellite className="w-6 h-6" /> Recommended Configuration
+                    <Satellite className="w-6 h-6" /> {t("opt.resultTitle")}
                   </CardTitle>
                   {/*
                     The provenance line. This tab used to say "Optimal
@@ -154,28 +155,38 @@ export default function Optimizer() {
                   >
                     <CalendarCheck className="w-3.5 h-3.5 shrink-0" />
                     <span>
-                      {irradianceLabel(result.resolution)} ·{" "}
-                      {result.sizing.irradianceKwhM2Day} kWh/m²/day at{" "}
-                      {result.resolution.lat}, {result.resolution.lon}
+                      {/* No coordinates printed if the server sent none: a null
+                          formatted as a number would read 0, a place nobody asked for. */}
+                      {result.resolution.lat !== null && result.resolution.lon !== null
+                        ? t("opt.provenance", {
+                            source: irradianceLabel(result.resolution, t),
+                            v: num(result.sizing.irradianceKwhM2Day),
+                            lat: num(result.resolution.lat),
+                            lon: num(result.resolution.lon),
+                          })
+                        : t("opt.provenanceNoCoords", {
+                            source: irradianceLabel(result.resolution, t),
+                            v: num(result.sizing.irradianceKwhM2Day),
+                          })}
                     </span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-white rounded-xl shadow-sm">
-                      <p className="text-sm text-muted-foreground mb-1">Recommended PV</p>
+                      <p className="text-sm text-muted-foreground mb-1">{t("opt.recommendedPv")}</p>
                       <p data-testid="text-optimal-pv" className="text-2xl font-bold">
-                        {result.optimalPv} W
+                        {t("unit.wValue", { n: num(result.optimalPv) })}
                       </p>
-                      <p className="text-xs text-muted-foreground">{result.sizing.pvKwp} kWp</p>
+                      <p className="text-xs text-muted-foreground">{t("unit.kwpValue", { n: num(result.sizing.pvKwp) })}</p>
                     </div>
                     <div className="p-4 bg-white rounded-xl shadow-sm">
-                      <p className="text-sm text-muted-foreground mb-1">Battery Storage</p>
+                      <p className="text-sm text-muted-foreground mb-1">{t("opt.batteryStorage")}</p>
                       <p data-testid="text-optimal-battery" className="text-2xl font-bold">
-                        {result.optimalBattery} kWh
+                        {t("unit.kwhValue", { n: num(result.optimalBattery) })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        covers {result.sizing.nightUsageKwh} kWh overnight
+                        {t("opt.coversOvernight", { n: num(result.sizing.nightUsageKwh) })}
                       </p>
                     </div>
                   </div>
@@ -186,27 +197,26 @@ export default function Optimizer() {
                     that put the irradiance period next to the mean.
                   */}
                   <div className="bg-white/50 p-4 rounded-xl text-sm space-y-1">
-                    <p className="font-medium mb-1">How this was computed</p>
+                    <p className="font-medium mb-1">{t("opt.howTitle")}</p>
                     <p className="text-muted-foreground">
-                      Sized so a year of generation equals a year of consumption
-                      ({Math.round(result.sizing.coverageTarget * 100)}% of{" "}
-                      {result.sizing.annualUsageKwh.toLocaleString()} kWh/year, about{" "}
-                      {result.sizing.dailyUsageKwh} kWh/day). This is annual energy parity,
-                      not off-grid autonomy: generation and demand still fall at different
-                      hours.
+                      {t("opt.howParity", {
+                        pct: num(Math.round(result.sizing.coverageTarget * 100)),
+                        usage: num(result.sizing.annualUsageKwh),
+                        daily: num(result.sizing.dailyUsageKwh),
+                      })}
                     </p>
                     <p className="text-muted-foreground">
-                      Assumes a {Math.round(result.sizing.performanceRatio * 100)}% system
-                      performance ratio, {Math.round(result.sizing.roundTripEfficiency * 100)}%
-                      battery round-trip efficiency and{" "}
-                      {Math.round(result.sizing.usableDepthOfDischarge * 100)}% usable depth of
-                      discharge. The battery carries the{" "}
-                      {result.sizing.darkHours} hours a day the array produces nothing.
+                      {t("opt.howAssumptions", {
+                        pr: num(Math.round(result.sizing.performanceRatio * 100)),
+                        rte: num(Math.round(result.sizing.roundTripEfficiency * 100)),
+                        dod: num(Math.round(result.sizing.usableDepthOfDischarge * 100)),
+                        dark: num(result.sizing.darkHours),
+                      })}
                     </p>
                   </div>
 
                   <div className="bg-white/50 p-4 rounded-xl text-sm leading-relaxed">
-                    <p className="font-medium mb-1">Analysis:</p>
+                    <p className="font-medium mb-1">{t("opt.analysis")}</p>
                     <p data-testid="text-optimizer-explanation" className="whitespace-pre-line">
                       {result.explanation}
                     </p>
@@ -217,7 +227,7 @@ export default function Optimizer() {
               <div className="h-full flex items-center justify-center border-2 border-dashed rounded-xl p-8 text-muted-foreground bg-muted/10">
                 <div className="text-center">
                   <Zap className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                  <p>Run optimization to see the recommended system</p>
+                  <p>{t("opt.empty")}</p>
                 </div>
               </div>
             )}

@@ -149,6 +149,8 @@ async function optimize(base: string, body: Record<string, unknown>) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "X-Session-Id": "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f",
+      // This suite pins the English text, so it asks for English (H2b: Spanish is the default).
+      "Accept-Language": "en",
     },
     body: JSON.stringify(body),
   });
@@ -170,6 +172,8 @@ async function calculate(base: string, location: string) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "X-Session-Id": "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f",
+      // This suite pins the English text, so it asks for English (H2b: Spanish is the default).
+      "Accept-Language": "en",
     },
     body: JSON.stringify({
       location,

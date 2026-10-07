@@ -1,29 +1,48 @@
-# Locale strings — salvaged at H1.x
+# Locale strings — salvaged at H1.x, mapped at H2b
 
 `en.json`, `es.json`, `ar.json`, copied verbatim from
 `artifacts/greencalc/static/lang/` before H2 archives that directory (C2).
 
-**Why they are here and not somewhere tidier.** C2's failure mode is named in the
-block file: *"Salvaging `es.json` into a location nothing will find at H2b."*
-H2b is the Spanish block and its consumer is this React app, so the strings sit
-inside the app's own `src/`, next to the code that will import them — not in a
-`lib/*` package, not in a top-level `i18n/`, not in the repo root.
+**H2b (2b.2): the matching strings were carried into `src/i18n/catalog.ts`,
+which is now the only place the app reads words from.** These files are kept
+as the salvage record, not loaded. Nothing imports them.
 
-**They are not wired up, and that is deliberate.** H1.x is salvage, not
-internationalisation. Wiring them means choosing a runtime (react-i18next or
-otherwise), a language switcher, and a fallback policy, and that is H2b's work.
-Importing them now would create a second half-built integration in a repository
-whose §G11 exists because it already holds four.
+## What was carried over, and how
 
-**What a future reader must know before using them.**
+The keys were written for the **Flask GreenCalc app**, not for this one, so the
+mapping was by meaning, not by name. Title Case was normalised to sentence
+case, which is how Spanish writes labels.
 
-- The keys were written for the **Flask GreenCalc app**, not for this one. They
-  name that app's pages: `nav_home`, `nav_calculator`, `nav_dashboard`,
-  `nav_predict`, `nav_compliance`. The React app has Home, Calculator and
-  History. **The key sets do not correspond**, and mapping them is a translation
-  decision, not a rename.
-- 28 top-level keys in each file. They are flat, not nested.
-- `ar.json` is right-to-left. Nothing in this app currently sets `dir`.
-- No translator is credited and no review is recorded, so the Spanish is
-  unverified. H2b should treat it as a draft, not as approved copy — a
-  mistranslated compliance claim is a P7 problem, not a typo.
+| Salvaged key | Salvaged Spanish | Catalog key | Catalog Spanish |
+|---|---|---|---|
+| `nav_calculator` | Calculadora | `nav.calculator` | Calculadora |
+| `form_location` | Ubicación | `common.location` | Ubicación |
+| `form_location_placeholder` | ej. Madrid, España | `calc.locationPlaceholder` | Ciudad, país (p. ej., Madrid, España) |
+| `form_annual_kwh` | Consumo Anual (kWh) | `calc.annualUsage` | Consumo anual (kWh) |
+| `form_pv_size` | Tamaño Sistema FV (W) | `calc.pvSize` | Tamaño del sistema FV (W) |
+| `form_battery` | Capacidad Batería (kWh) | `calc.battery` | Capacidad de batería: {kwh} kWh |
+| `form_tilt` | Inclinación Panel (grados) | `calc.tilt` | Inclinación del panel: {deg}° |
+| `form_orientation` | Orientación Panel | `calc.orientation` | Orientación del panel |
+| `form_tariff` | Tarifa Eléctrica (por kWh) | `calc.tariff` | Tarifa eléctrica (por kWh) |
+| `form_submit` | Calcular Ahorros | `calc.submit` | Calcular ahorro |
+| `results_annual_savings` | Ahorros Anuales | `results.annualSavings` | Ahorro anual |
+| `results_co2` | CO₂ Reducido | `results.co2` | Reducción de CO₂ |
+| `results_payback` | Período de Retorno | `pdf.payback` (server) | Periodo de retorno estimado |
+| `export_pdf` | Exportar Informe PDF | `results.downloadPdf` | Descargar informe completo en PDF |
+
+## Not carried over, and why
+
+- `nav_home`, `nav_dashboard`, `nav_predict`, `nav_compliance` — no such page in
+  this app. `nav_compliance` ("Cumplimiento IA") would also be P7-adjacent.
+- `hero_title`, `hero_subtitle`, `hero_description`, `footer` — they name
+  **GreenCalc**, which is not the product and is never to be called it.
+- `form_efficiency` ("Eficiencia del Sistema") — this app's field is the
+  battery's round-trip efficiency, a different quantity.
+- `results_annual_saved`, `results_net_25yr`, `btn_start`, `btn_dashboard`,
+  `results_title` — no matching element in this app.
+- `ar.json` — Arabic is not a language this block ships, and nothing in the app
+  sets `dir="rtl"`.
+
+The Spanish in the catalog, salvaged or new, is a first draft. No translator
+reviewed it; a native review before a Spanish buyer reads it is a residue of
+H2b, not something these files can certify.

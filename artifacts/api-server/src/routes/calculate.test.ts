@@ -104,6 +104,8 @@ async function calculate(base: string, location: string) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "X-Session-Id": "a3a3a3a3-3333-4333-8333-a3a3a3a3a3a3",
+      // This suite pins the English text, so it asks for English (H2b: Spanish is the default).
+      "Accept-Language": "en",
     },
     body: JSON.stringify({
       location,
@@ -451,5 +453,81 @@ describe("AC3 — every carbon-bearing response names its source", () => {
     expect(carbon.valueKgPerKwh).toBe(0.543);
     expect(r.body.carbonIntensity).toBe(0.543);
     await close();
+  });
+});
+
+// ── H2b — the API answers in Spanish unless English is asked for ─────────────
+
+async function calculateIn(base: string, location: string, acceptLanguage: string | null, extra: Record<string, unknown> = {}) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+    "X-Session-Id": "b2b2b2b2-2222-4222-8222-b2b2b2b2b2b2",
+  };
+  if (acceptLanguage !== null) headers["Accept-Language"] = acceptLanguage;
+  const res = await realFetch(`${base}/api/calculate`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ location, energyUsage: 5000, pvWattage: 4000, batteryCapacity: 10, ...extra }),
+  });
+  return { status: res.status, body: (await res.json()) as any };
+}
+
+describe("H2b — Spanish by default (2b.1), on the calculate route", () => {
+  it("writes the recommendation and the money block's reasons in Spanish when no language is named", async () => {
+    const { base, close } = await serve();
+    try {
+      const es = await calculateIn(base, FUENGIROLA, null);
+      const en = await calculateIn(base, FUENGIROLA, "en");
+      expect(es.status).toBe(200);
+      // Same figures in both languages: only the words change.
+      expect(es.body.savingsKwh).toBe(en.body.savingsKwh);
+      expect(es.body.money.annualSavings).toBe(en.body.money.annualSavings);
+      expect(es.body.money.installCost.reason).toBe(en.body.money.installCost.reason);
+
+      expect(es.body.recommendation).toMatch(/^(¡Excelente!|¡Buen resultado!|Su sistema compensa)/);
+      expect(es.body.recommendation).toMatch(/al año/);
+      expect(en.body.recommendation).toMatch(/^(Excellent!|Great result!|Your system offsets)/);
+      // Spain's install cost is a registry note (data, quoted as recorded) or a
+      // battery refusal (our sentence, translated) — never English prose of ours in Spanish.
+      if (es.body.money.installCost.reason === "battery_not_in_registry_cost") {
+        expect(es.body.money.installCost.detail).toMatch(/cubre solo la FV/);
+      }
+      expect(es.body.money.roi.detail).not.toMatch(/\b(the|there is|a payback)\b/);
+    } finally {
+      await close();
+    }
+  });
+
+  it("refuses an unlocatable place in Spanish, with the same code and status", async () => {
+    const { base, close } = await serve();
+    try {
+      const es = await calculateIn(base, "zzzz-no-such-place-zzzz", null);
+      const en = await calculateIn(base, "zzzz-no-such-place-zzzz", "en");
+      expect(es.status).toBe(en.status);
+      expect(es.body.code).toBe(en.body.code);
+      if (es.body.code === "geocode_failed") {
+        expect(es.body.message).toMatch(/^No hemos podido localizar ese lugar/);
+        expect(en.body.message).toMatch(/^We could not locate that place/);
+      }
+    } finally {
+      await close();
+    }
+  });
+
+  it("answers a missing session header in Spanish, and in English on request", async () => {
+    const { base, close } = await serve();
+    try {
+      const es = await realFetch(`${base}/api/calculate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      expect(es.status).toBe(400);
+      expect(await es.json()).toEqual({ message: "Falta la cabecera X-Session-Id" });
+      const en = await realFetch(`${base}/api/calculate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept-Language": "en" },
+        body: "{}",
+      });
+      expect(await en.json()).toEqual({ message: "X-Session-Id header is required" });
+    } finally {
+      await close();
+    }
   });
 });

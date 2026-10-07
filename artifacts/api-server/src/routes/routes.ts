@@ -10,7 +10,6 @@ import rateLimit from "express-rate-limit";
 import {
   parseOptimizePayload,
   renderOptimizeFacts,
-  OPTIMIZE_FAILURE_MESSAGE,
   type OptimizeFacts,
 } from "./optimize-payload";
 import { sizePvAndBattery, sizingFailureMessage } from "../lib/sizing";
@@ -22,6 +21,7 @@ import {
 } from "../lib/emissions/carbon-source";
 import { findCountry, formatMoney, ROI_YEARS, type Currency } from "../lib/emissions/countries";
 import { describeSaving, resolveMoney } from "../lib/emissions/money";
+import { formatDate, formatNumber, monthName, requestLocale, serverT, type Locale } from "../i18n";
 
 // Provider, endpoint and model live in ../lib/llm, env-driven. The accessor
 // stays lazy: a missing key fails the AI request, not the server boot.
@@ -229,19 +229,31 @@ export function classifyNasaValue(rawValue: unknown): NasaValueClass {
  */
 export function nasaDataFailureToHttp(
   f: Extract<NasaFailure, { kind: "fill-value" } | { kind: "partial-coverage" }>,
+  locale: Locale,
 ): { status: 422; code: "nasa_fill_value" | "nasa_partial_coverage"; message: string } {
+  // H2b: the wording comes from the catalog in the request's language. The
+  // English entries are A3.6/A3.7's pinned text, byte for byte; the codes and
+  // the status are unchanged. NASA's fill value, parameter names and keys are
+  // NASA's own identifiers and print raw in both languages.
+  const t = serverT(locale);
   if (f.kind === "fill-value") {
     return {
       status: 422,
       code: "nasa_fill_value",
-      message: `NASA POWER returned its ${NASA_FILL_VALUE} fill value for ${f.parameter} at ${f.keys.join(", ")}. No irradiance figure can be computed for this location.`,
+      message: t("error.nasaFill", { fill: NASA_FILL_VALUE, parameter: f.parameter, keys: f.keys.join(", ") }),
     };
   }
 
   return {
     status: 422,
     code: "nasa_partial_coverage",
-    message: `NASA POWER covered ${f.monthsPresent} of ${f.monthsExpected} months for ${f.parameter} over ${f.yearsRequested} year(s)${f.missing.length ? ` (missing ${f.missing.join(", ")})` : ""}. A mean over fewer years than requested would misstate the period.`,
+    message: t("error.nasaPartial", {
+      present: f.monthsPresent,
+      expected: f.monthsExpected,
+      parameter: f.parameter,
+      years: f.yearsRequested,
+      missing: f.missing.length ? t("error.nasaPartialMissing", { list: f.missing.join(", ") }) : "",
+    }),
   };
 }
 
@@ -504,6 +516,7 @@ type IrradianceResolved = {
  */
 async function resolveLocationIrradiance(
   locationInput: string,
+  locale: Locale,
 ): Promise<IrradianceResolved | IrradianceRejection> {
   // A failure used to fall through to lat 45, lon 10 — northern Italy — and
   // produce a complete, confident result computed from a location the user
@@ -515,8 +528,7 @@ async function resolveLocationIrradiance(
       ok: false,
       status: 422,
       body: {
-        message:
-          "We could not locate that place. Check the spelling, or try including the country - for example \"Madrid, Spain\".",
+        message: serverT(locale)("error.geocodeFailed"),
         code: "geocode_failed",
         field: "location",
         // Provenance matters most at the moment a request cannot be served.
@@ -555,7 +567,7 @@ async function resolveLocationIrradiance(
   // not a shorter mean quietly relabelled — a typed error and nothing else.
   const f = nasaProbe.failure;
   if (f && (f.kind === "fill-value" || f.kind === "partial-coverage")) {
-    const typed = nasaDataFailureToHttp(f);
+    const typed = nasaDataFailureToHttp(f, locale);
     return {
       ok: false,
       status: 422,
@@ -793,7 +805,8 @@ const optimizeLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { message: "Too many optimization requests. Please try again later." },
+  // Written per request, in the language it asked for (H2b).
+  message: (req: { get(name: string): string | undefined }) => ({ message: serverT(requestLocale(req))("error.rateLimited") }),
 });
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -807,6 +820,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // battery, tariff and roof angle for each. No id was needed at all - not a
   // replay of someone's session, an enumeration oracle.
   app.get("/api/calculate/:id/pdf", async (req, res) => {
+    // 2b.4: the report is written in the language the request asked for
+    // (Accept-Language, which the web app sets from the reader's choice);
+    // Spanish when it asked for nothing.
+    const locale = requestLocale(req);
+    const t = serverT(locale);
     try {
       // Header only, same as every other session-carrying route. Absent means
       // reject before any lookup: 400 says the request was malformed, and says
@@ -815,14 +833,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // reject before any lookup: 400 says the request was malformed, and says
       // nothing about whether the row exists.
       const sessionId = req.get("x-session-id");
-      if (!sessionId) { res.status(400).json({ message: "X-Session-Id header is required" }); return; }
+      if (!sessionId) { res.status(400).json({ message: t("error.sessionHeader") }); return; }
 
       const id = parseInt(req.params.id);
       // Scoped lookup. "Not yours" and "does not exist" collapse to the same
       // undefined inside the query, so the 404 below cannot confirm a row
       // exists. A 403 here would have re-opened exactly the oracle this closes.
       const calc = await storage.getCalculationById(id, sessionId);
-      if (!calc) { res.status(404).json({ message: "Calculation not found" }); return; }
+      if (!calc) { res.status(404).json({ message: t("error.calcNotFound") }); return; }
+
+      // G7: the stored orientation is an enum and is never printed raw. It is
+      // checked BEFORE the document starts streaming, so a corrupted row gets
+      // a 500 rather than half a PDF.
+      const ORIENTATION = {
+        north: "pdf.orientation.north",
+        south: "pdf.orientation.south",
+        east: "pdf.orientation.east",
+        west: "pdf.orientation.west",
+      } as const;
+      const orientation = calc.panelOrientation as keyof typeof ORIENTATION;
+      if (!Object.prototype.hasOwnProperty.call(ORIENTATION, orientation)) {
+        // The input schema admits only these four; anything else is a corrupted
+        // row, refused rather than printed.
+        throw new Error(`calculations.panelOrientation holds an unknown value: ${String(calc.panelOrientation)}`);
+      }
 
       const doc = new PDFDocument({ margin: 50 });
       res.setHeader("Content-Type", "application/pdf");
@@ -832,9 +866,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Header
       doc.rect(0, 0, doc.page.width, 80).fill("#10b981");
       doc.fillColor("white").fontSize(22).font("Helvetica-Bold")
-        .text("Green Energy Savings Report", 50, 25, { align: "center" });
+        .text(t("pdf.title"), 50, 25, { align: "center" });
       doc.fillColor("#d1fae5").fontSize(11)
-        .text(`Generated: ${new Date().toLocaleDateString("en-GB", { day:"numeric",month:"long",year:"numeric" })}`, 50, 52, { align: "center" });
+        .text(t("pdf.generated", { date: formatDate(locale, new Date(), { day: "numeric", month: "long", year: "numeric" }) }), 50, 52, { align: "center" });
       doc.fillColor("#1f2937");
 
       // Pagination (N1). `y` is kept by hand: every draw below passes its own
@@ -852,33 +886,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         y = doc.page.margins.top;
         return true;
       };
-      // Numbers take a pinned locale: the host default could print a narrow
-      // no-break space (fr-FR), which WinAnsi cannot encode (P.2).
-      const num = (n: number) => n.toLocaleString("en-GB");
+      // Numbers take the REQUEST's locale, never the host default: the host
+      // could print a narrow no-break space (fr-FR), which WinAnsi cannot
+      // encode (P.2). es-ES and en-GB both encode: es-ES groups with "." and
+      // separates decimals with ",", and puts a no-break space (0xA0, in
+      // WinAnsi) before the euro sign.
+      const num = (n: number, options?: Intl.NumberFormatOptions) => formatNumber(locale, n, options);
+
 
       // Summary section - the heading goes with its first row
       ensureRoom(30 + 22);
-      doc.fontSize(14).font("Helvetica-Bold").text("Summary", 50, y);
+      doc.fontSize(14).font("Helvetica-Bold").text(t("pdf.summary"), 50, y);
       doc.moveTo(50, y + 18).lineTo(doc.page.width - 50, y + 18).strokeColor("#e5e7eb").stroke();
       y += 30;
 
       const pdfCurrency = (calc.renewableMix as { currency?: Currency } | null)?.currency;
       const pdfTariff =
         calc.annualSavingsEur == null
-          ? "pending"
+          ? t("pdf.pending")
           : pdfCurrency
-            ? `${formatMoney(calc.electricityTariff, pdfCurrency, 3)}/kWh`
-            : `${calc.electricityTariff.toFixed(3)}/kWh (currency not recorded)`;
+            ? t("pdf.perKwh", { price: formatMoney(locale, calc.electricityTariff, pdfCurrency, 3) })
+            : t("pdf.currencyNotRecorded", {
+                n: t("pdf.perKwh", { price: num(calc.electricityTariff, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }),
+              });
 
       const summaryRows = [
-        ["Location", calc.location],
-        ["Annual Energy Usage", `${num(calc.energyUsage)} kWh`],
-        ["PV System Size", `${num(calc.pvWattage)} W`],
-        ["Battery Capacity", `${calc.batteryCapacity} kWh`],
-        ["Battery Efficiency", `${(calc.batteryEfficiency * 100).toFixed(0)}%`],
-        ["Electricity Tariff", pdfTariff],
-        ["Panel Orientation", calc.panelOrientation],
-        ["Roof Angle", `${calc.roofAngle}°`],
+        [t("pdf.location"), calc.location],
+        [t("pdf.annualUsage"), t("unit.kwh", { n: num(calc.energyUsage) })],
+        [t("pdf.pvSize"), t("unit.w", { n: num(calc.pvWattage) })],
+        [t("pdf.batteryCapacity"), t("unit.kwh", { n: num(calc.batteryCapacity) })],
+        [t("pdf.batteryEfficiency"), t("unit.percent", { n: num(Math.round(calc.batteryEfficiency * 100)) })],
+        [t("pdf.tariff"), pdfTariff],
+        [t("pdf.orientation"), t(ORIENTATION[orientation])],
+        [t("pdf.roofAngle"), t("unit.degrees", { n: num(calc.roofAngle) })],
       ];
 
       summaryRows.forEach(([label, value], i) => {
@@ -893,7 +933,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // Results section - the heading goes with its first row
       ensureRoom(32 + 22);
-      doc.fontSize(14).font("Helvetica-Bold").fillColor("#1f2937").text("Results", 50, y);
+      doc.fontSize(14).font("Helvetica-Bold").fillColor("#1f2937").text(t("pdf.results"), 50, y);
       y += 20;
       doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").stroke();
       y += 12;
@@ -907,7 +947,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // that was never priced (no sourced tariff), and renders "pending" - the
       // old path recomputed one here from a 900/500/1200 estimate that had no source.
       const pdfMoney = (n: number | null | undefined): string =>
-        n == null ? "pending" : pdfCurrency ? formatMoney(n, pdfCurrency) : `${num(Math.round(n))} (currency not recorded)`;
+        n == null
+          ? t("pdf.pending")
+          : pdfCurrency
+            ? formatMoney(locale, n, pdfCurrency)
+            : t("pdf.currencyNotRecorded", { n: num(Math.round(n)) });
       // "Not paid back within the horizon" is a state, not a number (D7). The
       // calculate handler writes lifetimeSavingsEur only when ROI was computed,
       // so it tells the states apart: absent = no ROI, "pending"; present with
@@ -916,10 +960,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // be told from a real 25.0 without a recompute (F-f).
       const pdfPayback =
         calc.lifetimeSavingsEur == null
-          ? "pending"
+          ? t("pdf.pending")
           : calc.paybackYears == null
-            ? `not within ${ROI_YEARS} years`
-            : `${calc.paybackYears.toFixed(1)} years`;
+            ? t("pdf.paybackNotWithin", { n: ROI_YEARS })
+            : t("pdf.paybackYears", { n: num(calc.paybackYears, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) });
 
       // N3: lifetimeSavingsEur is the GROSS 25-year saving, and was printed as
       // "Net Gain" - "€30,975" on a row whose install cost was 200,000. The net
@@ -937,20 +981,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         calc.installationCostEur == null
           ? []
           : [[
-              "Est. 25-Year Net (after install cost)",
-              calc.lifetimeSavingsEur == null ? "pending" : pdfNet(calc.lifetimeSavingsEur, calc.installationCostEur),
+              t("pdf.net", { years: ROI_YEARS }),
+              calc.lifetimeSavingsEur == null ? t("pdf.pending") : pdfNet(calc.lifetimeSavingsEur, calc.installationCostEur),
               "#2563eb",
             ]];
 
       const resultRows = [
-        ["Annual Energy Saved", `${num(calc.savingsKwh)} kWh`, "#10b981"],
-        ["Annual Cost Savings", pdfMoney(calc.annualSavingsEur), "#10b981"],
-        ["Estimated Payback Period", pdfPayback, "#2563eb"],
-        ["Est. 25-Year Savings", pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
+        [t("pdf.annualSaved"), t("unit.kwh", { n: num(calc.savingsKwh) }), "#10b981"],
+        [t("pdf.annualCostSavings"), pdfMoney(calc.annualSavingsEur), "#10b981"],
+        [t("pdf.payback"), pdfPayback, "#2563eb"],
+        [t("pdf.lifetime", { years: ROI_YEARS }), pdfMoney(calc.lifetimeSavingsEur), "#2563eb"],
         ...netRows,
         // "CO2", not U+2082: a subscript two is not WinAnsi and printed as "CO ‚" (N2).
-        ["CO2 Emissions Reduced", `${num(calc.co2Reduction)} kg`, "#059669"],
-        ["Trees Equivalent", `${Math.round(calc.co2Reduction / 20)} trees/year`, "#059669"],
+        [t("pdf.co2"), t("unit.kg", { n: num(calc.co2Reduction) }), "#059669"],
+        [t("pdf.trees"), t("pdf.treesValue", { n: num(Math.round(calc.co2Reduction / 20)) }), "#059669"],
       ];
 
       resultRows.forEach(([label, value, color], i) => {
@@ -969,10 +1013,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // is not known: it gets no surplus column and a line saying so - never a
         // 0 in the column (T7, F-c).
         const recorded = monthlyEntrySchema.array().safeParse(calc.monthlyData);
+        // The month label comes from the month NUMBER in the report's language,
+        // not from the English name stored beside it (H2b).
+        const kwh = (n: number) => t("unit.kwh", { n: num(n) });
+        // A row too old to carry a month number is matched by the English
+        // abbreviation it stored (MONTH_NAMES, this file's own list) — a lookup,
+        // not a guess. A row with neither prints the label it stored, as stored.
+        const monthLabel = (r: { month?: unknown; name?: unknown }): string => {
+          const m =
+            typeof r.month === "number" && Number.isInteger(r.month) && r.month >= 1 && r.month <= 12
+              ? r.month
+              : MONTH_NAMES.indexOf(String(r.name)) + 1;
+          return m >= 1 ? monthName(locale, m) : String(r.name);
+        };
         const rows = recorded.success
-          ? recorded.data.map((r) => [r.name, `${r.generationKwh} kWh`, `${r.consumptionKwh} kWh`, `${r.savingsKwh} kWh`, `${r.gridImportKwh} kWh`, `${r.surplusKwh} kWh`])
-          : (calc.monthlyData as MonthlyEntry[]).map((r) => [r.name, `${r.generationKwh} kWh`, `${r.consumptionKwh} kWh`, `${r.savingsKwh} kWh`, `${r.gridImportKwh} kWh`]);
-        const headers = ["Month", "Generated", "Consumed", "Saved", "Grid Import", ...(recorded.success ? ["Surplus not used"] : [])];
+          ? recorded.data.map((r) => [monthLabel(r), kwh(r.generationKwh), kwh(r.consumptionKwh), kwh(r.savingsKwh), kwh(r.gridImportKwh), kwh(r.surplusKwh)])
+          : (calc.monthlyData as MonthlyEntry[]).map((r) => [monthLabel(r), kwh(r.generationKwh), kwh(r.consumptionKwh), kwh(r.savingsKwh), kwh(r.gridImportKwh)]);
+        const headers = [
+          t("pdf.col.month"),
+          t("pdf.col.generated"),
+          t("pdf.col.consumed"),
+          t("pdf.col.saved"),
+          t("pdf.col.gridImport"),
+          ...(recorded.success ? [t("pdf.col.surplus")] : []),
+        ];
         const colW = (doc.page.width - 100) / headers.length;
         const headerRow = () => {
           headers.forEach((h, i) => {
@@ -985,7 +1049,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // The heading, the header row and the first month go together, so the
         // heading is never left alone at the foot of a page.
         ensureRoom(28 + 20 + 18);
-        doc.fontSize(14).font("Helvetica-Bold").fillColor("#1f2937").text("Monthly Breakdown", 50, y);
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#1f2937").text(t("pdf.monthly"), 50, y);
         y += 20;
         doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e5e7eb").stroke();
         y += 8;
@@ -1004,7 +1068,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         if (!recorded.success) {
           ensureRoom(22);
           doc.fillColor("#6b7280").fontSize(9).font("Helvetica")
-            .text("Surplus not used: Not recorded for this calculation", 54, y + 6, { width: doc.page.width - 108 });
+            .text(t("pdf.surplusNotRecorded"), 54, y + 6, { width: doc.page.width - 108 });
           y += 22;
         }
       }
@@ -1021,23 +1085,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // verify would read as a verified fact on the artefact most likely to
         // be forwarded onward. Silence is the honest option until the row can
         // carry the fact.
-        .text("Generated by Green Energy Savings Calculator", 50, y + 10, { align: "center" });
+        .text(t("pdf.footer"), 50, y + 10, { align: "center" });
 
       doc.end();
     } catch (err) {
       console.error("PDF generation error:", err);
-      res.status(500).json({ message: "Failed to generate PDF" });
+      res.status(500).json({ message: t("error.pdfFailed") });
     }
   });
 
   // Main calculation endpoint
   app.post(api.calculations.create.path, async (req, res) => {
+    // H2b: every sentence in this response is written in the language the
+    // request asked for; Spanish when it asked for nothing.
+    const locale = requestLocale(req);
+    const t = serverT(locale);
     try {
       // Header only: never defaulted, never generated server-side, never taken
       // from the body. Absent means reject, before any work is done.
       const sessionId = req.get("x-session-id");
       if (!sessionId) {
-        return res.status(400).json({ message: "X-Session-Id header is required" });
+        return res.status(400).json({ message: t("error.sessionHeader") });
       }
 
       const input = api.calculations.create.input.parse(req.body);
@@ -1045,7 +1113,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Geocode, then NASA, then provenance — one path, shared with
       // /api/optimize since H-OPT so the two routes cannot quote different
       // irradiance for the same town.
-      const resolved = await resolveLocationIrradiance(input.location);
+      const resolved = await resolveLocationIrradiance(input.location, locale);
       if (!resolved.ok) {
         return res.status(resolved.status).json(resolved.body);
       }
@@ -1065,9 +1133,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // it is now a typed 400, decided here rather than buried in a lookup.
       if (resolution.carbonSource.status === "unknown_country") {
         return res.status(400).json({
-          message:
-            `We do not have a sourced carbon-intensity figure for "${resolution.carbonSource.attempted}". ` +
-            "Try including the country, or a nearby major city.",
+          message: t("error.unknownCarbonCountry", { attempted: resolution.carbonSource.attempted }),
           code: "unknown_carbon_country",
           field: "location",
           resolution,
@@ -1078,8 +1144,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // The peninsular factor is never substituted (A21) — a typed 400.
       if (resolution.carbonSource.status === "pending") {
         return res.status(400).json({
-          message:
-            `We do not yet have a sourced carbon-intensity figure for this address: ${resolution.carbonSource.detail}.`,
+          // The sentence is built from the typed reason, in the request's
+          // language; the English `detail` stays in the provenance record.
+          message: t("error.carbonPending", {
+            detail:
+              resolution.carbonSource.reason === "system_undetermined"
+                ? t("carbon.systemUndetermined")
+                : t("carbon.systemFactorPending", { system: resolution.carbonSource.system ?? "" }),
+          }),
           code: "carbon_factor_pending",
           field: "location",
           resolution,
@@ -1118,6 +1190,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         pvKw: input.pvWattage / 1000,
         batteryKwh: input.batteryCapacity,
         now: new Date(),
+        locale,
       });
 
       // Enrich monthly CO2
@@ -1141,16 +1214,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       // Recommendation. Amounts are rendered in the calculation's own currency,
       // or the sentence says the saving is not priced. No literal symbol.
+      // H2b: the same three sentences, from the catalog, in the request's
+      // language; the figures and the branches are unchanged. English prints
+      // the wattage unformatted, as it always has; Spanish groups it.
+      const watts = (w: number) => (locale === "en" ? String(w) : formatNumber(locale, w));
+      const saving = describeSaving(money, locale);
       let recommendation = "";
       if (solarPct >= 100) {
         recommendation =
           money.annualSavings !== null && money.currency !== null
-            ? `Excellent! Your ${input.pvWattage}W system fully covers your usage and generates surplus energy worth ${formatMoney(money.annualSavings * 0.1, money.currency)} in potential grid export.`
-            : `Excellent! Your ${input.pvWattage}W system fully covers your usage and generates surplus energy (${describeSaving(money)}).`;
+            ? t("rec.fullWithExport", {
+                w: watts(input.pvWattage),
+                value: formatMoney(locale, money.annualSavings * 0.1, money.currency),
+              })
+            : t("rec.full", { w: watts(input.pvWattage), saving });
       } else if (solarPct >= 70) {
-        recommendation = `Great result! Your system covers ${solarPct}% of your energy, ${describeSaving(money)}. A slightly larger battery could push you closer to 100%.`;
+        recommendation = t("rec.good", { pct: solarPct, saving });
       } else {
-        recommendation = `Your system offsets ${solarPct}% of your energy usage, ${describeSaving(money)}. Consider increasing PV capacity to ${Math.round(input.pvWattage * 1.5)}W for better coverage.`;
+        recommendation = t("rec.low", { pct: solarPct, saving, w: watts(Math.round(input.pvWattage * 1.5)) });
       }
 
       const result = {
@@ -1208,17 +1289,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.json({ ...result, id: saved.id });
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.issues[0].message, field: err.issues[0].path.join(".") });
+        const field = err.issues[0].path.join(".");
+        // English keeps zod's own wording, as before; Spanish names the field.
+        return res.status(400).json({ message: locale === "en" ? err.issues[0].message : t("error.invalidField", { field }), field });
       }
       console.error("Calculation error:", err);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({ message: t("error.internal") });
     }
   });
 
   app.get(api.calculations.history.path, async (req, res) => {
     const sessionId = req.get("x-session-id");
     if (!sessionId) {
-      return res.status(400).json({ message: "X-Session-Id header is required" });
+      return res.status(400).json({ message: serverT(requestLocale(req))("error.sessionHeader") });
     }
 
     const history = await storage.getHistory(sessionId);
@@ -1242,11 +1325,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
    * model cannot move a number because no number it returns is read.
    */
   app.post(api.calculations.optimize.path, optimizeLimiter, async (req, res) => {
+    const locale = requestLocale(req);
+    const t = serverT(locale);
     try {
       const { energyPattern, location, annualUsageKwh } =
         api.calculations.optimize.input.parse(req.body);
 
-      const resolved = await resolveLocationIrradiance(location);
+      const resolved = await resolveLocationIrradiance(location, locale);
       if (!resolved.ok) {
         return res.status(resolved.status).json(resolved.body);
       }
@@ -1266,7 +1351,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // shape of 24 zeros is the live one. A typed 422 in the same shape as
         // every other refusal on this path, never a substituted size.
         return res.status(422).json({
-          message: sizingFailureMessage(sized.failure),
+          message: sizingFailureMessage(sized.failure, locale),
           code: "sizing_failed",
           field: "energyPattern",
           resolution: resolved.resolution,
@@ -1319,7 +1404,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           JSON.stringify(result.issues),
         );
         return res.status(502).json({
-          message: OPTIMIZE_FAILURE_MESSAGE,
+          message: t("error.optimizeModel"),
           code: "invalid_model_response",
         });
       }
@@ -1335,10 +1420,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.issues[0].message, field: err.issues[0].path.join(".") });
+        const field = err.issues[0].path.join(".");
+        return res.status(400).json({ message: locale === "en" ? err.issues[0].message : t("error.invalidField", { field }), field });
       }
       console.error("Optimization error:", err);
-      return res.status(500).json({ message: "Failed to generate optimization" });
+      return res.status(500).json({ message: t("error.optimizeFailed") });
     }
   });
 

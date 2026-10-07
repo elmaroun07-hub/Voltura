@@ -21,6 +21,8 @@
  * value it was not given — G5, and the reason `|| 4.0` cost this project two
  * days.
  */
+import { serverT, type Locale } from "../i18n";
+
 
 /**
  * The four assumptions, all dimensionless ratios in (0, 1].
@@ -284,17 +286,20 @@ export function sizePvAndBattery(inputs: SizingInputs): SizingResult {
 }
 
 /** Why a sizing failed, in one line a person can read. */
-export function sizingFailureMessage(failure: SizingFailure): string {
+export function sizingFailureMessage(failure: SizingFailure, locale: Locale): string {
+  // H2b: worded from the server catalog in the request's language. The
+  // values echoed back are the request's own, printed raw in both languages.
+  const t = serverT(locale);
   switch (failure.kind) {
     case "non-positive-usage":
-      return `Annual usage must be a positive number of kWh; received ${failure.annualUsageKwh}.`;
+      return t("sizing.nonPositiveUsage", { value: String(failure.annualUsageKwh) });
     case "non-positive-irradiance":
-      return `Mean daily irradiance must be a positive number; received ${failure.irradianceKwhM2Day}.`;
+      return t("sizing.nonPositiveIrradiance", { value: String(failure.irradianceKwhM2Day) });
     case "bad-shape":
-      return `The ${failure.which} profile is unusable (${failure.reason}); it must be 24 non-negative numbers that do not all sum to zero.`;
+      return t("sizing.badShape", { which: failure.which, reason: failure.reason });
     case "bad-assumption":
-      return `${failure.name} must be a ratio greater than 0 and at most 1; received ${failure.value}.`;
+      return t("sizing.badAssumption", { name: failure.name, value: String(failure.value) });
     case "no-dark-hours":
-      return "The solar profile produces in all 24 hours, so there is no night load a battery could carry.";
+      return t("sizing.noDarkHours");
   }
 }

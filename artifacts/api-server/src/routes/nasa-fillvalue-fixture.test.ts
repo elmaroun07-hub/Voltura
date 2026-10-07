@@ -132,11 +132,14 @@ describe("H1 (ii), A20 — the guard against a real NASA fill value", () => {
   it("turns the real fill value into a typed 422 naming it", () => {
     const hits = realFillValues().filter((h) => h.parameter === "ALLSKY_SFC_SW_DWN");
 
-    const typed = nasaDataFailureToHttp({
-      kind: "fill-value",
-      parameter: hits[0].parameter,
-      keys: hits.map((h) => h.key),
-    });
+    const typed = nasaDataFailureToHttp(
+      {
+        kind: "fill-value",
+        parameter: hits[0].parameter,
+        keys: hits.map((h) => h.key),
+      },
+      "en",
+    );
 
     expect(typed.status).toBe(422);
     expect(typed.code).toBe("nasa_fill_value");
@@ -145,5 +148,18 @@ describe("H1 (ii), A20 — the guard against a real NASA fill value", () => {
     // No number is offered in place of the missing one. That is the whole of
     // H1.0: a typed error, never a substitution.
     expect(typed.message).toContain("No irradiance figure can be computed");
+  });
+
+  it("H2b: the same refusal in Spanish names the same fill value and keys, and offers no number", () => {
+    const hits = realFillValues().filter((h) => h.parameter === "ALLSKY_SFC_SW_DWN");
+    const typed = nasaDataFailureToHttp(
+      { kind: "fill-value", parameter: hits[0].parameter, keys: hits.map((h) => h.key) },
+      "es",
+    );
+    expect(typed.status).toBe(422);
+    expect(typed.code).toBe("nasa_fill_value");
+    expect(typed.message).toContain("-999");
+    expect(typed.message).toContain("20260821, 20260822, 20260823");
+    expect(typed.message).toContain("No se puede calcular ninguna cifra de irradiancia");
   });
 });

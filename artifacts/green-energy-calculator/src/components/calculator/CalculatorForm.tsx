@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Sun, Battery, MapPin, Zap, Banknote, Gauge, TrendingUp } from "lucide-react";
+import { useI18n, zodErrorMap } from "@/i18n";
 
 interface CalculatorFormProps {
   onSubmit: (data: CalculationInput) => void;
@@ -16,8 +17,11 @@ interface CalculatorFormProps {
 }
 
 export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
+  const { t, num } = useI18n();
+  // Validation messages come from the catalog, in the language chosen when
+  // the form validates — the schema itself carries no prose.
   const form = useForm<CalculationInput>({
-    resolver: zodResolver(calculationInputSchema),
+    resolver: zodResolver(calculationInputSchema, { errorMap: zodErrorMap }),
     defaultValues: {
       location: "",
       energyUsage: 5000,
@@ -35,8 +39,8 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
   return (
     <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
       <CardHeader className="pb-6">
-        <CardTitle className="text-2xl text-primary">System Parameters</CardTitle>
-        <CardDescription>Enter your details — irradiance from NASA POWER satellite data</CardDescription>
+        <CardTitle className="text-2xl text-primary">{t("calc.title")}</CardTitle>
+        <CardDescription>{t("calc.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -48,12 +52,12 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-primary" /> Location
+                    <MapPin className="w-4 h-4 text-primary" /> {t("common.location")}
                   </FormLabel>
                   <FormControl>
-                    <Input data-testid="input-location" placeholder="City, Country (e.g. Berlin, Germany)" className="h-11 bg-white/50" {...field} />
+                    <Input data-testid="input-location" placeholder={t("calc.locationPlaceholder")} className="h-11 bg-white/50" {...field} />
                   </FormControl>
-                  <FormDescription>Used to look up solar irradiance and carbon intensity</FormDescription>
+                  <FormDescription>{t("calc.locationHelp")}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -66,7 +70,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-amber-500" /> Annual Usage (kWh)
+                      <Zap className="w-4 h-4 text-amber-500" /> {t("calc.annualUsage")}
                     </FormLabel>
                     <FormControl>
                       <Input data-testid="input-energy-usage" type="number" className="h-11 bg-white/50" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
@@ -82,7 +86,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      <Sun className="w-4 h-4 text-amber-500" /> PV Size (Watts)
+                      <Sun className="w-4 h-4 text-amber-500" /> {t("calc.pvSize")}
                     </FormLabel>
                     <FormControl>
                       <Input data-testid="input-pv-wattage" type="number" className="h-11 bg-white/50" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
@@ -99,7 +103,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <Battery className="w-4 h-4 text-primary" /> Battery Storage — {field.value} kWh
+                    <Battery className="w-4 h-4 text-primary" /> {t("calc.battery", { kwh: num(field.value) })}
                   </FormLabel>
                   <FormControl>
                     <Slider
@@ -115,7 +119,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
             />
 
             <Separator className="my-1" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Advanced Parameters</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("calc.advanced")}</p>
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -124,19 +128,19 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      <Banknote className="w-4 h-4 text-green-600" /> Tariff (per kWh)
+                      <Banknote className="w-4 h-4 text-green-600" /> {t("calc.tariff")}
                     </FormLabel>
                     <FormControl>
                       <Input
                         data-testid="input-electricity-tariff"
                         type="number" step="0.01" min="0.01" max="5"
                         className="h-11 bg-white/50"
-                        placeholder="Sourced national average"
+                        placeholder={t("calc.tariffPlaceholder")}
                         value={field.value ?? ""}
                         onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
                       />
                     </FormControl>
-                    <FormDescription>In your local currency. Leave blank to use the sourced national average, where we have one.</FormDescription>
+                    <FormDescription>{t("calc.tariffHelp")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -148,7 +152,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2">
-                      <Gauge className="w-4 h-4 text-primary" /> Battery Round-Trip Eff. — {Math.round(field.value * 100)}%
+                      <Gauge className="w-4 h-4 text-primary" /> {t("calc.batteryEff", { pct: num(Math.round(field.value * 100)) })}
                     </FormLabel>
                     <FormControl>
                       <Slider
@@ -159,7 +163,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                         className="mt-3"
                       />
                     </FormControl>
-                    <FormDescription>Typical Li-ion: 90–95%</FormDescription>
+                    <FormDescription>{t("calc.batteryEffHelp")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -172,18 +176,18 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 name="panelOrientation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Panel Orientation</FormLabel>
+                    <FormLabel>{t("calc.orientation")}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-panel-orientation" className="bg-white/50 h-11">
-                          <SelectValue placeholder="Select direction" />
+                          <SelectValue placeholder={t("calc.orientationPlaceholder")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="south">South (Best N. Hemisphere)</SelectItem>
-                        <SelectItem value="east">East (−13%)</SelectItem>
-                        <SelectItem value="west">West (−13%)</SelectItem>
-                        <SelectItem value="north">North (−30%)</SelectItem>
+                        <SelectItem value="south">{t("calc.orientation.south")}</SelectItem>
+                        <SelectItem value="east">{t("calc.orientation.east")}</SelectItem>
+                        <SelectItem value="west">{t("calc.orientation.west")}</SelectItem>
+                        <SelectItem value="north">{t("calc.orientation.north")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -196,7 +200,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                 name="roofAngle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Panel Tilt Angle — {field.value}°</FormLabel>
+                    <FormLabel>{t("calc.tilt", { deg: num(field.value) })}</FormLabel>
                     <FormControl>
                       <Slider
                         data-testid="slider-roof-angle"
@@ -206,7 +210,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                         className="py-4"
                       />
                     </FormControl>
-                    <FormDescription>Optimal ≈ 35° for mid-latitudes</FormDescription>
+                    <FormDescription>{t("calc.tiltHelp")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -219,7 +223,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-blue-500" /> Installation Cost
+                    <TrendingUp className="w-4 h-4 text-blue-500" /> {t("calc.installCost")}
                   </FormLabel>
                   <FormControl>
                     <Input
@@ -228,12 +232,12 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                       step="100"
                       min="0"
                       className="h-11 bg-white/50"
-                      placeholder="Sourced figure, where we have one"
+                      placeholder={t("calc.installCostPlaceholder")}
                       value={field.value ?? ""}
                       onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
                     />
                   </FormControl>
-                  <FormDescription>In your local currency. Leave blank to use a sourced figure for your country; if there is none, the payback shows as pending.</FormDescription>
+                  <FormDescription>{t("calc.installCostHelp")}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -246,9 +250,9 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
               disabled={isLoading}
             >
               {isLoading ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Fetching irradiance & simulating 8760h…</>
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> {t("calc.submitting")}</>
               ) : (
-                "Calculate Savings"
+                t("calc.submit")
               )}
             </Button>
           </form>

@@ -24,6 +24,7 @@ describe("AC4 — Fuengirola-shaped Spain calculation: exact expected values", (
       pvKw: 4,
       batteryKwh: 10,
       now: NOW,
+      locale: "en",
     });
     expect(money.currency).toBe("EUR");
     expect(money.tariff.status).toBe("used");
@@ -42,6 +43,7 @@ describe("AC4 — Fuengirola-shaped Spain calculation: exact expected values", (
       pvKw: 4,
       batteryKwh: 10,
       now: NOW,
+      locale: "en",
     });
     expect(money.installCost.status).toBe("pending");
     if (money.installCost.status !== "pending") throw new Error("unreachable");
@@ -60,6 +62,7 @@ describe("P0.7 — a user-typed tariff always wins for a registry country", () =
       pvKw: 4,
       batteryKwh: 0,
       now: NOW,
+      locale: "en",
     });
     expect(money.tariff).toMatchObject({ status: "used", source: "user", value: 0.31, label: "your tariff" });
     expect(money.annualSavings).toBeCloseTo(310, 2);
@@ -76,6 +79,7 @@ describe("P0.8 — a country outside the registry has NO money figure at all", (
       pvKw: 4,
       batteryKwh: 10,
       now: NOW,
+      locale: "en",
     });
     expect(money.currency).toBeNull();
     expect(money.tariff.status).toBe("pending");
@@ -84,7 +88,7 @@ describe("P0.8 — a country outside the registry has NO money figure at all", (
     expect(money.annualSavings).toBeNull();
     expect(money.installCost.status).toBe("pending");
     expect(money.roi.status).toBe("pending");
-    expect(describeSaving(money)).not.toMatch(/0\.25|€/);
+    expect(describeSaving(money, "en")).not.toMatch(/0\.25|€/);
   });
 
   it("a user-typed tariff and install cost still work for a non-registry country (the user supplies both)", () => {
@@ -96,6 +100,7 @@ describe("P0.8 — a country outside the registry has NO money figure at all", (
       pvKw: 4,
       batteryKwh: 0,
       now: NOW,
+      locale: "en",
     });
     // currency is still null — a user tariff has no currency without a
     // registry country, so no amount can be labelled EUR or GBP by guessing.
@@ -114,6 +119,7 @@ describe("AC3 — a tariff past reviewBy renders stale and is never silently use
       pvKw: 4,
       batteryKwh: 0,
       now: new Date("2027-02-12T00:00:00Z"),
+      locale: "en",
     });
     expect(money.tariff.status).toBe("used");
   });
@@ -127,6 +133,7 @@ describe("AC3 — a tariff past reviewBy renders stale and is never silently use
       pvKw: 4,
       batteryKwh: 0,
       now: new Date("2027-02-13T00:00:00Z"),
+      locale: "en",
     });
     expect(money.tariff.status).toBe("pending");
     if (money.tariff.status !== "pending") throw new Error("unreachable");
@@ -145,6 +152,7 @@ describe("UK — banded install cost, and the range/battery refusals", () => {
       pvKw: 3,
       batteryKwh: 0,
       now: NOW,
+      locale: "en",
     });
     expect(money.currency).toBe("GBP");
     expect(money.installCost.status).toBe("used");
@@ -165,6 +173,7 @@ describe("UK — banded install cost, and the range/battery refusals", () => {
       pvKw: 3,
       batteryKwh: 5,
       now: NOW,
+      locale: "en",
     });
     expect(money.installCost.status).toBe("pending");
     if (money.installCost.status !== "pending") throw new Error("unreachable");
@@ -181,6 +190,7 @@ describe("UK — banded install cost, and the range/battery refusals", () => {
       pvKw: 3,
       batteryKwh: 0,
       now: NOW,
+      locale: "en",
     });
     expect(money.tariff.status).toBe("pending");
     if (money.tariff.status !== "pending") throw new Error("unreachable");
@@ -222,6 +232,7 @@ describe("P0.4 — a Spain-shaped install-cost RANGE (if ever populated) never c
       pvKw: 4,
       batteryKwh: 0,
       now: NOW,
+      locale: "en",
     });
     expect(money.installCost.status).toBe("used");
     if (money.installCost.status !== "used" || money.installCost.source !== "registry_range") {
@@ -230,6 +241,6 @@ describe("P0.4 — a Spain-shaped install-cost RANGE (if ever populated) never c
     expect(money.installCost.low).toBe(4400);
     expect(money.installCost.high).toBe(6000);
     expect(money.roi.status).toBe("pending");
-    expect(describeInstallCost(money)).toContain("–");
+    expect(describeInstallCost(money, "en")).toContain("–");
   });
 });

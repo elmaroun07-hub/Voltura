@@ -92,9 +92,13 @@ describe("F2 — GET /api/calculate/:id/pdf is session-scoped", () => {
   it("rejects a request with no X-Session-Id header", async () => {
     const { base, close } = await serve();
     try {
-      const res = await fetch(pdfUrl(base, OWNED_ID));
+      const res = await fetch(pdfUrl(base, OWNED_ID), { headers: { "Accept-Language": "en" } });
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ message: "X-Session-Id header is required" });
+      // H2b: with no language asked for, the same refusal is in Spanish.
+      const es = await fetch(pdfUrl(base, OWNED_ID));
+      expect(es.status).toBe(400);
+      expect(await es.json()).toEqual({ message: "Falta la cabecera X-Session-Id" });
     } finally {
       await close();
     }

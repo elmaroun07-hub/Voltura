@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 export function ChatInterface() {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const { messages, sendMessage, isStreaming, createConversation } = useChat(conversationId);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,8 +45,8 @@ export function ChatInterface() {
           <Sparkles className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="font-bold text-foreground">Energy Assistant</h3>
-          <p className="text-xs text-muted-foreground">Ask about renewables, installation, or costs</p>
+          <h3 className="font-bold text-foreground">{t("nav.assistant")}</h3>
+          <p className="text-xs text-muted-foreground">{t("chat.subtitle")}</p>
         </div>
       </div>
 
@@ -53,8 +55,8 @@ export function ChatInterface() {
           {messages.length === 0 && (
             <div className="text-center text-muted-foreground py-12">
               <Bot className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p>Hello! I can help you optimize your green energy setup.</p>
-              <p className="text-sm mt-2">Try asking: "Is solar worth it in Seattle?"</p>
+              <p>{t("chat.hello")}</p>
+              <p className="text-sm mt-2">{t("chat.tryAsking")}</p>
             </div>
           )}
           
@@ -91,11 +93,11 @@ export function ChatInterface() {
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input 
             ref={inputRef} 
-            placeholder="Type your question..." 
+            placeholder={t("chat.placeholder")} 
             className="flex-1 focus-visible:ring-primary"
             disabled={isStreaming}
           />
-          <Button type="submit" size="icon" disabled={isStreaming} className={cn(isStreaming && "animate-pulse")}>
+          <Button type="submit" size="icon" aria-label={t("chat.send")} disabled={isStreaming} className={cn(isStreaming && "animate-pulse")}>
             <Send className="w-4 h-4" />
           </Button>
         </form>

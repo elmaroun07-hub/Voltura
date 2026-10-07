@@ -1,4 +1,5 @@
 import { type Resolution } from "@/lib/api";
+import { type WebTranslate } from "@/i18n";
 
 /**
  * The one place a machine enum becomes words a person reads. G7.
@@ -11,7 +12,8 @@ import { type Resolution } from "@/lib/api";
  * tab now ships a provenance line too and two label maps for one enum is how
  * they drift — one tab saying "NASA POWER satellite data, 2019–2023 mean" while
  * the other still says 2022. P5: one map, and G7's gate reads the render sites
- * that call it.
+ * that call it. H2b: the words now come from the catalog, in the reader's
+ * language; the map is still this one switch.
  *
  * The period is taken from the response, never written as a literal here: a
  * hardcoded year in the UI would be a second source of truth for one fact, and
@@ -23,7 +25,7 @@ import { type Resolution } from "@/lib/api";
  * fails the build if the enum grows; an impossible state throws rather than
  * being quietly given a comfortable label.
  */
-export function irradianceLabel(resolution: Resolution): string {
+export function irradianceLabel(resolution: Resolution, t: WebTranslate): string {
   switch (resolution.irradianceSource) {
     case "nasa-live": {
       if (resolution.irradiancePeriod === null) {
@@ -31,10 +33,10 @@ export function irradianceLabel(resolution: Resolution): string {
       }
       const { start, end } = resolution.irradiancePeriod;
       const span = start === end ? `${start}` : `${start}–${end}`;
-      return `NASA POWER satellite data, ${span} mean`;
+      return t("irradiance.nasa", { span });
     }
     case "fallback-lat":
-      return "Estimated from latitude — NASA data unavailable";
+      return t("irradiance.fallback");
     case "not-reached":
       // Unreachable on a 200: an unresolvable location returns 422 before any
       // result exists to render.

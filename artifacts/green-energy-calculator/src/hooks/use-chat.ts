@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { sessionFetch } from "@/lib/queryClient";
+import { tNow } from "@/i18n";
 
 interface Message {
   id: number;
@@ -40,7 +41,7 @@ export function useChat(conversationId: number | null) {
         body: JSON.stringify({ content }),
       });
 
-      if (!res.ok) throw new Error("Failed to send message");
+      if (!res.ok) throw new Error(tNow()("error.sendMessage"));
 
       // Handle SSE stream
       const reader = res.body?.getReader();
@@ -84,9 +85,9 @@ export function useChat(conversationId: number | null) {
       const res = await sessionFetch(`/api/conversations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Energy Assistant Chat" }),
+        body: JSON.stringify({ title: tNow()("chat.conversationTitle") }),
       });
-      if (!res.ok) throw new Error("Failed to create chat");
+      if (!res.ok) throw new Error(tNow()("error.createChat"));
       return await res.json();
     }
   });

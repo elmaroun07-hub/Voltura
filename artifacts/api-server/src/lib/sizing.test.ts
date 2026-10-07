@@ -182,7 +182,7 @@ describe("O.3 — refusals, never substitutions (G5, P2)", () => {
       expect(r.ok).toBe(false);
       if (r.ok) return;
       expect(r.failure.kind).toBe("non-positive-irradiance");
-      expect(sizingFailureMessage(r.failure)).toMatch(/irradiance/i);
+      expect(sizingFailureMessage(r.failure, "en")).toMatch(/irradiance/i);
     }
   });
 
@@ -247,7 +247,7 @@ describe("O.3 — refusals, never substitutions (G5, P2)", () => {
     for (const f of failures) {
       expect(f.ok).toBe(false);
       if (f.ok) return;
-      expect(sizingFailureMessage(f.failure).length).toBeGreaterThan(10);
+      expect(sizingFailureMessage(f.failure, "en").length).toBeGreaterThan(10);
     }
   });
 });

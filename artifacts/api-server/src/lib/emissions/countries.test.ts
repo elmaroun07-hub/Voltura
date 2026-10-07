@@ -244,10 +244,12 @@ describe("AC4 sanity — peninsular is below the national figure (the registry's
 
 describe("P0.4 — install cost is a range and renders as a range; no midpoint anywhere", () => {
   it("formatMoneyRange renders low and high, and contains neither a midpoint nor a single merged figure", () => {
-    const text = formatMoneyRange(1100, 1500, "EUR");
-    expect(text).toContain(formatMoney(1100, "EUR"));
-    expect(text).toContain(formatMoney(1500, "EUR"));
-    expect(text).not.toContain(formatMoney(1300, "EUR"));
+    for (const locale of ["en", "es"] as const) {
+      const text = formatMoneyRange(locale, 1100, 1500, "EUR");
+      expect(text).toContain(formatMoney(locale, 1100, "EUR"));
+      expect(text).toContain(formatMoney(locale, 1500, "EUR"));
+      expect(text).not.toContain(formatMoney(locale, 1300, "EUR"));
+    }
   });
 
   it("parseCountries rejects a range with low above high", () => {
