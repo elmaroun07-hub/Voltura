@@ -222,3 +222,5 @@ export function p7Violations(catalog: Catalog<Messages>): string[] {
   const table: Readonly<Record<string, string>> = catalog.es;
   return Object.keys(table).filter((key) => P7_FORBIDDEN_ES.some((re) => re.test(table[key])));
 }
+
+export { VOCABULARY, ENPE_2026_2030, type VocabularyEntry, type VocabularySource } from "./vocabulary";

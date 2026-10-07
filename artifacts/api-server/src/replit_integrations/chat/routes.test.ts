@@ -184,3 +184,38 @@ describe("a missing X-Session-Id header is rejected, never defaulted", () => {
     await close();
   });
 });
+
+describe("2b.5 — the Assistant's routes answer in the reader's language", () => {
+  it.each([
+    [undefined, "Falta la cabecera X-Session-Id", "Conversación no encontrada"],
+    ["es", "Falta la cabecera X-Session-Id", "Conversación no encontrada"],
+    ["en", "X-Session-Id header is required", "Conversation not found"],
+  ] as const)("Accept-Language %s: the 400 and the 404 in that language", async (lang, missingHeader, notFound) => {
+    const { base, close } = await serve();
+    const langHeader = lang ? { "Accept-Language": lang } : {};
+    const noSession = await fetch(`${base}/api/conversations`, { headers: langHeader });
+    expect(noSession.status).toBe(400);
+    expect(await noSession.json()).toEqual({ error: missingHeader });
+    const mismatch = await fetch(`${base}/api/conversations/1`, { headers: { ...langHeader, "X-Session-Id": BOB } });
+    const missing = await fetch(`${base}/api/conversations/999`, { headers: { ...langHeader, "X-Session-Id": BOB } });
+    expect(await mismatch.json()).toEqual({ error: notFound });
+    // Still byte-identical in each language: a 404 never tells the two apart.
+    expect(await missing.json()).toEqual({ error: notFound });
+    await close();
+  });
+
+  it.each([
+    [undefined, "Nueva conversación"],
+    ["en", "New Chat"],
+  ] as const)("Accept-Language %s: a conversation created with no title is named in that language", async (lang, title) => {
+    const { base, close } = await serve();
+    const res = await fetch(`${base}/api/conversations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Id": ALICE, ...(lang ? { "Accept-Language": lang } : {}) },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(201);
+    expect(inserted.at(-1)).toMatchObject({ title, sessionId: ALICE });
+    await close();
+  });
+});

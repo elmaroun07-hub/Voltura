@@ -20,6 +20,10 @@ import type { AddressInfo } from "node:net";
  *        anything that is not on the list.
  *   A-c  None of the invented features comes back, anywhere in the prompt.
  *
+ * 2b.5: the prompt is written in Spanish and English. The map is keyed by
+ * the English sentences; a Spanish line reaches its row through its fact id,
+ * so a Spanish feature with no English row - or the reverse - fails as well.
+ *
  * Like system-prompt.test.ts, it reads the prompt as the route sends it, not
  * the constant. Storage and the provider are stubbed; the only I/O is reading
  * source files from disk (G10).
@@ -54,6 +58,7 @@ vi.mock("../../lib/llm", () => ({
 }));
 
 const { registerChatRoutes } = await import("./routes");
+const { FACTS_BY_LOCALE } = await import("./facts");
 
 /** Repository root, from artifacts/api-server/src/replit_integrations/chat. */
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
@@ -121,9 +126,10 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
   },
 };
 
-const LIST_HEADING = "What Voltura does - the complete list:";
+const LIST_HEADING = { en: "What Voltura does - the complete list:", es: "Lo que hace Voltura - la lista completa:" } as const;
+type Lang = keyof typeof LIST_HEADING;
 
-async function sentSystemPrompt(): Promise<string> {
+async function sentSystemPrompt(lang: Lang = "en"): Promise<string> {
   sent = undefined;
   const app = express();
   app.use(express.json());
@@ -133,7 +139,7 @@ async function sentSystemPrompt(): Promise<string> {
   const { port } = server.address() as AddressInfo;
   const res = await fetch(`http://127.0.0.1:${port}/api/conversations/1/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Session-Id": SESSION },
+    headers: { "Content-Type": "application/json", "X-Session-Id": SESSION, "Accept-Language": lang },
     body: JSON.stringify({ content: "What is Voltura?" }),
   });
   await res.text();
@@ -146,9 +152,9 @@ async function sentSystemPrompt(): Promise<string> {
 }
 
 /** The bullets under the list heading, up to the first line that is not one. */
-function featureLines(prompt: string): string[] {
+function featureLines(prompt: string, lang: Lang = "en"): string[] {
   const lines = prompt.split("\n");
-  const start = lines.indexOf(LIST_HEADING);
+  const start = lines.indexOf(LIST_HEADING[lang]);
   if (start === -1) return [];
   const items: string[] = [];
   for (const line of lines.slice(start + 1)) {
@@ -187,5 +193,56 @@ describe("Assistant feature map (H-ASST-D16-N3 Part A)", () => {
   it("A-c: no feed-in tariff, export revenue, net present value or compliance anywhere in the prompt", async () => {
     const prompt = await sentSystemPrompt();
     expect(prompt).not.toMatch(/feed-?in|export|net present value|\bNPV\b|compli|certif|conform|AI Act/i);
+  });
+});
+
+/** The English row a Spanish line belongs to: the English fact with the same id. */
+const englishTextOf = (spanish: string): string | undefined => {
+  const id = FACTS_BY_LOCALE.es.find((f) => f.text === spanish)?.id;
+  return FACTS_BY_LOCALE.en.find((f) => f.id === id)?.text;
+};
+
+describe("Assistant feature map, Spanish prompt (2b.5)", () => {
+  it("TA1: every line of the Spanish list belongs to a row in the map", async () => {
+    const listed = featureLines(await sentSystemPrompt("es"), "es");
+    expect(listed.length).toBe(Object.keys(FEATURE_MAP).length);
+    expect(listed.filter((line) => !((englishTextOf(line) ?? "") in FEATURE_MAP))).toEqual([]);
+  });
+
+  it("TA1: every row in the map is named by the Spanish prompt, once", async () => {
+    const rows = featureLines(await sentSystemPrompt("es"), "es").map(englishTextOf);
+    expect(rows.slice().sort()).toEqual(Object.keys(FEATURE_MAP).sort());
+  });
+
+  it("no Accept-Language is the Spanish prompt (2b.1: Spanish is the default)", async () => {
+    sent = undefined;
+    const app = express();
+    app.use(express.json());
+    registerChatRoutes(app);
+    const server = app.listen(0);
+    await new Promise((resolve) => server.once("listening", resolve));
+    const { port } = server.address() as AddressInfo;
+    const res = await fetch(`http://127.0.0.1:${port}/api/conversations/1/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Id": SESSION },
+      body: JSON.stringify({ content: "¿Qué es Voltura?" }),
+    });
+    await res.text();
+    await new Promise((resolve) => server.close(resolve));
+    expect(res.status).toBe(200);
+    expect(sent!.messages[0].content).toBe(await sentSystemPrompt("es"));
+  });
+
+  it("TA2: anything not on the list is answered plainly as not something Voltura does", async () => {
+    const prompt = await sentSystemPrompt("es");
+    expect(prompt).toContain("Si el usuario pregunta por algo que no está en esta lista, diga claramente que Voltura no lo hace.");
+    expect(prompt).toContain("Cuando le pregunten qué es o qué hace Voltura, descríbalo a partir de esta lista.");
+  });
+
+  it("A-c: no feed-in tariff, export revenue, net present value or compliance anywhere in the Spanish prompt", async () => {
+    const prompt = await sentSystemPrompt("es");
+    expect(prompt).not.toMatch(
+      /inyecci[oó]n|vertido|exporta|compensaci[oó]n de excedentes|valor actual neto|\bVAN\b|cumpl|certific|conformidad|Ley de IA|Reglamento de IA|AI Act/i,
+    );
   });
 });

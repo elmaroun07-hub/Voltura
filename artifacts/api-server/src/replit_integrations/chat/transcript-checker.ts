@@ -100,6 +100,100 @@ export const LIVE_SLIP_CLAIMS: KnownFalseClaim[] = [
 ];
 
 /**
+ * H2b (2b.5): the same claims, as a Spanish answer would make them. The
+ * Assistant now answers in Spanish by default, and an English pattern never
+ * fires on Spanish text, so without these the check would pass a Spanish
+ * transcript by not reading it. Same ids as the English rows: a finding is the
+ * claim, whatever the language.
+ *
+ * Unlike the rows above, these were not learnt from Spanish transcripts - none
+ * exists yet. Each is the English row's error as Spanish words it, tested
+ * against Spanish renderings of the recorded English lines
+ * (contracts/fixtures/h2b-5/es-claim-lines.json). A-e stands doubly: the live
+ * read of a Spanish transcript is the gate, and its slips are added here.
+ *
+ * JavaScript's \b only knows ASCII letters, so no \b touches an accented one.
+ */
+function truthOf(id: string): string {
+  const row = [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS].find((c) => c.id === id);
+  if (!row) throw new Error(`transcript-checker: no English claim ${id}`);
+  return row.truth;
+}
+
+export const SPANISH_CLAIMS: KnownFalseClaim[] = [
+  {
+    id: "C9",
+    truth: truthOf("C9"),
+    pattern: /(en otros (lugares|pa[ií]ses|sitios|casos)|en el resto( de (los )?pa[ií]ses)?|en los dem[aá]s (pa[ií]ses|casos)|de lo contrario)[^.;*]{0,60}\b(indica|muestra|se[nñ]ala|anota|da|dice)\b[^.;*]{0,30}(sin cifra|ninguna cifra|no hay cifra|sin factor|ning[uú]n factor|no hay factor)/,
+  },
+  {
+    id: "K2",
+    truth: truthOf("K2"),
+    pattern: /(declaraci[oó]n|afirmaci[oó]n|indicaci[oó]n) gen[eé]rica|mensaje gen[eé]rico/,
+  },
+  {
+    id: "C11",
+    truth: truthOf("C11"),
+    pattern: /\bcostes?\b[^.;*]{0,40}(con fuente|oficial(es)?|nacional(es)?)[^.;*]{0,30}espa[nñ]a|(con fuente|oficial(es)?)[^.;*]{0,10}\bcostes?\b[^.;*]{0,30}espa[nñ]a/,
+  },
+  {
+    id: "C13",
+    truth: truthOf("C13"),
+    pattern: /(\bsu\b|del usuario)[^.;*]{0,10}(propio )?(patr[oó]n|perfil) (diario )?de (carga|consumo)(?! (diario )?(est[aá]ndar|fijo))|perfil de (carga|consumo) (diario )?(propio|del usuario)|(?<!(est[aá]ndar|fijo) )patr[oó]n de carga diari[oa]/,
+  },
+  {
+    id: "K1",
+    truth: truthOf("K1"),
+    pattern: /promediad[oa]s? por horas?|(irradiancia|radiaci[oó]n)( solar)? (horaria|por horas)|datos horarios de (irradiancia|radiaci[oó]n)/,
+  },
+  {
+    id: "K3",
+    truth: truthOf("K3"),
+    pattern: /\b(mes|meses|mensual|mensuales)\b[^.;*]{0,60}energ[ií]a (suministrada|aportada|entregada|descargada) (por|desde) la bater[ií]a/,
+  },
+  {
+    id: "C6",
+    truth: truthOf("C6"),
+    pattern: /(≈|~|aprox(imadamente|\.)? ?|alrededor del? |cerca del? |en torno al? )\s*90\s*% de (eficiencia|rendimiento) (de )?ida y vuelta|ida y vuelta[^.;*]{0,20}(≈|~)\s*90\s*%/,
+  },
+  {
+    id: "C10",
+    truth: truthOf("C10"),
+    pattern: /\btarifa\b( nacional| con fuente| por defecto)+[^.;*]{0,30}(espa[nñ]a\s*(\/|y|o)\s*(el )?reino unido|para el reino unido)/,
+  },
+  {
+    id: "C12",
+    truth: truthOf("C12"),
+    pattern: /\bpdf\b[^.;*]{0,40}(todo el c[aá]lculo|c[aá]lculo completo)/,
+  },
+  {
+    id: "E1",
+    truth: truthOf("E1"),
+    pattern: /\bsi (faltan|no hay) (los )?datos( de la nasa)?[^.;*]{0,60}(recurre|latitud)|latitud[^.;*]{0,40}\bsi (faltan|no hay) (los )?datos/,
+  },
+  {
+    id: "E2",
+    truth: truthOf("E2"),
+    pattern: /(guardad|almacenad)[oa]s? (localmente|en local)|localmente en (su|el) navegador|\b(guarda|almacena)n? (un |el |su )?historial[^.;]{0,60}en (su|el|este) navegador|historial[^.;]{0,40}se (guarda|almacena)[^.;]{0,20}en (su|el|este) navegador/,
+  },
+  {
+    id: "E3",
+    truth: truthOf("E3"),
+    pattern: /solo (proporciona|ofrece|da) (el texto de la recomendaci[oó]n|la explicaci[oó]n)|no (es )?un resultado num[eé]rico|no (es )?un c[aá]lculo completo/,
+  },
+  {
+    id: "P1",
+    truth: truthOf("P1"),
+    pattern: /\bpdf\b[^.;*]{0,60}todos (los |sus )?datos( introducidos| de entrada)?/,
+  },
+  {
+    id: "P2",
+    truth: truthOf("P2"),
+    pattern: /reino unido[^.*]{0,40}\b(con|usando|usa) (una |su )?(tarifa (propia|del usuario|introducida)|propia tarifa)[^.*]{0,100}(sin valorar|sin valor (econ[oó]mico|monetario)|no se valora)/,
+  },
+];
+
+/**
  * Models write non-breaking hyphens, narrow and no-break spaces and curly
  * quotes (A0 has all four). Fold them so a pattern written with ASCII matches.
  */
@@ -114,7 +208,7 @@ export function normalise(text: string): string {
 
 export function checkTranscript(text: string): { id: string; match: string }[] {
   const t = normalise(text);
-  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS].flatMap(({ id, pattern }) => {
+  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS, ...SPANISH_CLAIMS].flatMap(({ id, pattern }) => {
     const m = pattern.exec(t);
     return m ? [{ id, match: m[0] }] : [];
   });

@@ -1,0 +1,35 @@
+{
+  "source": "H2b 2b.5, 7 Oct 2026. Spanish renderings, written by the executor, of the recorded English lines each known false claim was learnt from (contracts/fixtures/h-asst-accuracy/a0.txt; the K and C10 samples in transcript-checker.test.ts; contracts/fixtures/h-asst-acc2/failing-lines.json). NOT recorded model output: no Spanish transcript exists yet. Each `from` names the line rendered. `corrected` holds a correct Spanish statement of the same point, written from the Spanish facts, which the checker must not flag.",
+  "lines": [
+    { "id": "C9", "from": "a0.txt", "line": "* Estima el CO₂ evitado con factores de emisión de la red según la ubicación (datos oficiales para España y el Reino Unido; en otros lugares indica que no hay cifra)." },
+    { "id": "K2", "from": "K2 sample", "line": "* Estima el CO₂ evitado con factores de carbono de la red según la ubicación (cifras oficiales para España y el Reino Unido; en los demás casos, una declaración genérica)." },
+    { "id": "C11", "from": "a0.txt", "line": "* Calcula un periodo de retorno y una curva de rentabilidad a 25 años a partir del coste de instalación que usted indique (o de costes solo fotovoltaicos con fuente para España/Reino Unido)." },
+    { "id": "C13", "from": "a0.txt", "line": "* Incluye un Optimizador IA que puede recomendar una potencia FV y una capacidad de batería ajustadas a su consumo anual, su patrón de carga diario y la irradiancia local, y explica el razonamiento de las cifras." },
+    { "id": "K1", "from": "K1 sample", "line": "* **Datos del recurso solar** – obtiene de NASA POWER la irradiancia solar promediada por horas y la temperatura de ese punto (o, si la NASA no está disponible, una estimación por latitud)." },
+    { "id": "K3", "from": "K3 sample", "line": "* Le muestra los kWh anuales ahorrados, un desglose mes a mes del uso solar directo, la energía suministrada por la batería, las importaciones de red y el «excedente no aprovechado», además de un gráfico circular del mix energético." },
+    { "id": "C6", "from": "a0.txt", "line": "* Ajusta la generación según la orientación de los paneles (sur, este, oeste, norte) y el ángulo de inclinación, y simula el ciclo de carga y descarga de la batería (≈90 % de eficiencia de ida y vuelta)." },
+    { "id": "C10", "from": "C10 sample", "line": "* Valora el ahorro con su tarifa eléctrica (o con una tarifa nacional por defecto para España/Reino Unido); si no, solo muestra la energía ahorrada." },
+    { "id": "C12", "from": "a0.txt", "line": "* Genera un informe PDF descargable de todo el cálculo y guarda un historial de sus cálculos anteriores en el mismo navegador." },
+    { "id": "E1", "from": "failing-lines.json, conversation 47", "line": "* Obtiene de NASA POWER los datos mensuales de irradiancia solar y temperatura de ese punto (promedio 2019‑2023). Si faltan datos de la NASA, recurre a una estimación basada en la latitud y marca el resultado como estimación." },
+    { "id": "E2", "from": "failing-lines.json, conversation 47", "line": "* Guarda un historial de cálculos anteriores en su navegador (vinculado a un ID local; otro navegador o borrar los datos da otro historial)." },
+    { "id": "E3", "from": "failing-lines.json, conversation 49", "line": "* **Optimizador IA** – una herramienta explicativa que recomienda una potencia FV y una capacidad de batería según su consumo anual y su ubicación, con un perfil de consumo diario estándar (no la forma de su carga). Solo proporciona el texto de la recomendación, no un cálculo completo." },
+    { "id": "P1", "from": "failing-lines.json, conversation 49", "line": "* **Informe PDF** – un PDF descargable con todos los datos introducidos, las cifras de resultado y la tabla mensual (sin gráficos)." },
+    { "id": "P2", "from": "failing-lines.json, conversation 51", "line": "* Valora el ahorro solo para España (con una tarifa del usuario o la media de Eurostat de 2025‑S2) y el Reino Unido (con una tarifa del usuario; no hay tarifa del Reino Unido con fuente, así que el ahorro queda sin valorar)." }
+  ],
+  "corrected": [
+    { "id": "C9", "line": "* Estima el CO₂ evitado con un factor de carbono de la red según la ubicación (oficial para España peninsular y el Reino Unido; un factor antiguo sin fuente para una lista de países; en cualquier otro país se rechaza todo el cálculo)." },
+    { "id": "K2", "line": "* Fuera de España, el Reino Unido y la lista de países con un factor antiguo, no hay factor y el cálculo se rechaza." },
+    { "id": "C11", "line": "* Calcula un periodo de retorno y una curva de rentabilidad a 25 años con el coste de instalación que usted escriba, o, solo en el Reino Unido, con el coste medio del DESNZ para sistemas solo fotovoltaicos; España todavía no tiene un coste de instalación con fuente." },
+    { "id": "C13", "line": "* Incluye un Optimizador IA que recomienda una potencia FV y una capacidad de batería a partir de su consumo anual y su ubicación, con un perfil de consumo diario estándar y fijo, no el suyo propio." },
+    { "id": "K1", "line": "* Obtiene de NASA POWER la irradiancia solar y la temperatura mensuales de ese punto, promediadas en 2019‑2023: doce valores mensuales, no datos horarios." },
+    { "id": "K3", "line": "* Muestra la energía anual ahorrada, un gráfico mensual de Generación, Ahorro, Importación de red y «Excedente no aprovechado», sin serie de batería, y el mix energético anual: Solar directa, Desde la batería e Importación de red." },
+    { "id": "C6", "line": "* Simula la carga y descarga de la batería con la eficiencia de ida y vuelta que usted fije, del 50 % al 100 % (90 % por defecto)." },
+    { "id": "C10", "line": "* Valora el ahorro con la tarifa que usted escriba; sin ella, España usa la media nacional de Eurostat de 2025‑S2 y el Reino Unido no tiene tarifa nacional, así que su ahorro queda sin valorar." },
+    { "id": "C12", "line": "* Genera un informe PDF descargable con los datos introducidos (salvo el coste de instalación), las cifras de resultado y la tabla mensual, sin gráficos." },
+    { "id": "E1", "line": "* Obtiene de NASA POWER los datos mensuales de irradiancia solar y temperatura de ese punto (promedio 2019‑2023). Si NASA no responde, da un error o envía una respuesta ilegible, estima a partir de la latitud y lo indica; si NASA marca meses sin datos, no hay resultado." },
+    { "id": "E2", "line": "* Guarda un historial de cálculos anteriores en el servidor de Voltura, vinculado a un identificador que guarda su navegador; otro navegador empieza con un historial vacío." },
+    { "id": "E3", "line": "* **Optimizador IA** – devuelve como números una potencia FV y una capacidad de batería calculadas con una fórmula; la IA solo escribe la explicación que las acompaña." },
+    { "id": "P1", "line": "* **Informe PDF** – la ubicación y siete datos introducidos (no el coste de instalación), las cifras de resultado y la tabla mensual, sin gráficos." },
+    { "id": "P2", "line": "* Valora el ahorro solo para España y el Reino Unido; en el Reino Unido, el ahorro se valora cuando usted escribe una tarifa y queda sin valorar si no la escribe." }
+  ]
+}
