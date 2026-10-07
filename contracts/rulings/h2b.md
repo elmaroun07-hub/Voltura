@@ -214,3 +214,51 @@ against every Spanish entry of both catalogs by tests (M10 kills it).
 2b.5 HELD.** The merge is operator-ruled (§14.2). Before it: the operator's rulings on 2b.3
 and 2b.5, or a ruling to merge with both open. After it: L1–L4 and Tier B, then this gate
 closes or stays open on what they show.
+
+---
+
+# Post-merge — 7 October 2026
+
+**MERGE:** `d9fd1e6` = `--no-ff` of `bc6f10a` onto `9990fbe`, made and pushed from the cloud
+session by the operator's ruling (7 Oct, ~20:03): merge with 2b.3 and 2b.5 still open.
+Author/committer `elmaroun07-hub <elmaroun07-hub@users.noreply.github.com>`, as every commit on
+`main`. Merge tree == branch tip tree (`git diff bc6f10a d9fd1e6` empty). Pushed
+`9990fbe..d9fd1e6` at 20:03:41Z.
+
+**§2 at the merge (Render API, read before the push):** `Voltura-api` and `Voltura-web` both
+`autoDeploy: yes`, trigger `commit`, branch `main`, PR previews off; both live on `9990fbe`.
+
+**CI on `main`:** run `37679180276`, build + test green (branch run `37678616846` green before it).
+
+## LIVE EVIDENCE
+
+| | Check | Result |
+|---|---|---|
+| **L1** | Both services serve the merge | Render API: web `dep-db3ab815efls73c9ah2g` live 20:04:25Z, API `dep-db3ab815efls73c9agt0` live 20:04:38Z, `9990fbe` deploys deactivated. `GET /api/version` → `{"sha":"d9fd1e6","shaFull":"d9fd1e6193…","source":"render"}`. Web `meta build-sha` = `d9fd1e6`. **PASS** |
+| **L2** | The page opens in Spanish | Built-in browser, fresh profile state (`voltura.locale` unset): `<html lang="es">`, title "Voltura — Inteligencia energética", nav Calculadora / Historial / Optimizador IA / Asistente energético, button "Calcular ahorro", switcher ES pressed. **PASS** |
+| **L3** | A production calculation and its PDF, in Spanish by default | Through the UI, Fuengirola, Málaga, Spain → row **110** (this browser's session, 20:13:26Z). Recommendation: "¡Buen resultado! Su sistema cubre el 77 % de su energía, un ahorro de 1030 € al año. Una batería algo mayor podría acercarle al 100 %." Cards: 3860 kWh · 1030 € · 333 kg · "Datos satelitales de NASA POWER, media 2019–2023" · 0,267 €/kWh (Eurostat 2025-S2) · "Retorno: pendiente", reason in Spanish. Chart months ene … dic; legend Generación / Ahorro / Importación de red / Excedente no aprovechado. Toast "Cálculo completado". PDF of row 110, `Accept-Language: es`: 200 `application/pdf`, text layer read in the page (2 Flate streams, 0 errors): "Informe de ahorro con energía verde", "Generado: 7 de octubre de 2026", Resumen, Resultados, Desglose mensual, Mes, ene … dic; Tarifa eléctrica **0,267 €/kWh**, Orientación del panel **Sur**, Rendimiento de la batería **90 %**, Energía ahorrada al año **3860 kWh**, Ahorro económico anual **1030 €**, Periodo de retorno estimado **pendiente**; no English label anywhere. Same PDF with `Accept-Language: en`: Summary, Results, Monthly Breakdown, Jan … Dec, **€0.267/kWh**, **South**. Figures identical across languages and identical to the suite's Fuengirola pins. **PASS** |
+| **L4** | The switch, and that it is remembered | EN → `lang="en"`, title "Voltura — Energy Intelligence", nav Calculator / History / AI Optimizer / Energy Assistant, stored `en`; reload → still English; ES → back to Spanish, stored `es`. **PASS** |
+
+**Probe residue:** production row **110** (calculations), Fuengirola, created by L3 under the
+built-in browser's session id. Not deleted — G3's ban on DML stands; listed here so a later
+cleanup can name it by primary key. It shows in that browser's History.
+
+## ROLLBACK — Tier B
+
+Merge authorised, drill not: revert computed on scratch ref `scratch/h2b-revert-proof` as
+`50733f2` (local to the cloud clone, unpushed). It applies cleanly: 62 files, +421 / −2,896,
+the exact mirror of the merge's 62 files, +2,896 / −421; the reverted tree is **identical** to
+`9990fbe`'s. Command: `git revert -m 1 d9fd1e6`.
+**The deploy-path rollback is UNPROVEN.** A13's standing debt is carried unchanged, not
+discharged: no deploy-path rollback has been executed on any block.
+
+## RULING — post-merge
+
+**Gate H2b — CLOSED on its criterion**, with live proof: a string with no Spanish entry fails
+the build (shown four ways pre-merge), and production serves the web app, the API's
+sentences and the PDF in Spanish by default, English on request.
+
+**Block H2b is NOT complete:** 2b.3 stays **REFUSED** (options A/B/C with the operator) and
+2b.5 stays **HELD** (operator's ruling). Whether H3's precondition "H2b closed" is met with
+those two open is a judgment, not a check — the operator's to rule (§14.2) before H3 opens,
+along with H3's own open question: which municipality first.
