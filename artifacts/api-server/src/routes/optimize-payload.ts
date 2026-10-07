@@ -1,4 +1,5 @@
 import { modelProseSchema } from "../shared-routes";
+import { serverCatalog } from "../i18n";
 import type { Sizing } from "../lib/sizing";
 
 /**
@@ -255,5 +256,6 @@ export function parseOptimizePayload(
 }
 
 /** User-facing copy for a failed optimization. Never contains Zod detail. */
-export const OPTIMIZE_FAILURE_MESSAGE =
-  "The optimization model returned an unusable response. Please try again.";
+// The route writes this in the request's language from the server catalog
+// (H2b); this export is the English entry, kept for the payload tests.
+export const OPTIMIZE_FAILURE_MESSAGE = serverCatalog.en["error.optimizeModel"];

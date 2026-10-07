@@ -97,9 +97,13 @@ describe("numbers and months follow the reader's language", () => {
     expect(formatNumber("es", 3860)).toBe("3860");
   });
 
-  it("month names come from the month number", () => {
+  it("month names come from the month number, from fixed tables", () => {
     expect(monthName("es", 1, "long")).toBe("enero");
     expect(monthName("en", 1, "long")).toBe("January");
+    expect(monthName("es", 9)).toBe("sep");
+    // The abbreviation the product has always printed, whatever this Node's ICU says.
+    expect(monthName("en", 9)).toBe("Sep");
     expect(() => monthName("es", 13)).toThrow();
+    expect(() => monthName("es", 0)).toThrow();
   });
 });

@@ -16,6 +16,7 @@
  * resolved PER ELECTRIC SYSTEM: an island, or an address whose system cannot
  * be determined, never receives the peninsular factor.
  */
+import { INTL_LOCALE, type Locale } from "@workspace/i18n";
 import { readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -446,12 +447,21 @@ export function roi(annualSavings: Money<Currency>, installCost: Money<Currency>
   return { paybackYears, curve, lifetimeSavings: curve[curve.length - 1].cumulativeSavings };
 }
 
-/** Render an amount in its OWN currency. There is no default currency and no literal symbol. */
-export function formatMoney(amount: number, currency: Currency, maximumFractionDigits = 0): string {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits, minimumFractionDigits: 0 }).format(amount);
+/**
+ * Render an amount in its OWN currency, punctuated for the reader's language
+ * (H2b: 1.050 € in Spanish, €1,050 in English). There is no default currency,
+ * no default language and no literal symbol.
+ */
+export function formatMoney(locale: Locale, amount: number, currency: Currency, maximumFractionDigits = 0): string {
+  return new Intl.NumberFormat(INTL_LOCALE[locale], {
+    style: "currency",
+    currency,
+    maximumFractionDigits,
+    minimumFractionDigits: 0,
+  }).format(amount);
 }
 
 /** A range renders as a range. There is no midpoint anywhere in this module. */
-export function formatMoneyRange(low: number, high: number, currency: Currency): string {
-  return `${formatMoney(low, currency)}–${formatMoney(high, currency)}`;
+export function formatMoneyRange(locale: Locale, low: number, high: number, currency: Currency): string {
+  return `${formatMoney(locale, low, currency)}–${formatMoney(locale, high, currency)}`;
 }

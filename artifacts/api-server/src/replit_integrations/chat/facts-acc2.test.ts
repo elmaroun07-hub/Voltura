@@ -212,8 +212,10 @@ describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () 
     expect(r.body.optimalBattery).toBe(r.body.sizing.batteryKwh);
     expect(r.body.explanation).toBe("Sized from the figures provided.");
     const page = source("artifacts/green-energy-calculator/src/pages/Optimizer.tsx");
-    expect(page).toContain("{result.optimalPv} W");
-    expect(page).toContain("{result.optimalBattery} kWh");
+    // H2b: the units are catalog entries now, and the numbers are formatted
+    // for the reader; they are still the response's numbers, not the model's.
+    expect(page).toContain('t("unit.wValue", { n: num(result.optimalPv) })');
+    expect(page).toContain('t("unit.kwhValue", { n: num(result.optimalBattery) })');
   });
 
   it("P1 pdf: the eight inputs it prints, no installation cost, no charts", async () => {
@@ -223,7 +225,8 @@ describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () 
     const lines = await withServer(async (b) => {
       const made = await post(b, "/api/calculate", calcBody({ installationCost: 9287 }));
       expect(store.rows.get(made.body.id).installationCostEur).toBe(9287);
-      const res = await realFetch(`${b}/api/calculate/${made.body.id}/pdf`, { headers: { "X-Session-Id": SESSION } });
+      // The fact is written in English, so the report is asked for in English (H2b).
+      const res = await realFetch(`${b}/api/calculate/${made.body.id}/pdf`, { headers: { "X-Session-Id": SESSION, "Accept-Language": "en" } });
       expect(res.status).toBe(200);
       return pdfLines(Buffer.from(await res.arrayBuffer()));
     });

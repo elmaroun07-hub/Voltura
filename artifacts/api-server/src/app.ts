@@ -47,7 +47,9 @@ app.use(
     // X-Session-Id is not a CORS-safelisted header, so every session-carrying
     // request is preflighted. Omit it here and the browser rejects the response
     // before the handler is ever reached - every read and write fails at once.
-    allowedHeaders: ["Content-Type", "X-Session-Id"],
+    // Accept-Language (H2b) is CORS-safelisted for the values the web sends
+    // ("es", "en"); it is named here anyway so a preflight never depends on that.
+    allowedHeaders: ["Content-Type", "X-Session-Id", "Accept-Language"],
   }),
 );
 

@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { serverCatalog } from "../../i18n";
 import express from "express";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -27,6 +28,8 @@ const fixtures: Record<string, Fixture> = JSON.parse(
   readFileSync(new URL("../../routes/calculate.fixtures.json", import.meta.url), "utf8"),
 );
 // Line endings folded: a Windows checkout writes CRLF, and the pins compare code text.
+/** H2b: the web app's words live here, Spanish table first, English second. */
+const WEB_CATALOG = "artifacts/green-energy-calculator/src/i18n/catalog.ts";
 const source = (repoPath: string) =>
   readFileSync(new URL(`../../../../../${repoPath}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const fact = (id: string) => {
@@ -179,9 +182,11 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(r.status).toBe(200);
     expect(r.body.irradianceSource).toBe("fallback-lat");
     expect(r.body.resolution.irradianceSource).toBe("fallback-lat");
+    // H2b: the label is a catalog entry now; the English entry is the words the fact quotes.
     expect(source("artifacts/green-energy-calculator/src/lib/provenance.ts")).toContain(
-      'case "fallback-lat":\n      return "Estimated from latitude — NASA data unavailable";',
+      'case "fallback-lat":\n      return t("irradiance.fallback");',
     );
+    expect(source(WEB_CATALOG)).toContain('"irradiance.fallback": "Estimated from latitude — NASA data unavailable",');
   });
 
   it("simulation: 8,760 hours, consumption scaled to the annual kWh entered", () => {
@@ -221,10 +226,26 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(fact("monthly-chart")).toContain("The monthly chart has no battery series.");
     const display = source("artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx");
     const block = display.slice(display.indexOf("const barData"), display.indexOf("}));", display.indexOf("const barData")));
-    expect([...block.matchAll(/^\s+("?[A-Za-z ]+"?):\s*m\./gm)].map((m) => m[1].replace(/"/g, ""))).toEqual([
-      "name", "Generation", "Savings", "Grid Import", "Surplus not used",
+    // H2b: four data series (plus the month label), each drawn as a <Bar>
+    // named from the catalog; the catalog's English names are the fact's words.
+    expect([...block.matchAll(/^\s+("?[A-Za-z ]+"?):\s*(?:m\.|month\()/gm)].map((m) => m[1].replace(/"/g, ""))).toEqual([
+      "name", "generation", "savings", "gridImport", "surplus",
     ]);
     expect(block).not.toMatch(/battery/i);
+    const bars = [...display.matchAll(/<Bar dataKey="(\w+)" name=\{t\("([\w.]+)"\)\}/g)].map((m) => [m[1], m[2]]);
+    expect(bars).toEqual([
+      ["generation", "series.generation"],
+      ["savings", "series.savings"],
+      ["gridImport", "series.gridImport"],
+      ["surplus", "series.surplus"],
+    ]);
+    const cat = source(WEB_CATALOG);
+    for (const [key, words] of [
+      ["series.generation", "Generation"],
+      ["series.savings", "Savings"],
+      ["series.gridImport", "Grid Import"],
+      ["series.surplus", "Surplus not used"],
+    ]) expect(cat).toContain(`"${key}": "${words}",`);
     for (const m of simulate8760(5000, 4000, 10, 0.9, 1, FLAT_IRR, Array(12).fill(15), 0.78).monthly) {
       expect(Math.abs(m.savingsKwh - (m.consumptionKwh - m.gridImportKwh))).toBeLessThanOrEqual(0.11);
     }
@@ -233,7 +254,16 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
   it("energy-mix: Direct Solar, From Battery, Grid Import as shares of consumption", async () => {
     expect(fact("energy-mix")).toContain("Direct Solar, From Battery and Grid Import, as shares of consumption");
     const display = source("artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx");
-    for (const n of ["Direct Solar", "From Battery", "Grid Import"]) expect(display).toContain(`{ name: "${n}", value: results.breakdown.`);
+    // H2b: each slice is named from the catalog; the English entries are the fact's words.
+    const cat = source(WEB_CATALOG);
+    for (const [key, words, field] of [
+      ["mix.solar", "Direct Solar", "solar"],
+      ["mix.battery", "From Battery", "battery"],
+      ["mix.grid", "Grid Import", "grid"],
+    ]) {
+      expect(display).toContain(`{ name: t("${key}"), value: results.breakdown.${field} }`);
+      expect(cat).toContain(`"${key}": "${words}",`);
+    }
     const { body } = await calculate({});
     const { solar, battery, grid } = body.breakdown;
     expect(Math.abs(solar + battery + grid - 100)).toBeLessThanOrEqual(2);
@@ -328,7 +358,15 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(fact("pdf")).toContain("the result figures and the monthly table. The installation cost is not printed, and the PDF has no charts.");
     const routes = source("artifacts/api-server/src/routes/routes.ts");
     const handler = routes.slice(routes.indexOf('app.get("/api/calculate/:id/pdf"'), routes.indexOf("app.post(api.calculations.create.path"));
-    for (const h of ['text("Summary"', 'text("Results"', 'text("Monthly Breakdown"']) expect(handler).toContain(h);
+    // H2b: the headings are server-catalog entries; English reads as before.
+    for (const [key, words] of [
+      ["pdf.summary", "Summary"],
+      ["pdf.results", "Results"],
+      ["pdf.monthly", "Monthly Breakdown"],
+    ]) {
+      expect(handler).toContain(`text(t("${key}")`);
+      expect(serverCatalog.en[key as keyof typeof serverCatalog.en]).toBe(words);
+    }
     expect(handler).not.toMatch(/\.image\(|\.path\(|bezierCurveTo|\.polygon\(/);
   });
 

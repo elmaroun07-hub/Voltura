@@ -174,14 +174,30 @@ export function formatDate(locale: Locale, value: Date, options?: Intl.DateTimeF
   return new Intl.DateTimeFormat(INTL_LOCALE[locale], options).format(value);
 }
 
+/**
+ * Month names as fixed tables rather than Intl: ICU builds differ between the
+ * server's Node and a reader's browser (en-GB's September is "Sep" in one and
+ * "Sept" in another), and a chart axis and a PDF table that disagree about a
+ * month's name are a small P5 failure. English keeps the abbreviations the
+ * product has always printed; Spanish writes them lower-case, as Spanish does.
+ */
+const MONTHS: Readonly<Record<Locale, { short: readonly string[]; long: readonly string[] }>> = {
+  es: {
+    short: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+    long: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+  },
+  en: {
+    short: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    long: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+  },
+};
+
 /** A calendar month's name, from its 1-based number. Never from an English string the server sent. */
 export function monthName(locale: Locale, month: number, style: "short" | "long" = "short"): string {
   if (!Number.isInteger(month) || month < 1 || month > 12) {
     throw new Error(`i18n: month ${month} is not 1-12`);
   }
-  return new Intl.DateTimeFormat(INTL_LOCALE[locale], { month: style, timeZone: "UTC" }).format(
-    new Date(Date.UTC(2001, month - 1, 15)),
-  );
+  return MONTHS[locale][style][month - 1];
 }
 
 // ── P7 in Spanish ───────────────────────────────────────────────────────────

@@ -81,12 +81,15 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     symbol: "function panelEfficiencyFactor(",
   },
   "Shows the annual energy saved in kWh - the consumption covered by solar or the battery - and a monthly chart with four series: Generation, Savings, Grid Import and \"Surplus not used\" (solar energy neither the home nor the battery could take, which Voltura puts no value on). The monthly chart has no battery series.": {
+    // H2b: the series labels moved to the catalog; the chart's surplus series
+    // is this dataKey, labelled "series.surplus" ("Surplus not used" in English).
     file: "artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx",
-    symbol: '"Surplus not used": m.surplusKwh',
+    symbol: 'surplus: m.surplusKwh',
   },
   "Shows the annual energy mix: Direct Solar, From Battery and Grid Import, as shares of consumption.": {
+    // H2b: the slice label is the catalog's "mix.battery" ("From Battery" in English).
     file: "artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx",
-    symbol: 'name: "From Battery"',
+    symbol: 'name: t("mix.battery")',
   },
   "Estimates the CO2 avoided with a location-based grid carbon factor. Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. United Kingdom: the official DESNZ factor. Australia, Austria, Belgium, Brazil, Canada, China, Denmark, Finland, France, Germany, Greece, India, Ireland, Italy, Japan, Mexico, Morocco, Netherlands, Norway, Poland, Portugal, Romania, South Korea, Sweden, Switzerland, Turkey and United States: an older factor with no cited source, which the results page does not mark as unsourced. Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.": {
     file: "artifacts/api-server/src/lib/emissions/carbon-source.ts",
