@@ -1,3 +1,4 @@
+import { formatNumber, type Locale } from "@workspace/i18n";
 import { CARBON_INTENSITY_BY_COUNTRY, COUNTRY_KEY_BY_ISO } from "../../lib/carbon-intensity";
 import { ROI_INFLATION, ROI_YEARS } from "../../lib/emissions/countries";
 import { SIZING_DEFAULTS } from "../../lib/sizing";
@@ -12,6 +13,11 @@ import { SIZING_DEFAULTS } from "../../lib/sizing";
  * data or in an unexported literal is written out here and pinned by a test
  * that fails when the code moves (A-b). Change a sentence only together with
  * its pin, and with feature-map.test.ts, which maps each line to the code.
+ *
+ * H2b (2b.5): the Assistant works in both languages, so each fact is written
+ * twice - English here, Spanish in VOLTURA_FACTS_ES below - from the same
+ * constants. facts-es.test.ts ties every Spanish sentence to the English one
+ * whose claims facts.test.ts pins to the code.
  */
 
 /**
@@ -117,3 +123,128 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
     text: "This Energy Assistant, for questions about the results and about solar and batteries in general.",
   },
 ];
+
+// ── Spanish (2b.5) ──────────────────────────────────────────────────────────
+
+/** NASA_FACT.resolution in Spanish. Typed by it: a new resolution fails tsc here. */
+const RESOLUTION_ES: Record<typeof NASA_FACT.resolution, string> = { monthly: "mensuales" };
+
+const regionEs = new Intl.DisplayNames(["es"], { type: "region" });
+const ISO_BY_KEY: Record<string, string> = Object.fromEntries(
+  Object.entries(COUNTRY_KEY_BY_ISO).map(([iso, key]) => [key, iso]),
+);
+
+/**
+ * The same countries as LEGACY_CARBON_COUNTRIES, named in Spanish from their
+ * ISO code (not translated by hand) and sorted as Spanish sorts. No name, no
+ * list: a missing name throws rather than printing an English one (P2).
+ */
+export const LEGACY_CARBON_COUNTRIES_ES: string[] = [...new Set(Object.values(COUNTRY_KEY_BY_ISO))]
+  .filter((key) => key in CARBON_INTENSITY_BY_COUNTRY)
+  .map((key) => {
+    const name = regionEs.of(ISO_BY_KEY[key].toUpperCase());
+    if (!name) throw new Error(`facts: no Spanish name for ${key}`);
+    return name;
+  })
+  .sort((a, b) => a.localeCompare(b, "es"));
+
+/** "A, B y C" - and "e" before a word that sounds like i-, as Spanish writes it. */
+const listedEs = (names: string[]) => {
+  const last = names[names.length - 1];
+  const and = /^h?i(?![aeiouáéíóú])/i.test(last) ? "e" : "y";
+  return `${names.slice(0, -1).join(", ")} ${and} ${last}`;
+};
+/** es-ES writes 1,5 % - decimal comma, a space before the sign. */
+const percentEs = (fraction: number) => `${formatNumber("es", Math.round(fraction * 1000) / 10)} %`;
+
+/**
+ * The thirteen facts in Spanish, same ids, same order, same claims. Labels the
+ * screen shows are quoted as the Spanish screen shows them (the web catalog's
+ * Spanish entries), so the Assistant and the page name things alike (P5).
+ * Register: usted, as everywhere in the Spanish product.
+ */
+export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
+  {
+    id: "geocoder",
+    text: "Localiza el lugar que escribe el usuario con el geocodificador Nominatim de OpenStreetMap.",
+  },
+  {
+    id: "nasa",
+    text:
+      `Toma de NASA POWER la irradiancia solar y la temperatura mensuales de ese punto, promediadas en ${NASA_FACT.start}-${NASA_FACT.end}: doce valores ${RESOLUTION_ES[NASA_FACT.resolution]}, no datos horarios. ` +
+      "La temperatura solo afecta al consumo doméstico modelizado, no a la generación solar. " +
+      "La estimación por latitud se usa en un único caso: cuando NASA no se puede usar en absoluto - no responde, responde con un estado de error o envía una respuesta que Voltura no puede leer. " +
+      "Voltura estima entonces la irradiancia y la temperatura a partir de la latitud e identifica el resultado como esa estimación, en la respuesta de la API y en la página. " +
+      "Cuando NASA sí responde pero marca meses como sin datos, u omite meses, no hay estimación ni resultado: el cálculo se detiene con un error.",
+  },
+  {
+    id: "simulation",
+    text: "Simula un año completo hora a hora (8760 horas): la generación solar, el consumo doméstico repartido a partir de los kWh anuales que introduce el usuario según un perfil residencial típico, y la carga y descarga de la batería.",
+  },
+  {
+    id: "orientation",
+    text: "Ajusta la generación según la orientación de los paneles (sur, este, oeste, norte) y el ángulo de inclinación.",
+  },
+  {
+    id: "monthly-chart",
+    text: "Muestra la energía anual ahorrada en kWh - el consumo cubierto por la energía solar o por la batería - y un gráfico mensual con cuatro series: Generación, Ahorro, Importación de red y «Excedente no aprovechado» (energía solar que ni la vivienda ni la batería pudieron absorber, y a la que Voltura no asigna ningún valor). El gráfico mensual no tiene ninguna serie de batería.",
+  },
+  {
+    id: "energy-mix",
+    text: "Muestra el mix energético anual: Solar directa, Desde la batería e Importación de red, como porcentajes del consumo.",
+  },
+  {
+    id: "carbon",
+    text:
+      "Estima el CO2 evitado con un factor de carbono de la red según la ubicación. " +
+      "España: el factor oficial de REE, solo para direcciones peninsulares; una dirección en las Islas Baleares o Canarias, en Ceuta o en Melilla, o una dirección española cuya región no se puede determinar, todavía no tiene factor y el cálculo se rechaza. " +
+      "Reino Unido: el factor oficial del DESNZ. " +
+      `${listedEs(LEGACY_CARBON_COUNTRIES_ES)}: un factor más antiguo sin fuente citada, que la página de resultados no señala como sin fuente. ` +
+      "Cualquier otro país no tiene factor, y se rechaza todo el cálculo: ningún resultado de energía, dinero ni CO2.",
+  },
+  {
+    id: "tariff",
+    text:
+      "Valora el ahorro en dinero solo para España y el Reino Unido. " +
+      "Allí, siempre se usa la tarifa que escribe el usuario. " +
+      "Si no se escribe ninguna tarifa, España usa la media nacional de los hogares de Eurostat de 2025-S2 mientras esa cifra esté vigente. " +
+      "El Reino Unido no tiene tarifa nacional en Voltura, así que el ahorro en el Reino Unido solo se valora cuando el usuario escribe una tarifa. " +
+      "Para cualquier otro país no hay cifra en dinero, aunque el usuario escriba una tarifa.",
+  },
+  {
+    id: "payback",
+    text:
+      `Calcula un periodo de retorno y una curva de rentabilidad a ${ROI_YEARS} años (con el ahorro subiendo un ${percentEs(ROI_INFLATION)} al año) cuando el ahorro está valorado en dinero y se conoce un coste de instalación: ` +
+      "el coste que escribe el usuario (solo en España y el Reino Unido) o, solo en el Reino Unido, el coste medio del DESNZ para sistemas solo fotovoltaicos de hasta 10 kW, que no se usa cuando se incluye una batería. " +
+      "España todavía no tiene un coste de instalación con fuente. Sin coste, el retorno aparece como pendiente.",
+  },
+  {
+    id: "pdf",
+    text:
+      "Genera un informe PDF descargable de un cálculo: la ubicación y los datos introducidos (consumo anual, tamaño del sistema FV, capacidad y rendimiento de la batería, tarifa, orientación del panel y ángulo del tejado), las cifras de resultado y la tabla mensual. " +
+      "El coste de instalación no se imprime, y el PDF no tiene gráficos.",
+  },
+  {
+    id: "history",
+    text:
+      "Guarda un historial de cálculos anteriores. Los cálculos se almacenan en el servidor de Voltura; este navegador solo guarda un identificador aleatorio que lo vincula con ellos. " +
+      "Otro navegador u otro dispositivo, o borrar los datos del sitio, da un identificador nuevo y, por tanto, un historial vacío; no hay cuentas de usuario.",
+  },
+  {
+    id: "optimizer",
+    text:
+      "El Optimizador IA devuelve como números una potencia FV recomendada en vatios y una capacidad de batería en kWh, calculadas con una fórmula a partir del consumo anual del usuario y de su ubicación (irradiancia de la NASA), con un perfil de consumo diario estándar y fijo, no el del propio usuario. " +
+      `La fórmula dimensiona los paneles para que su generación anual sea igual al ${percentEs(SIZING_DEFAULTS.coverageTarget)} del consumo anual, y la batería para la parte nocturna del perfil. ` +
+      "La IA solo escribe la explicación que se muestra con esos números; no puede cambiarlos.",
+  },
+  {
+    id: "assistant",
+    text: "Este Asistente energético, para preguntas sobre los resultados y sobre la energía solar y las baterías en general.",
+  },
+];
+
+/** The facts the Assistant is given, in the language the reader chose. */
+export const FACTS_BY_LOCALE: Readonly<Record<Locale, readonly { id: string; text: string }[]>> = {
+  es: VOLTURA_FACTS_ES,
+  en: VOLTURA_FACTS,
+};

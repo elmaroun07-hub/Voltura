@@ -13,6 +13,6 @@ Every screen, label, PDF, error message and system prompt in this repository is 
 | 2b.2 | Salvaged `es.json` strings loaded (from C2) |
 | 2b.3 | **Amended A24 (7 Oct 2026).** Domain vocabulary from official usage — *pobreza energética*, *pobreza energética en verano*, *rehabilitación*, *parque edificatorio*, *cribado* — each cited to a page of the Estrategia Nacional contra la Pobreza Energética 2026–2030, not translated. *(Was: the Andalusian heat-health plan and the CTE, which hold none of the terms; and* viviendas difíciles de refrigerar, parque de viviendas*, which the strategy does not use.)* |
 | 2b.4 | Assessment and screening PDFs in Spanish, with Spanish number and date formatting |
-| 2b.5 | Assistant system prompt in Spanish, if the Assistant survives into the HeatShield product |
+| 2b.5 | **Amended A25 (7 Oct 2026).** The Assistant works in both languages, following the reader: system prompt, its facts and its routes' messages in Spanish and in English, chosen by the language the reader picked in the app (Spanish by default). *(Was: system prompt in Spanish, if the Assistant survives into the HeatShield product.)* |
 
 **Gate H2b.** A new string added anywhere fails the build if it has no Spanish entry. Demonstrated by adding one and showing the failure.

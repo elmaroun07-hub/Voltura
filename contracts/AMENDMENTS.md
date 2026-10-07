@@ -657,3 +657,20 @@ wider sense than the source's. The vocabulary entry says so.
 
 The CTE is no longer a named source for 2b.3. The record is `lib/i18n/src/vocabulary.ts`; the
 copy read is pinned there by its SHA-256.
+
+## A25 · 2026-10-07 — 2b.5: the Assistant in both languages
+
+**Operator ruling, 7 Oct 2026:** the Assistant survives into HeatShield and works in **both
+languages** — Spanish and English, following the reader. 2b.5 now reads:
+
+| # | Task |
+|---|---|
+| 2b.5 | The Assistant works in both languages, following the reader: system prompt, its facts and its routes' messages in Spanish and in English, chosen by the language the reader picked in the app (Spanish by default). |
+
+"The reader's language" is the one they picked in the app, which every request carries in
+`Accept-Language` — the signal every other server sentence follows (2b.1). A reader who types
+in the other language is still answered in the app's language; switching the app's language
+switches the Assistant's.
+
+The English prompt is changed by one guideline line ("Always answer in English."). That
+changes what H-ASST-ACC2's pending L2 measures; its L2 is owed in both languages now.

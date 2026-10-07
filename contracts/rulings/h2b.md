@@ -305,3 +305,70 @@ gate is where its use is checked.
 ## RULING — 2b.3
 
 **2b.3 CLOSED** (A24). Block H2b now waits on **2b.5 alone**.
+
+---
+
+# 2b.5 — closed under A25 (7 October 2026)
+
+**Operator ruling, 7 Oct 2026 (20:28):** the Assistant works in **both languages**, Spanish and
+English, following the reader. Recorded as amendment **A25**; the block file's 2b.5 row is
+amended in place. Branch `heatshield/h2b-5-assistant`, off `heatshield/h2b-3-vocabulary`.
+
+**What changed**
+
+| Where | Change |
+|---|---|
+| `chat/routes.ts` | Two system prompts, `SYSTEM_PROMPTS.es` and `.en`, picked per request by `requestLocale(req)` (Accept-Language; none = Spanish). The Spanish prompt says the same things as the English one, in *usted*, and tells the model to answer in Spanish. The English prompt is the pre-2b.5 text plus one line, "Always answer in English." (checked byte for byte against `930899c`). The routes' 400/404/500 messages, the rate-limit message and the default conversation title come from the server catalog. |
+| `chat/facts.ts` | `VOLTURA_FACTS_ES`: the 13 facts in Spanish, same ids and order, built from the same constants (NASA period, 25 years, 1,5 %, 100 %). Screen labels are quoted as the **Spanish** screen shows them (*Generación, Ahorro, Importación de red, «Excedente no aprovechado»; Solar directa, Desde la batería*; *Optimizador IA*, *Asistente energético*) — the RESIDUE item "the Assistant quotes English labels while the screen says *Solar directa*" is closed. The legacy carbon countries are named in Spanish from their ISO codes (`Intl.DisplayNames`), not by hand. `FACTS_BY_LOCALE` feeds the prompts. |
+| `chat/transcript-checker.ts` | `SPANISH_CLAIMS`: the 14 known false claims (C9, K2, C11, C13, K1, K3, C6, C10, C12, E1–E3, P1, P2) as a Spanish answer would make them, same ids and truths; `checkTranscript` runs them with the English rows. Without them the check passed a Spanish transcript by not reading it. |
+| `src/i18n.ts` | 8 `chat.*` entries, es/en. |
+| `contracts/fixtures/h2b-5/es-claim-lines.json` | One Spanish rendering of each recorded English line a claim was learnt from, plus a correct Spanish line per claim. **Written by the executor — not model output.** |
+
+**Tests** (api-server 393 → **504**; whole workspace 503 → **614**, all green; typecheck exit 0;
+API bundle builds and carries both prompts):
+- `facts-es.test.ts` (72): same ids/order; per fact, the same numbers and the same number of
+  sentences as the English; 41 clause rows, each the English clause the code pins assert beside
+  the Spanish clause that says it; quoted labels found in the web catalog's **Spanish** table;
+  PDF input names from the server catalog's Spanish PDF labels; the country list derived and
+  ordered; E1 not worded as "faltan" data; P7; no known false claim; no English left.
+- `transcript-checker-es.test.ts` (19): one Spanish row per English claim; each rendering
+  flagged with its id; every Spanish pattern fires (none dead); corrected lines flag nothing;
+  the Spanish patterns are silent on every English fixture (A0, its correction, the 22 ACC2
+  lines and their 19 corrections) — the English tests' exact id sets are unchanged.
+- `prompt-rule`, `feature-map`, `system-prompt`: run in both languages from the request the
+  route sends; no header gives the Spanish prompt; each prompt carries its rule and its
+  language line and nothing of the other language's; the Spanish list maps to FEATURE_MAP row
+  by row through the fact ids; no conformance, feed-in, export or NPV words in either.
+- `routes.test.ts` (+5): 400 and 404 in each language, still byte-identical between "not
+  yours" and "does not exist"; default title per language. `rate-limit-locale.test.ts`: the
+  21st message is refused in Spanish by default, English on request.
+
+**G9 — mutations, each reverted after:** 18 of 18 killed. M1 always Spanish prompt → 7 failed;
+M2 always English → 8; M3 Spanish payback rate → 2; M4 a Spanish NASA sentence dropped → 2;
+M5 series label drift → 2; M6 English country names in the Spanish fact → 2; M7 Spain's
+install cost flipped in Spanish only → 1; M8 checker ignores Spanish → 14; M9 a dead Spanish
+pattern (C11) → 2; M10 Spanish language line dropped → 1; M11 "cumple toda ley" in the Spanish
+prompt → 3; M12 Spanish 404 left in English → 3; M13 404 ignores the language → 2; M14
+rate-limit message hard-coded English → 1; M15 "calificación" in a Spanish fact → 1; M16 the
+PDF's install-cost clause dropped in Spanish → 1; M17 Spanish E1 worded "faltan meses" → 2; M18
+English language line dropped → 1.
+
+**RESIDUE**
+- **No live read yet.** Whether the model keeps to the Spanish facts is measured only by a live
+  transcript (A-e). That is H-ASST-ACC2's L2, owed since 5 Oct, now owed in **both languages**
+  and against the changed English prompt. Paid calls — the operator's to authorize.
+- **The Spanish checker patterns are renderings, not learnt slips.** Whatever the first Spanish
+  transcripts get wrong is added from them.
+- **The Spanish is a first draft**, like the rest of H2b's Spanish: no native review.
+- **Language follows the app's choice, not the typed text.** Stated in A25.
+- **The Optimizer's explanation is still English model output** on a Spanish screen. 2b.5 names
+  the Assistant only; the Optimizer's prompt is not in this block's text.
+- The Spanish country names come from Node's ICU data (full ICU ships with Node 24). A build
+  without it throws at boot rather than printing English names.
+
+## RULING — 2b.5
+
+**2b.5 CLOSED** (A25), on tests and mutations; the live read is owed and recorded above.
+With 2b.1–2b.5 closed and Gate H2b closed on its criterion (live, 7 Oct), **Block H2b is
+complete in the repository.** It reaches production when this branch is merged to `main` — the
+operator's ruling (§14.2). H3 then waits on one question only: which municipality first.

@@ -20,8 +20,9 @@ import {
  *   - registry DATA (an authority's name, a period label, a registry note):
  *     it is a record of a source, quoted as the source wrote it, not prose;
  *   - log lines and developer errors: nobody but an operator reads them;
- *   - model output (the Optimizer's explanation, the Assistant): language
- *     models write those, and their prompts are 2b.5's question.
+ *   - model output (the Optimizer's explanation, the Assistant's answers):
+ *     language models write those. The Assistant's prompt is written in both
+ *     languages in replit_integrations/chat (2b.5); its routes' errors are here.
  *
  * WinAnsi: the PDF draws with a standard font, so every PDF string here must
  * encode in Windows-1252. Spanish letters (á é í ó ú ñ ü ¿ ¡ « ») do; U+2212,
@@ -129,6 +130,16 @@ export const serverCatalog = defineCatalog(
     "pdf.orientation.east": "Este",
     "pdf.orientation.west": "Oeste",
 
+    // ── Energy Assistant routes (2b.5) ────────────────────────────────────
+    "chat.notFound": "Conversación no encontrada",
+    "chat.listFailed": "No se han podido cargar las conversaciones",
+    "chat.getFailed": "No se ha podido cargar la conversación",
+    "chat.createFailed": "No se ha podido crear la conversación",
+    "chat.deleteFailed": "No se ha podido eliminar la conversación",
+    "chat.sendFailed": "No se ha podido enviar el mensaje",
+    "chat.rateLimited": "Demasiados mensajes. Inténtelo de nuevo más tarde.",
+    "chat.defaultTitle": "Nueva conversación",
+
     // ── Units ─────────────────────────────────────────────────────────────
     "unit.kwh": "{n} kWh",
     "unit.w": "{n} W",
@@ -231,6 +242,15 @@ export const serverCatalog = defineCatalog(
     "pdf.orientation.south": "South",
     "pdf.orientation.east": "East",
     "pdf.orientation.west": "West",
+
+    "chat.notFound": "Conversation not found",
+    "chat.listFailed": "Failed to fetch conversations",
+    "chat.getFailed": "Failed to fetch conversation",
+    "chat.createFailed": "Failed to create conversation",
+    "chat.deleteFailed": "Failed to delete conversation",
+    "chat.sendFailed": "Failed to send message",
+    "chat.rateLimited": "Too many messages. Please try again later.",
+    "chat.defaultTitle": "New Chat",
 
     "unit.kwh": "{n} kWh",
     "unit.w": "{n} W",

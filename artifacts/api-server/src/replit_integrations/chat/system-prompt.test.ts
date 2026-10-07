@@ -46,8 +46,17 @@ vi.mock("../../lib/llm", () => ({
 
 const { registerChatRoutes } = await import("./routes");
 
+/** The words a conformance claim is made of, in either language the prompt is written in. */
+const CLAIM_WORDS = /compli|certif|conform|AI Act|cumpl|Ley de IA|Reglamento de IA|normativa europea/i;
+
 describe("Assistant system prompt — no conformance claim (B1 / D19)", () => {
-  it("sends a system prompt with no compliance, certification or AI Act claim", async () => {
+  // 2b.5: the prompt is chosen by the request's language; no header is Spanish.
+  it.each([
+    ["no Accept-Language (Spanish)", undefined, /^Usted es el Asistente energético de Voltura/],
+    ["Accept-Language: es", "es", /^Usted es el Asistente energético de Voltura/],
+    ["Accept-Language: en", "en", /^You are Voltura's Energy Assistant/],
+  ] as const)("%s: sends a system prompt with no compliance, certification or AI Act claim", async (_label, lang, opening) => {
+    sent = undefined;
     const app = express();
     app.use(express.json());
     registerChatRoutes(app);
@@ -57,7 +66,11 @@ describe("Assistant system prompt — no conformance claim (B1 / D19)", () => {
 
     const res = await fetch(`http://127.0.0.1:${port}/api/conversations/1/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Session-Id": SESSION },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Id": SESSION,
+        ...(lang ? { "Accept-Language": lang } : {}),
+      },
       body: JSON.stringify({ content: "Is Voltura compliant with the EU AI Act?" }),
     });
     await res.text();
@@ -68,7 +81,7 @@ describe("Assistant system prompt — no conformance claim (B1 / D19)", () => {
     expect(sent).toBeDefined();
     const system = sent!.messages[0];
     expect(system.role).toBe("system");
-    expect(system.content.length).toBeGreaterThan(0);
-    expect(system.content).not.toMatch(/compli|certif|conform|AI Act/i);
+    expect(system.content).toMatch(opening);
+    expect(system.content).not.toMatch(CLAIM_WORDS);
   });
 });
