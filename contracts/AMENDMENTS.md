@@ -629,3 +629,31 @@ private repository.
   11 Sept report's ruling on D8 was not to show the chart, because battery discharge could
   not be measured; this block measures it instead. Hiding the chart is reachable only
   through the block's §STOP and an operator ruling.
+
+---
+
+## A24 · 2026-10-07 — 2b.3: the vocabulary's source and two of its terms
+
+**Raised by the executor as a §5 refusal** (`contracts/rulings/h2b.md`, REFUSAL — H2b.3): the
+Andalusian heat-health plan the task names contains none of the five terms and never mentions
+housing.
+
+**Operator ruling, 7 Oct 2026:** the vocabulary is taken from Spain's **Estrategia Nacional
+contra la Pobreza Energética 2026–2030** (approved by the Council of Ministers on
+17 Feb 2026; MITECO), **in its own wording**. 2b.3 now reads:
+
+| # | Task |
+|---|---|
+| 2b.3 | Domain vocabulary from official usage — *pobreza energética*, *pobreza energética en verano*, *rehabilitación*, *parque edificatorio*, *cribado* — each cited to a page of the Estrategia Nacional contra la Pobreza Energética 2026–2030, not translated. |
+
+Two terms changed, because the strategy does not use the block's:
+- *viviendas difíciles de refrigerar* → ***pobreza energética en verano*** (p. 26). The strategy
+  never uses *refrigerar*.
+- *parque de viviendas* → ***parque edificatorio*** (pp. 18, 30).
+
+**Recorded, not hidden:** in the strategy, *cribado* (p. 61) means screening **people** for
+poverty in primary health care. HeatShield uses it for screening the **building stock** — a
+wider sense than the source's. The vocabulary entry says so.
+
+The CTE is no longer a named source for 2b.3. The record is `lib/i18n/src/vocabulary.ts`; the
+copy read is pinned there by its SHA-256.

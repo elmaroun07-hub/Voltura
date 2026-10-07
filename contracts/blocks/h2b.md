@@ -11,7 +11,7 @@ Every screen, label, PDF, error message and system prompt in this repository is 
 |---|---|
 | 2b.1 | i18n in place before H3 starts. Spanish is the default locale; English is the translation. |
 | 2b.2 | Salvaged `es.json` strings loaded (from C2) |
-| 2b.3 | Domain vocabulary from official usage — *pobreza energética*, *rehabilitación*, *parque de viviendas*, *viviendas difíciles de refrigerar*, *cribado*. Taken from the Andalusian heat-health plan and the CTE, not translated. |
+| 2b.3 | **Amended A24 (7 Oct 2026).** Domain vocabulary from official usage — *pobreza energética*, *pobreza energética en verano*, *rehabilitación*, *parque edificatorio*, *cribado* — each cited to a page of the Estrategia Nacional contra la Pobreza Energética 2026–2030, not translated. *(Was: the Andalusian heat-health plan and the CTE, which hold none of the terms; and* viviendas difíciles de refrigerar, parque de viviendas*, which the strategy does not use.)* |
 | 2b.4 | Assessment and screening PDFs in Spanish, with Spanish number and date formatting |
 | 2b.5 | Assistant system prompt in Spanish, if the Assistant survives into the HeatShield product |
 
