@@ -165,7 +165,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     ["fill", "nasa_fill_value"],
     ["partial", "nasa_partial_coverage"],
   ] as const)("nasa: missing data (%s) is no result - a typed 422", async (mode, code) => {
-    expect(fact("nasa")).toContain("When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.");
+    expect(fact("nasa")).toContain("Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error.");
     nasaMode = mode;
     const r = await calculate({});
     expect(r.status).toBe(422);
@@ -175,7 +175,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
 
   it.each(["http-500", "malformed"] as const)("nasa: no usable answer (%s) -> the labelled latitude estimate", async (mode) => {
     expect(fact("nasa")).toContain(
-      "The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read. Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page.",
+      "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page.",
     );
     nasaMode = mode;
     const r = await calculate({});

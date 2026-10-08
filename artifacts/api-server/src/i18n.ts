@@ -139,6 +139,9 @@ export const serverCatalog = defineCatalog(
     "chat.sendFailed": "No se ha podido enviar el mensaje",
     "chat.rateLimited": "Demasiados mensajes. Inténtelo de nuevo más tarde.",
     "chat.defaultTitle": "Nueva conversación",
+    // H-ASST-ACC3 (operator ruling, 8 Oct 2026): the one answer to any question
+    // outside Voltura's jobs. The system prompt quotes it from here.
+    "chat.outOfScope": "No puedo responder a eso. Solo respondo preguntas sobre lo que hace Voltura.",
 
     // ── Units ─────────────────────────────────────────────────────────────
     "unit.kwh": "{n} kWh",
@@ -251,6 +254,7 @@ export const serverCatalog = defineCatalog(
     "chat.sendFailed": "Failed to send message",
     "chat.rateLimited": "Too many messages. Please try again later.",
     "chat.defaultTitle": "New Chat",
+    "chat.outOfScope": "I can't answer that. I only answer questions about what Voltura does.",
 
     "unit.kwh": "{n} kWh",
     "unit.w": "{n} W",

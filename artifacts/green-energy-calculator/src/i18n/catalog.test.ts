@@ -41,3 +41,19 @@ describe("web catalog", () => {
     expect(copied).toEqual([]);
   });
 });
+
+/**
+ * H-ASST-ACC3: the Assistant answers only questions about what Voltura does.
+ * The page must not invite anything else - the old example question ("Is
+ * solar worth it in Seattle?") is one the Assistant now refuses.
+ */
+describe("Assistant page invites only questions about Voltura (H-ASST-ACC3)", () => {
+  const keys = ["assistant.intro", "chat.subtitle", "chat.hello", "chat.tryAsking"] as const;
+  it.each(["es", "en"] as const)("%s: every invitation names Voltura and none invites general advice", (lang) => {
+    for (const k of keys) {
+      const text = (catalog[lang] as Record<string, string>)[k];
+      expect(text, k).toMatch(/Voltura|PDF/);
+      expect(text, k).not.toMatch(/Seattle|renewab|renovable|green energy|energía verde|experto|expert|optimi[sz]e your|optimizar su/i);
+    }
+  });
+});

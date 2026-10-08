@@ -73,7 +73,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "https://nominatim.openstreetmap.org/search",
   },
-  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over 2019-2023: twelve monthly values, not hourly data. Temperature affects only the modelled household consumption, not the solar generation. The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read. Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page. When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.": {
+  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over 2019-2023: twelve monthly values, not hourly data. Temperature affects only the modelled household consumption, not the solar generation. NASA POWER can fail in two different ways, and they end differently. Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page. Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error. Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "export function fallbackIrradiance(",
   },
@@ -96,7 +96,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx",
     symbol: 'name: t("mix.battery")',
   },
-  "Estimates the CO2 avoided with a location-based grid carbon factor. Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. United Kingdom: the official DESNZ factor. Australia, Austria, Belgium, Brazil, Canada, China, Denmark, Finland, France, Germany, Greece, India, Ireland, Italy, Japan, Mexico, Morocco, Netherlands, Norway, Poland, Portugal, Romania, South Korea, Sweden, Switzerland, Turkey and United States: an older factor with no cited source, which the results page does not mark as unsourced. Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.": {
+  "Estimates the CO2 avoided with a location-based grid carbon factor. Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. United Kingdom: the official DESNZ factor. Australia, Austria, Belgium, Brazil, Canada, China, Denmark, Finland, France, Germany, Greece, India, Ireland, Italy, Japan, Mexico, Morocco, Netherlands, Norway, Poland, Portugal, Romania, South Korea, Sweden, Switzerland, Turkey and United States: an older factor with no cited source - not an official figure - which the results page does not mark as unsourced. Only the Spanish (REE) and UK (DESNZ) factors are official. Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.": {
     file: "artifacts/api-server/src/lib/emissions/carbon-source.ts",
     symbol: "export function resolveCarbonSource(",
   },
@@ -120,7 +120,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/lib/sizing.ts",
     symbol: "export function sizePvAndBattery(",
   },
-  "This Energy Assistant, for questions about the results and about solar and batteries in general.": {
+  "This Energy Assistant, which answers only questions about what Voltura does.": {
     file: "artifacts/api-server/src/replit_integrations/chat/routes.ts",
     symbol: "export function registerChatRoutes(",
   },
@@ -183,8 +183,10 @@ describe("Assistant feature map (H-ASST-D16-N3 Part A)", () => {
 
   it("TA2: anything not on the list is answered plainly as not something Voltura does", async () => {
     const prompt = await sentSystemPrompt();
+    // H-ASST-ACC3: the rule now speaks of questions about Voltura; anything
+    // else gets the out-of-scope sentence (prompt-rule.test.ts).
     expect(prompt).toContain(
-      "If the user asks about anything that is not on this list, say plainly that Voltura does not do it.",
+      "If the user asks whether Voltura does something that is not on this list, say plainly that Voltura does not do it.",
     );
     // A-b: the list is there to be described from, not to silence the Assistant.
     expect(prompt).toContain("When asked what Voltura is or does, describe it from this list.");
@@ -235,7 +237,7 @@ describe("Assistant feature map, Spanish prompt (2b.5)", () => {
 
   it("TA2: anything not on the list is answered plainly as not something Voltura does", async () => {
     const prompt = await sentSystemPrompt("es");
-    expect(prompt).toContain("Si el usuario pregunta por algo que no está en esta lista, diga claramente que Voltura no lo hace.");
+    expect(prompt).toContain("Si el usuario pregunta si Voltura hace algo que no está en esta lista, diga claramente que Voltura no lo hace.");
     expect(prompt).toContain("Cuando le pregunten qué es o qué hace Voltura, descríbalo a partir de esta lista.");
   });
 

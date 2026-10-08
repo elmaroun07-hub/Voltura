@@ -45,9 +45,11 @@ const CLAUSES: [id: string, english: string, spanish: string][] = [
   ["geocoder", "OpenStreetMap Nominatim geocoder", "geocodificador Nominatim de OpenStreetMap"],
   ["nasa", `averaged over ${NASA_FACT.start}-${NASA_FACT.end}: twelve monthly values, not hourly data`, `promediadas en ${NASA_FACT.start}-${NASA_FACT.end}: doce valores mensuales, no datos horarios`],
   ["nasa", "Temperature affects only the modelled household consumption, not the solar generation.", "La temperatura solo afecta al consumo doméstico modelizado, no a la generación solar."],
-  ["nasa", "The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read.", "La estimación por latitud se usa en un único caso: cuando NASA no se puede usar en absoluto - no responde, responde con un estado de error o envía una respuesta que Voltura no puede leer."],
-  ["nasa", "Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page.", "Voltura estima entonces la irradiancia y la temperatura a partir de la latitud e identifica el resultado como esa estimación, en la respuesta de la API y en la página."],
-  ["nasa", "When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.", "Cuando NASA sí responde pero marca meses como sin datos, u omite meses, no hay estimación ni resultado: el cálculo se detiene con un error."],
+  // H-ASST-ACC3: the two NASA failures as two numbered cases.
+  ["nasa", "NASA POWER can fail in two different ways, and they end differently.", "NASA POWER puede fallar de dos maneras distintas, y terminan de forma distinta."],
+  ["nasa", "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page.", "Caso 1 - NASA no contesta, contesta con un estado de error o envía una respuesta que Voltura no puede leer: Voltura estima la irradiancia y la temperatura a partir de la latitud, e identifica el resultado como esa estimación en la respuesta de la API y en la página."],
+  ["nasa", "Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error.", "Caso 2 - NASA contesta, pero uno o más meses no tienen valor o se omiten: no hay estimación ni resultado, y el cálculo se detiene con un error."],
+  ["nasa", "Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.", "Solo el caso 1 da una estimación por latitud; solo el caso 2 detiene el cálculo."],
   ["simulation", "(8,760 hours)", "(8760 horas)"],
   ["simulation", "spread from the annual kWh the user enters over a typical residential profile", "repartido a partir de los kWh anuales que introduce el usuario según un perfil residencial típico"],
   ["simulation", "and battery charge and discharge", "y la carga y descarga de la batería"],
@@ -60,7 +62,8 @@ const CLAUSES: [id: string, english: string, spanish: string][] = [
   ["carbon", "Spain: the official REE factor, for mainland addresses only", "España: el factor oficial de REE, solo para direcciones peninsulares"],
   ["carbon", "has no factor yet and the calculation is refused", "todavía no tiene factor y el cálculo se rechaza"],
   ["carbon", "United Kingdom: the official DESNZ factor.", "Reino Unido: el factor oficial del DESNZ."],
-  ["carbon", "an older factor with no cited source, which the results page does not mark as unsourced", "un factor más antiguo sin fuente citada, que la página de resultados no señala como sin fuente"],
+  ["carbon", "an older factor with no cited source - not an official figure - which the results page does not mark as unsourced", "un factor más antiguo sin fuente citada - no es una cifra oficial -, que la página de resultados no señala como sin fuente"],
+  ["carbon", "Only the Spanish (REE) and UK (DESNZ) factors are official.", "Solo son oficiales los factores de España (REE) y del Reino Unido (DESNZ)."],
   ["carbon", "Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.", "Cualquier otro país no tiene factor, y se rechaza todo el cálculo: ningún resultado de energía, dinero ni CO2."],
   ["tariff", "Prices the saving only for Spain and the UK.", "Valora el ahorro en dinero solo para España y el Reino Unido."],
   ["tariff", "There, a tariff the user types is always used.", "Allí, siempre se usa la tarifa que escribe el usuario."],
@@ -82,7 +85,7 @@ const CLAUSES: [id: string, english: string, spanish: string][] = [
   ["optimizer", "using a fixed standard daily usage profile, not the user's own", "con un perfil de consumo diario estándar y fijo, no el del propio usuario"],
   ["optimizer", `so its yearly generation equals ${SIZING_DEFAULTS.coverageTarget * 100}% of yearly use, and the battery for the profile's night-time share`, `para que su generación anual sea igual al ${SIZING_DEFAULTS.coverageTarget * 100} % del consumo anual, y la batería para la parte nocturna del perfil`],
   ["optimizer", "The AI writes only the explanation shown with those numbers; it cannot change them.", "La IA solo escribe la explicación que se muestra con esos números; no puede cambiarlos."],
-  ["assistant", "for questions about the results and about solar and batteries in general", "para preguntas sobre los resultados y sobre la energía solar y las baterías en general"],
+  ["assistant", "which answers only questions about what Voltura does", "que solo responde preguntas sobre lo que hace Voltura"],
 ];
 
 /** Screen labels the facts quote: [web catalog key, English entry, Spanish entry, fact id]. */

@@ -50,6 +50,7 @@ vi.mock("../../lib/llm", () => ({
 
 const { registerChatRoutes } = await import("./routes");
 const { FACTS_BY_LOCALE } = await import("./facts");
+const { serverCatalog } = await import("../../i18n");
 
 type Lang = "es" | "en";
 
@@ -93,6 +94,57 @@ const PROMPT: Record<Lang, { heading: string; rule: string[]; language: string }
 };
 
 const LANGS: Lang[] = ["es", "en"];
+
+/**
+ * H-ASST-ACC3 (operator rulings, 8 Oct 2026): a question outside Voltura's
+ * jobs gets exactly the catalog's chat.outOfScope sentence, and the two facts
+ * the model restated wrongly live are copied word for word.
+ */
+const SCOPE: Record<Lang, { refusal: string; scope: string; verbatim: string; gone: RegExp }> = {
+  en: {
+    refusal: serverCatalog.en["chat.outOfScope"],
+    scope:
+      "Any question that is not about what Voltura does - general solar or battery advice, other products or services, or any other subject - gets exactly this answer and nothing else:",
+    verbatim:
+      "When an answer says what happens when NASA POWER fails, copy the Case 1 and Case 2 sentences from the list word for word. When it says which carbon factors are official, copy the carbon sentences from the list word for word.",
+    gone: /General solar and battery advice is fine|expert advisor|Prefer concrete numbers|sizing reasoning of your own|Stay on energy topics|ask for it briefly/,
+  },
+  es: {
+    refusal: serverCatalog.es["chat.outOfScope"],
+    scope:
+      "Cualquier pregunta que no trate de lo que hace Voltura - consejos generales sobre energía solar o baterías, otros productos o servicios, o cualquier otro tema - recibe exactamente esta respuesta y nada más:",
+    verbatim:
+      "Cuando una respuesta diga qué pasa cuando NASA POWER falla, copie palabra por palabra las frases del caso 1 y del caso 2 de la lista. Cuando diga qué factores de carbono son oficiales, copie palabra por palabra las frases de carbono de la lista.",
+    gone: /consejos generales sobre energía solar y baterías están bien|asesor experto|Prefiera cifras y rangos|razonamiento propio sobre el dimensionamiento|Cíñase a los temas de energía|pídalos brevemente/,
+  },
+};
+
+describe.each(LANGS)("H-ASST-ACC3 — the scope rule and its one refusal sentence (%s)", (lang) => {
+  it("the prompt quotes the catalog's refusal sentence after the scope rule, in quotes, once", async () => {
+    const prompt = (await send(lang)).messages[0].content;
+    expect(prompt).toContain(`${SCOPE[lang].scope} "${SCOPE[lang].refusal}"`);
+    expect(prompt.split(SCOPE[lang].refusal).length - 1).toBe(1);
+  });
+
+  it("the other language's refusal sentence is not in this prompt", async () => {
+    const prompt = (await send(lang)).messages[0].content;
+    expect(prompt).not.toContain(SCOPE[lang === "es" ? "en" : "es"].refusal);
+  });
+
+  it("the permissions that invited answers from the model's own knowledge are gone", async () => {
+    const prompt = (await send(lang)).messages[0].content;
+    expect(prompt).not.toMatch(SCOPE[lang].gone);
+  });
+
+  it("the NASA and carbon sentences are to be copied word for word", async () => {
+    const prompt = (await send(lang)).messages[0].content;
+    expect(prompt).toContain(SCOPE[lang].verbatim);
+  });
+
+  it("the refusal sentence is itself a clean answer: the checker flags nothing in it", () => {
+    expect(checkTranscript(SCOPE[lang].refusal)).toEqual([]);
+  });
+});
 
 describe.each(LANGS)("H-ASST-ACC — the prompt is built from the facts, and keeps the model to them (%s)", (lang) => {
   it("the feature list is the facts module, line for line, in order", async () => {
