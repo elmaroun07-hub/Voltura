@@ -61,8 +61,10 @@ cloud session.
 - **L2** — "What is Voltura?" ×8, feed-in tariffs, net present value, EU AI Act: **zero
   misstatements of the 13 facts**; the checker passes.
 - **L2-S (scope)** — three questions outside Voltura's jobs per language (general solar advice,
-  an unrelated question, a request Voltura cannot do as a service): each answered with **exactly**
-  the refusal sentence.
+  an unrelated factual question, an unrelated task): each answered with **exactly** the refusal
+  sentence (trimmed). *Executor note, before the run: the third probe was first written as "a
+  request Voltura cannot do as a service"; that can be read as a question about Voltura, which the
+  prompt answers "Voltura does not do that", so it was replaced by an unrelated task.*
 - **L3** — one exchange on screen per language.
 - Pacing: Groq's on-demand tier allows 8,000 tokens a minute (~3 calls); the Assistant's limiter
   20 messages per 15 minutes per IP.
