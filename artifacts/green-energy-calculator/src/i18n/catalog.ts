@@ -195,11 +195,12 @@ export const catalog = defineCatalog(
     "error.createChat": "No se ha podido crear la conversación",
 
     // ── Assistant ─────────────────────────────────────────────────────────
-    "assistant.intro":
-      "Converse con nuestro experto de IA para saber más sobre tecnologías de energía renovable.",
-    "chat.subtitle": "Pregunte por renovables, instalación o costes",
-    "chat.hello": "Hola. Puedo ayudarle a optimizar su instalación de energía verde.",
-    "chat.tryAsking": "Pruebe a preguntar: «¿Merece la pena la energía solar en Seattle?»",
+    // H-ASST-ACC3: the Assistant answers only questions about what Voltura
+    // does, so the page no longer invites general energy questions.
+    "assistant.intro": "Pregunte qué hace Voltura, cómo calcula y qué significan sus resultados.",
+    "chat.subtitle": "Preguntas sobre lo que hace Voltura",
+    "chat.hello": "Hola. Respondo preguntas sobre lo que hace Voltura.",
+    "chat.tryAsking": "Pruebe a preguntar: «¿Qué incluye el informe PDF?»",
     "chat.placeholder": "Escriba su pregunta…",
     "chat.send": "Enviar",
     "chat.conversationTitle": "Conversación con el asistente energético",
@@ -392,10 +393,10 @@ export const catalog = defineCatalog(
     "error.sendMessage": "Failed to send message",
     "error.createChat": "Failed to create chat",
 
-    "assistant.intro": "Chat with our AI expert to learn more about renewable energy technologies.",
-    "chat.subtitle": "Ask about renewables, installation, or costs",
-    "chat.hello": "Hello! I can help you optimize your green energy setup.",
-    "chat.tryAsking": 'Try asking: "Is solar worth it in Seattle?"',
+    "assistant.intro": "Ask what Voltura does, how it calculates and what its results mean.",
+    "chat.subtitle": "Questions about what Voltura does",
+    "chat.hello": "Hello. I answer questions about what Voltura does.",
+    "chat.tryAsking": 'Try asking: "What does the PDF report include?"',
     "chat.placeholder": "Type your question...",
     "chat.send": "Send",
     "chat.conversationTitle": "Energy Assistant Chat",

@@ -150,7 +150,8 @@ describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () 
     "E1 nasa: the latitude estimate runs when NASA cannot be used (%s), and is labelled",
     async (mode) => {
       expect(fact("nasa")).toContain(
-        "The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read. Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page.",
+        // H-ASST-ACC3: reworded as Case 1; the behaviour pinned below is unchanged.
+        "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page.",
       );
       nasaMode = mode;
       const r = await withServer((b) => post(b, "/api/calculate", calcBody()));
@@ -165,9 +166,11 @@ describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () 
     ["partial", "nasa_partial_coverage"],
   ] as const)("E1 nasa: NASA marking months as no data (%s) is no estimate and no result", async (mode, code) => {
     expect(fact("nasa")).toContain(
-      "When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.",
+      "Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error.",
     );
-    expect(fact("nasa")).not.toMatch(/missing/i);
+    expect(fact("nasa")).toContain("Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.");
+    // Words the model read as either case (H-ASST-ACC2 E1, H-ASST-ACC3 N1).
+    expect(fact("nasa")).not.toMatch(/missing|unavailable/i);
     nasaMode = mode;
     const r = await withServer((b) => post(b, "/api/calculate", calcBody()));
     expect(r.status).toBe(422);

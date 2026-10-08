@@ -48,11 +48,15 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
     text:
       `Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over ${NASA_FACT.start}-${NASA_FACT.end}: twelve ${NASA_FACT.resolution} values, not hourly data. ` +
       "Temperature affects only the modelled household consumption, not the solar generation. " +
-      // H-ASST-ACC2 (E1): the estimate's trigger stands on its own, ahead of and
-      // apart from what missing data does - the model fused the old pair.
-      "The latitude estimate is used in one case only: when NASA cannot be used at all - it does not reply, replies with an error status, or sends a reply Voltura cannot read. " +
-      "Voltura then estimates irradiance and temperature from the latitude and labels the result as that estimate, in the API response and on the page. " +
-      "When NASA does reply but marks months as having no data, or leaves months out, there is no estimate and no result: the calculation stops with an error.",
+      // H-ASST-ACC3 (N1, N2): ACC2 split the two NASA failures into separate
+      // sentences; live, the model still swapped them ("if NASA data are
+      // unavailable, the calculation stops"). Now two numbered cases, each with
+      // its own trigger and outcome, and a closing sentence that says which
+      // case does what. No "unavailable", no "missing": both read as either case.
+      "NASA POWER can fail in two different ways, and they end differently. " +
+      "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page. " +
+      "Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error. " +
+      "Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.",
   },
   {
     id: "simulation",
@@ -76,7 +80,9 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
       "Estimates the CO2 avoided with a location-based grid carbon factor. " +
       "Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. " +
       "United Kingdom: the official DESNZ factor. " +
-      `${listed(LEGACY_CARBON_COUNTRIES)}: an older factor with no cited source, which the results page does not mark as unsourced. ` +
+      // H-ASST-ACC3 (C14): live, the model called this list's factors official.
+      `${listed(LEGACY_CARBON_COUNTRIES)}: an older factor with no cited source - not an official figure - which the results page does not mark as unsourced. ` +
+      "Only the Spanish (REE) and UK (DESNZ) factors are official. " +
       "Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.",
   },
   {
@@ -120,7 +126,8 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
   },
   {
     id: "assistant",
-    text: "This Energy Assistant, for questions about the results and about solar and batteries in general.",
+    // H-ASST-ACC3 (operator ruling, 8 Oct 2026): questions outside Voltura's jobs are not answered.
+    text: "This Energy Assistant, which answers only questions about what Voltura does.",
   },
 ];
 
@@ -173,9 +180,10 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
     text:
       `Toma de NASA POWER la irradiancia solar y la temperatura mensuales de ese punto, promediadas en ${NASA_FACT.start}-${NASA_FACT.end}: doce valores ${RESOLUTION_ES[NASA_FACT.resolution]}, no datos horarios. ` +
       "La temperatura solo afecta al consumo doméstico modelizado, no a la generación solar. " +
-      "La estimación por latitud se usa en un único caso: cuando NASA no se puede usar en absoluto - no responde, responde con un estado de error o envía una respuesta que Voltura no puede leer. " +
-      "Voltura estima entonces la irradiancia y la temperatura a partir de la latitud e identifica el resultado como esa estimación, en la respuesta de la API y en la página. " +
-      "Cuando NASA sí responde pero marca meses como sin datos, u omite meses, no hay estimación ni resultado: el cálculo se detiene con un error.",
+      "NASA POWER puede fallar de dos maneras distintas, y terminan de forma distinta. " +
+      "Caso 1 - NASA no contesta, contesta con un estado de error o envía una respuesta que Voltura no puede leer: Voltura estima la irradiancia y la temperatura a partir de la latitud, e identifica el resultado como esa estimación en la respuesta de la API y en la página. " +
+      "Caso 2 - NASA contesta, pero uno o más meses no tienen valor o se omiten: no hay estimación ni resultado, y el cálculo se detiene con un error. " +
+      "Solo el caso 1 da una estimación por latitud; solo el caso 2 detiene el cálculo.",
   },
   {
     id: "simulation",
@@ -199,7 +207,8 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
       "Estima el CO2 evitado con un factor de carbono de la red según la ubicación. " +
       "España: el factor oficial de REE, solo para direcciones peninsulares; una dirección en las Islas Baleares o Canarias, en Ceuta o en Melilla, o una dirección española cuya región no se puede determinar, todavía no tiene factor y el cálculo se rechaza. " +
       "Reino Unido: el factor oficial del DESNZ. " +
-      `${listedEs(LEGACY_CARBON_COUNTRIES_ES)}: un factor más antiguo sin fuente citada, que la página de resultados no señala como sin fuente. ` +
+      `${listedEs(LEGACY_CARBON_COUNTRIES_ES)}: un factor más antiguo sin fuente citada - no es una cifra oficial -, que la página de resultados no señala como sin fuente. ` +
+      "Solo son oficiales los factores de España (REE) y del Reino Unido (DESNZ). " +
       "Cualquier otro país no tiene factor, y se rechaza todo el cálculo: ningún resultado de energía, dinero ni CO2.",
   },
   {
@@ -239,7 +248,7 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
   },
   {
     id: "assistant",
-    text: "Este Asistente energético, para preguntas sobre los resultados y sobre la energía solar y las baterías en general.",
+    text: "Este Asistente energético, que solo responde preguntas sobre lo que hace Voltura.",
   },
 ];
 

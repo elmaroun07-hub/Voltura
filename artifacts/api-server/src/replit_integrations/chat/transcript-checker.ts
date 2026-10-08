@@ -194,6 +194,58 @@ export const SPANISH_CLAIMS: KnownFalseClaim[] = [
 ];
 
 /**
+ * H-ASST-ACC3: the slips H-ASST-ACC2's L2 found live, 7-8 Oct 2026, in both
+ * languages (contracts/rulings/h2b.md, "Post-merge - H2b complete"; the lines
+ * are in contracts/fixtures/h-asst-acc3/live-lines.json). Learnt from model
+ * output, except the two rows marked as renderings, which carry a slip into
+ * the language it was not seen in.
+ *
+ *   N1  the inverse of E1: NASA unusable -> "the calculation stops". Learnt in
+ *       English (conversations 87-91, 94) and in Spanish (72, first half).
+ *   N2  E1 in words E1's Spanish row did not know: "ausencia total de datos"
+ *       -> the latitude estimate (72, second half).
+ *   C14 the unsourced legacy carbon factors called official. Learnt in Spanish
+ *       (72, 73, 80); the English row is a rendering.
+ */
+const N1_TRUTH =
+  "when NASA does not answer, answers with an error status or sends an unreadable answer, Voltura uses the labelled latitude estimate - the calculation does not stop; it stops only when NASA answers but a month has no value";
+const C14_TRUTH =
+  "only Spain's (REE, mainland) and the UK's (DESNZ) carbon factors are official; the listed countries get an older factor with no cited source";
+
+export const ACC3_CLAIMS: KnownFalseClaim[] = [
+  {
+    id: "N1",
+    truth: N1_TRUTH,
+    pattern:
+      /\bnasa\b[^.;*]{0,40}\b(unavailable|not available|cannot be reached|unreachable)\b[^.;*]{0,40}\b(stops?|halts?|ends?|is refused|is rejected|fails?)\b|\bif nasa (does not|doesn't|fails to) (respond|reply|answer)\b[^.;*]{0,40}\b(stops?|halts?|is refused|is rejected|fails?)\b/,
+  },
+  {
+    id: "N1",
+    truth: N1_TRUTH,
+    // Spanish. The second alternative is a rendering of the English slip.
+    pattern:
+      /\bsi (la api|la nasa|nasa)( power)? no (responde|contesta)[^.;*]{0,60}(se rechaza|se detiene|se cancela|no hay resultado)|\bdatos de (la )?nasa no (est[aá]n )?disponibles[^.;*]{0,40}(se detiene|se rechaza|no hay resultado)/,
+  },
+  {
+    id: "N2",
+    truth: truthOf("E1"),
+    pattern: /(ausencia|falta) (total )?de datos[^.;*]{0,60}(recurre|latitud)/,
+  },
+  {
+    id: "C14",
+    truth: C14_TRUTH,
+    pattern: /factor(es)? (de carbono |de emisi[oó]n |de la red )?oficial(es)?[^.;]{0,60}(una lista|otros pa[ií]ses|varios pa[ií]ses|resto de pa[ií]ses)/,
+  },
+  {
+    id: "C14",
+    truth: C14_TRUTH,
+    // English: a rendering of the Spanish slip; none was seen in English.
+    pattern:
+      /\bofficial\b[^.;*]{0,30}\b(carbon |grid[- ]carbon |emission )?factors?\b[^.;*]{0,60}\b(a list|other countries|many (other )?countries|several countries|supported countries)\b/,
+  },
+];
+
+/**
  * Models write non-breaking hyphens, narrow and no-break spaces and curly
  * quotes (A0 has all four). Fold them so a pattern written with ASCII matches.
  */
@@ -208,7 +260,7 @@ export function normalise(text: string): string {
 
 export function checkTranscript(text: string): { id: string; match: string }[] {
   const t = normalise(text);
-  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS, ...SPANISH_CLAIMS].flatMap(({ id, pattern }) => {
+  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS, ...SPANISH_CLAIMS, ...ACC3_CLAIMS].flatMap(({ id, pattern }) => {
     const m = pattern.exec(t);
     return m ? [{ id, match: m[0] }] : [];
   });
