@@ -1,0 +1,125 @@
+{
+  "about": "H-ASST-ACC3. Lines from H-ASST-ACC2's L2 and L3, run live on production 306c4ab, 7-8 Oct 2026, probe session probe-h2b5-2026-10-07-306c4ab (L2) and the built-in browser's session (L3). 'lines' and 'silent' entries with a conv number are model output, copied from the conversation rows; whitespace inside a line may be normalised. 'renderings' are the executor's, not model output.",
+  "lines": [
+    {
+      "id": "N1",
+      "lang": "en",
+      "conv": 87,
+      "line": "If NASA data are unavailable, the calculation stops."
+    },
+    {
+      "id": "N1",
+      "lang": "en",
+      "conv": 88,
+      "line": "If NASA data are unavailable, the calculation stops with an error."
+    },
+    {
+      "id": "N1",
+      "lang": "en",
+      "conv": 89,
+      "line": "If NASA data are unavailable, the calculation stops with an error."
+    },
+    {
+      "id": "N1",
+      "lang": "en",
+      "conv": 90,
+      "line": "If NASA data are unavailable, the calculation stops."
+    },
+    {
+      "id": "N1",
+      "lang": "en",
+      "conv": 91,
+      "line": "If NASA data are unavailable, the calculation stops."
+    },
+    {
+      "id": "N1",
+      "lang": "en",
+      "conv": 94,
+      "line": "If NASA data are unavailable, the calculation stops with an error."
+    },
+    {
+      "id": "N1",
+      "lang": "es",
+      "conv": 72,
+      "line": "Si la API no responde, se rechaza el cálculo; sólo en caso de ausencia total de datos se recurre a una estimación basada en la latitud."
+    },
+    {
+      "id": "N2",
+      "lang": "es",
+      "conv": 72,
+      "line": "Si la API no responde, se rechaza el cálculo; sólo en caso de ausencia total de datos se recurre a una estimación basada en la latitud."
+    },
+    {
+      "id": "C14",
+      "lang": "es",
+      "conv": 72,
+      "line": "Calcula la reducción de emisiones usando el factor de carbono oficial del país (España, Reino Unido y una lista de otros países con factor disponible)."
+    },
+    {
+      "id": "C14",
+      "lang": "es",
+      "conv": 73,
+      "line": "**Estimación** del CO₂ evitado con los factores de emisión oficiales del país (España, Reino Unido y una lista de países con factor disponible)."
+    },
+    {
+      "id": "C14",
+      "lang": "es",
+      "conv": 80,
+      "line": "CO₂ evitado, usando el factor de carbono oficial del país (España, Reino Unido y una lista de países con factor disponible)."
+    }
+  ],
+  "renderings": [
+    {
+      "id": "N1",
+      "lang": "es",
+      "line": "Si los datos de la NASA no están disponibles, el cálculo se detiene."
+    },
+    {
+      "id": "C14",
+      "lang": "en",
+      "line": "CO₂ avoided is calculated with the official carbon factor for Spain, the UK and a list of other countries."
+    }
+  ],
+  "silent": [
+    {
+      "lang": "es",
+      "conv": 76,
+      "line": "si NASA no responde, la estimación se basa solo en la latitud."
+    },
+    {
+      "lang": "es",
+      "conv": 80,
+      "line": "Si la API no responde, usa una estimación basada en la latitud."
+    },
+    {
+      "lang": "es",
+      "conv": 73,
+      "line": "(o, en caso de fallo total, estimación a partir de la latitud)"
+    },
+    {
+      "lang": "es",
+      "conv": 74,
+      "line": "**Estimación de CO₂ evitado** usando el factor de carbono correspondiente al país (España, Reino Unido y varios países con factor disponible)."
+    },
+    {
+      "lang": "en",
+      "conv": 96,
+      "line": "if NASA data are unavailable, falls back to a latitude‑based estimate."
+    },
+    {
+      "lang": "en",
+      "conv": 92,
+      "line": "Estimates CO₂ avoided using a location‑based grid carbon factor (available for a defined set of countries)."
+    },
+    {
+      "lang": "es",
+      "conv": 95,
+      "line": "Voltura es una herramienta online especializada en el cálculo y la visualización de la producción y el ahorro de energía solar fotovoltaica residencial con batería. Sus principales funciones son:\n\n1. **Geocodificación** de la dirección que usted indique mediante el servicio Nominatim de OpenStreetMap.  \n2. **Obtención de datos climáticos** (irradiancia solar y temperatura media mensual) del proyecto NASA POWER para el punto geográfico. Si NASA no responde, Voltura estima esos valores a partir de la latitud.  \n3. **Simulación hora a hora (8760 h) de un año completo**, que incluye:\n   - Generación fotovoltaica ajustada por la orientación e inclinación de los paneles.  \n   - Consumo doméstico distribuido a partir de su consumo anual y un perfil residencial típico.  \n   - Carga y descarga de la batería (eficiencia configurable entre 50 % y 100 %, 90 % por defecto).  \n4. **Resultados anuales y mensuales**:\n   - Energía ahorrada (kWh) y gráfico mensual con cuatro series: generación, ahorro, importación de red y excedente no aprovechado.  \n   - Mix energético anual (porcentaje de consumo cubierto por generación directa, por la batería y por importación de red).  \n   - Estimación de CO₂ evitado (según el factor de carbono disponible para el país).  \n   - Valoración económica del ahorro (solo para España y Reino Unido, usando la tarifa que usted indique o la media nacional en España).  \n   - Cálculo del periodo de retorno y curva de rentabilidad a 25 años cuando se dispone de coste de instalación y valoración económica.  \n5. **Generación de un informe PDF** descargable que incluye la ubicación, los datos introducidos (consumo anual, potencia FV, capacidad de batería, tarifa, orientación e inclinación) y todas las cifras de resultado y la tabla mensual (sin gráficos ni coste de instalación).  \n6. **Historial de cálculos** almacenado en el servidor; el navegador guarda solo un identificador aleatorio que permite recuperar sus cálculos anteriores.  \n7. **Optimizador IA** que, a partir de su consumo anual y la irradiancia del sitio, propone una potencia FV (W) y una capacidad de batería (kWh) calculadas con una fórmula estándar (generación anual = 100 % del consumo y batería dimensionada para la parte nocturna del perfil estándar). El optimizador solo muestra la explicación de esos valores; no permite modificarlos.  \n\nVoltura no realiza otros tipos de análisis, no ofrece asesoría legal ni garantiza cumplimiento de normativas, y no calcula ahorro económico ni CO₂ para países que no tengan factor de carbono disponible. Si necesita información adicional o desea iniciar un cálculo, por favor proporcione su ubicación, consumo anual y, en su caso, la tarifa eléctrica."
+    },
+    {
+      "lang": "en",
+      "conv": 96,
+      "line": "Voltura is an online tool that lets residential users model a solar‑PV + battery system for a specific address. It:\n\n* Finds the location you type via OpenStreetMap’s Nominatim service.  \n* Pulls monthly solar‑irradiance and temperature data for that point from NASA POWER (averaged 2019‑2023) and, if NASA data are unavailable, falls back to a latitude‑based estimate.  \n* Runs a full‑year (8 760 h) hour‑by‑hour simulation of solar generation, household consumption (spread from the annual kWh you provide), and battery charge/discharge, adjusting generation for panel orientation and tilt.  \n* Shows the annual energy saved (kWh covered by solar or battery) and a monthly chart with four series – Generation, Savings, Grid Import and “Surplus not used”.  \n* Reports the annual energy mix as percentages of Direct Solar, From Battery and Grid Import.  \n* Estimates CO₂ avoided for a set of supported countries (e.g., Spain, UK, Germany, USA, etc.) using location‑based grid carbon factors; calculations are refused for countries without a factor.  \n* Prices the savings only for Spain (using a tariff you enter or Eurostat’s national average) and the United Kingdom (using a tariff you enter).  \n* If you also give an installation cost (Spain or UK), it calculates a pay‑back period and a 25‑year ROI curve (savings assumed to grow 1.5 % per year).  \n* Generates a downloadable PDF report containing the inputs, result figures and a monthly table (no charts, no cost line).  \n* Keeps a history of past calculations linked to a random browser‑side ID (no user accounts).  \n* Offers an AI Optimizer that returns a recommended PV size (W) and battery capacity (kWh) based on your annual usage and location, using a fixed standard daily‑usage profile.  \n\nThe Energy Assistant you’re chatting with can help interpret those results or answer general solar‑and‑battery questions, but it does not perform any other functions."
+    }
+  ]
+}
