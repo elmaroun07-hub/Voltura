@@ -178,3 +178,13 @@ serve the merge sha. Then:
 - H-ASST-ACC's L2 and L3 are recorded as re-run under this block.
 
 The evidence goes on `heatshield/asst-accuracy-2-live-evidence`, unmerged.
+
+---
+
+## L2 and L3 — run 7–8 Oct 2026, after the H2b merge `306c4ab`
+
+Run in both languages under A25. **L2 FAIL** (Spanish 5 of 11 answers, English 6 of 11, misstate
+the `nasa` or `carbon` fact); **L3 PASS** (conversations 95, 96). The record — transcripts by
+conversation id, verbatim misstatements, checker result, the Groq rate-limit 500 — is in
+`contracts/rulings/h2b.md`, "Post-merge — H2b complete". Tier B for this block's own merge
+`9990fbe` is still owed.

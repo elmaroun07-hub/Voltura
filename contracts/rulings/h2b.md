@@ -372,3 +372,87 @@ English language line dropped → 1.
 With 2b.1–2b.5 closed and Gate H2b closed on its criterion (live, 7 Oct), **Block H2b is
 complete in the repository.** It reaches production when this branch is merged to `main` — the
 operator's ruling (§14.2). H3 then waits on one question only: which municipality first.
+
+---
+
+# Post-merge — H2b complete (7–8 October 2026)
+
+**MERGE:** `306c4ab` = `--no-ff` of `heatshield/h2b-5-assistant` @ `0adcaf6` onto `d9fd1e6`,
+made and pushed from the cloud session by the operator's ruling (7 Oct, 23:51: "run and merge
+only frm git"). Merge tree == branch tip tree. 18 files, +1,137 / −52. Pushed 23:52:33Z.
+Before merging, `0adcaf6` was re-verified in a fresh clone: typecheck exit 0; 614 tests green;
+spot mutation "always the English prompt" → 8 failed.
+
+**§2 at the merge (Render API, read before the push):** `Voltura-api` and `Voltura-web` both
+`autoDeploy: yes`, trigger `commit`, branch `main`; both live on `d9fd1e6`.
+
+## LIVE EVIDENCE
+
+| | Check | Result |
+|---|---|---|
+| **L1** | Both services serve the merge | API `dep-db3dmh7f3r2c73fr2c1g` live 23:53:43Z, web `dep-db3dmh7f3r2c73fr2c70` live 23:53:12Z. In the browser pane: `/api/version` → `306c4ab`, web `build-sha` → `306c4ab`. (A WebFetch read of `/api/version` returned `d9fd1e6` — a cached copy, not the server.) CI on `main`: run `37704709416`. **PASS** |
+| **Language** | The Assistant answers in the reader's language | 11 requests with `Accept-Language: es` → 11 answers in Spanish, default conversation title "Nueva conversación"; 11 with `en` → 11 in English. On screen (L3): Spanish UI → Spanish answer (conversation 95, title "Conversación con el asistente energético"); English UI → English answer (96). **PASS** |
+| **L2 (accuracy)** | H-ASST-ACC2's standard, both languages: zero misstatements of the 13 facts | **FAIL in both languages** — table below. |
+| **L3** | One on-screen exchange per language | 95 (es) and 96 (en): no misstatement of the 13 facts on reading; checker clean on both. **PASS** |
+
+**L2 run:** probe session `probe-h2b5-2026-10-07-306c4ab`, fresh conversation per question,
+7 Oct 23:54Z – 8 Oct 00:10Z. Per language: "What is Voltura?" ×8, plus feed-in tariffs, net
+present value, EU AI Act. Spanish: conversations 72–77, 79–83 (78 failed, see below). English:
+84–94. The full transcripts are those conversation rows in production.
+
+**The checker** was the repo's own, bundled and run in the page; its pattern set hashes the same
+as the repo's (`70afd770…caea2fb93`). It flagged **2** of the 11 misstating answers (75, 77).
+
+### Misstatements of the 13 facts (verbatim)
+
+| Conv | Lang | Fact | What the answer says | The fact |
+|---|---|---|---|---|
+| 72 | es | nasa | "Si la API no responde, se rechaza el cálculo; sólo en caso de ausencia total de datos se recurre a una estimación basada en la latitud." | Inverted: no reply → latitude estimate; missing months → the calculation stops. |
+| 75, 77 | es | nasa | "(o estimación por latitud si no hay datos)" — checker E1 | Missing data → no result, never an estimate. |
+| 72, 80 | es | carbon | "factor de carbono oficial del país (España, Reino Unido y una lista de otros países con factor disponible)" | Only Spain (REE) and the UK (DESNZ) are official; the listed countries carry an older factor with no cited source. |
+| 73 | es | carbon | "factores de emisión oficiales del país (España, Reino Unido y una lista de países con factor disponible)" | As above. |
+| 87, 88, 89, 90, 91, 94 | en | nasa | "If NASA data are unavailable, the calculation stops" (88, 89, 94: "…stops with an error") | NASA unusable → latitude estimate, labelled; only missing months stop it. A **new slip**: the inverse of E1, in 6 of 8 English "What is Voltura?" answers. No checker pattern catches it. |
+
+Spanish: **5 of 11** answers misstate a fact (72, 73, 75, 77, 80). English: **6 of 11**
+(87–91, 94). Clean: es 74, 76, 79, 81, 82, 83; en 84, 85, 86, 93.
+
+**Borderline, recorded, not counted:** 72 (es) "la IA sugiere una potencia FV … calculadas con
+una fórmula estándar" (the formula sizes; the AI only explains); 92 (en) "applying your
+household-consumption profile" (the simulation spreads the annual kWh over a typical profile)
+and "keeps a local history linked to a random browser ID" (it also says calculations are on the
+server).
+
+**Outside the 13 facts, recorded:** 88 (en) says the Assistant "will not perform new
+calculations unless you provide the required inputs" — it performs none.
+
+**Questions answered correctly in both languages:** feed-in tariffs — no (81, 84); net present
+value — no, payback and the 25-year curve only (82, 85); EU AI Act — Voltura makes no claim
+(83, 86).
+
+### Provider limit, found on the way
+
+Conversation **78** (es) returned **500 "No se ha podido enviar el mensaje"**. Render log,
+23:55:59Z: Groq `rate_limit_exceeded` — `openai/gpt-oss-120b`, on-demand tier, **8,000 tokens
+per minute**; that request asked for 2,441. Each Assistant call carries a ~2,400-token prompt,
+so about three calls a minute exhaust the tier. A reader who hits it gets the generic message.
+The remaining calls were paced 25 s apart.
+
+**Probe residue:** conversations 72–94 under `probe-h2b5-2026-10-07-306c4ab` (78 holds the
+question only); 95 and 96 under the built-in browser's own session. Not deleted (G3).
+
+## ROLLBACK — Tier B
+
+Revert computed on scratch ref `scratch/h2b5-revert-proof` as `26040bb` (cloud clone only,
+unpushed): 18 files, +52 / −1,137, the mirror of the merge; reverted tree **identical** to
+`d9fd1e6`'s. Command: `git revert -m 1 306c4ab`. **The deploy-path rollback is UNPROVEN** —
+A13's debt carried unchanged. (H2b's first Tier B ref, `50733f2`, was local to an earlier
+container and no longer exists; its result stands as recorded above.)
+
+## RULING — post-merge
+
+**Block H2b: CLOSED.** 2b.1–2b.5 closed; Gate H2b closed on its criterion; the Assistant follows
+the reader's language live in both directions.
+
+**H-ASST-ACC2 L2: FAIL in both languages** (owed since 5 Oct; run here under A25's instruction
+that it is owed in both). The facts are right in both languages — the model restates two of them
+wrongly. That is the operator's to rule, as on 5 Oct. It does not reopen H2b.
