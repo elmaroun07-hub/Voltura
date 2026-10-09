@@ -1,0 +1,161 @@
+{
+ "about": "H-ASST-ACC4. Lines from H-ASST-ACC3's L2, run live on production 221c018, 8 Oct 2026, probe session probe-acc3-2026-10-08-221c018, read back from the conversation rows on 9 Oct 2026 (GET /api/conversations/:id). 'lines' and 'silent' entries with a conv number are model output; leading list markers and surrounding whitespace are trimmed. 'renderings' are the executor's, not model output. 'reclassified' are lines an earlier block recorded as silent that ACC4's patterns now flag, with the reason.",
+ "lines": [
+  {
+   "id": "C15",
+   "lang": "es",
+   "conv": 98,
+   "line": "En cualquier otro país el cálculo se rechaza."
+  },
+  {
+   "id": "C15",
+   "lang": "es",
+   "conv": 100,
+   "line": "En cualquier otro país el cálculo se rechaza."
+  },
+  {
+   "id": "C15",
+   "lang": "es",
+   "conv": 101,
+   "line": "**Estima el CO₂ evitado** con el factor de carbono oficial de la red según la ubicación (solo España y Reino Unido disponen de factor oficial; para otros países el cálculo se rechaza)."
+  },
+  {
+   "id": "C14",
+   "lang": "es",
+   "conv": 101,
+   "line": "**Estima el CO₂ evitado** con el factor de carbono oficial de la red según la ubicación (solo España y Reino Unido disponen de factor oficial; para otros países el cálculo se rechaza)."
+  },
+  {
+   "id": "C15",
+   "lang": "es",
+   "conv": 102,
+   "line": "En cualquier otro país el cálculo se rechaza."
+  },
+  {
+   "id": "C15",
+   "lang": "es",
+   "conv": 103,
+   "line": "En cualquier otro país el cálculo se rechaza."
+  },
+  {
+   "id": "C15",
+   "lang": "es",
+   "conv": 104,
+   "line": "Para cualquier otro país no hay factor y el cálculo se rechaza."
+  },
+  {
+   "id": "C14",
+   "lang": "es",
+   "conv": 97,
+   "line": "**Estimación del CO₂ evitado** con el factor de carbono oficial de la red según la ubicación (España: factor oficial de REE; Reino Unido: factor oficial de DESNZ)"
+  },
+  {
+   "id": "E2",
+   "lang": "es",
+   "conv": 103,
+   "line": "**Almacenamiento del historial** de cálculos mediante un identificador aleatorio en el servidor; el historial es local al navegador y se pierde al borrar los datos del sitio o cambiar de dispositivo"
+  },
+  {
+   "id": "E3",
+   "lang": "en",
+   "conv": 111,
+   "line": "Provides an AI Optimizer that returns a recommended PV size (watts) and battery capacity (kWh) as numbers, computed from your annual usage and location using a fixed standard daily usage profile; it only shows the explanation with those numbers."
+  },
+  {
+   "id": "E3",
+   "lang": "en",
+   "conv": 113,
+   "line": "Offers an AI Optimizer that returns a recommended PV size (watts) and battery capacity (kWh) as numbers, computed from your annual usage and location using a fixed standard daily usage profile; it only provides the explanation shown with those numbers."
+  },
+  {
+   "id": "E3",
+   "lang": "en",
+   "conv": 116,
+   "line": "It only provides the explanation shown with those numbers and cannot change them."
+  }
+ ],
+ "renderings": [
+  {
+   "id": "C15",
+   "lang": "en",
+   "line": "In any other country the calculation is refused."
+  },
+  {
+   "id": "C14",
+   "lang": "en",
+   "line": "It uses the official grid carbon factor for the location."
+  },
+  {
+   "id": "E2",
+   "lang": "en",
+   "line": "The history is local to the browser and is lost when site data is cleared."
+  },
+  {
+   "id": "E3",
+   "lang": "es",
+   "line": "El optimizador solo muestra la explicación con esos números."
+  }
+ ],
+ "silent": [
+  {
+   "lang": "es",
+   "conv": 99,
+   "line": "**Estima el CO₂ evitado** con un factor de carbono de la red según la ubicación."
+  },
+  {
+   "lang": "es",
+   "conv": 99,
+   "line": "**Guarda un historial** de cálculos en el servidor; el navegador solo conserva un identificador aleatorio que lo vincula con esos cálculos. Cambiar de navegador o borrar datos genera un nuevo historial vacío."
+  },
+  {
+   "lang": "es",
+   "conv": 105,
+   "line": "Voltura no calcula tarifas de inyección a la red. Sólo valora el ahorro en dinero en España y el Reino Unido usando la tarifa que usted indique para el consumo."
+  },
+  {
+   "lang": "en",
+   "conv": 108,
+   "line": "Voltura does not calculate feed‑in tariffs."
+  },
+  {
+   "lang": "en",
+   "conv": 109,
+   "line": "Voltura does not provide net present value."
+  },
+  {
+   "lang": "en",
+   "conv": 111,
+   "line": "Estimates the CO₂ avoided with a location‑based grid carbon factor. **Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. United Kingdom: the official DESNZ factor.** For many other countries no factor is available and the calculation is refused."
+  }
+ ],
+ "refusals": [
+  {
+   "lang": "es",
+   "conv": 106,
+   "question": "¿Da el valor actual neto?",
+   "line": "No puedo responder a eso. Solo respondo preguntas sobre lo que hace Voltura."
+  },
+  {
+   "lang": "es",
+   "conv": 107,
+   "question": "¿Voltura cumple la Ley de IA de la UE?",
+   "line": "No puedo responder a eso. Solo respondo preguntas sobre lo que hace Voltura."
+  },
+  {
+   "lang": "en",
+   "conv": 110,
+   "question": "Is Voltura EU AI Act compliant?",
+   "line": "I can't answer that. I only answer questions about what Voltura does."
+  }
+ ],
+ "reclassified": [
+  {
+   "id": "E3",
+   "lang": "es",
+   "conv": 95,
+   "block": "h-asst-acc3 (silent, L3 of H-ASST-ACC2)",
+   "line": "El optimizador solo muestra la explicación de esos valores; no permite modificarlos.",
+   "why": "Judged clean on 8 Oct; it carries the E3 wording ACC3 counted in English (111): the Optimizer returns the numbers, it does not only show an explanation."
+  }
+ ]
+}

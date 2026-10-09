@@ -246,6 +246,72 @@ export const ACC3_CLAIMS: KnownFalseClaim[] = [
 ];
 
 /**
+ * H-ASST-ACC4: the slips H-ASST-ACC3's L2 found live, 8 Oct 2026
+ * (contracts/rulings/h-asst-acc3.md, "Post-merge - live"; the lines are in
+ * contracts/fixtures/h-asst-acc4/live-lines.json). Learnt from model output,
+ * except the rows that carry a slip into the language it was not seen in.
+ *
+ *   C15 the 27 listed countries dropped: "en cualquier otro país el cálculo se
+ *       rechaza" (98, 100-104). English row a rendering.
+ *   C14 every location's factor called official, in 97's and 101's words.
+ *   E2  "el historial es local al navegador" (103). English row a rendering.
+ *   E3  "it only provides / only shows the explanation" (111, 113, 116); the
+ *       Spanish row is learnt from H-ASST-ACC2's L3 answer 95, recorded clean
+ *       on 8 Oct and reclassified here.
+ */
+const C15_TRUTH =
+  "the 27 listed countries get a full result with an older, unsourced factor; only a country outside Spain, the UK and that list is refused";
+
+export const ACC4_CLAIMS: KnownFalseClaim[] = [
+  {
+    id: "C15",
+    truth: C15_TRUTH,
+    // Not when the same sentence has already named the list ("... una lista de
+    // países; en cualquier otro país se rechaza ..."): then "any other" is right.
+    pattern:
+      /(?<!\blista\b[^.\n]{0,160})(\b(en|para) cualquier otro pa[ií]s\b[^.;]{0,30}(rechaz|no (hay|tiene) factor)|\bpara (los )?otros pa[ií]ses\b[^.;]{0,10}el c[aá]lculo se rechaza|\bcualquier otro pa[ií]s no (hay|tiene) factor)/,
+  },
+  {
+    id: "C15",
+    truth: C15_TRUTH,
+    // English: a rendering of the Spanish slip.
+    pattern: /(?<!\blist\b[^.\n]{0,160})\b(in|for) any other country\b[^.;]{0,30}\b(refused|rejected)\b/,
+  },
+  {
+    id: "C14",
+    truth: C14_TRUTH,
+    pattern: /\bfactor (de carbono )?oficial (de la red )?seg[uú]n (la|su) ubicaci[oó]n/,
+  },
+  {
+    id: "C14",
+    truth: C14_TRUTH,
+    // English: a rendering.
+    pattern: /\bofficial (grid )?(carbon )?factor (for|based on|by) (the |your )?location\b/,
+  },
+  {
+    id: "E2",
+    truth: truthOf("E2"),
+    pattern: /\bhistorial\b[^.;]{0,20}\b(es|est[aá]|queda) local(es)? (al|en el|en su|del) navegador|\blocal (al|del) navegador\b/,
+  },
+  {
+    id: "E2",
+    truth: truthOf("E2"),
+    // English: a rendering.
+    pattern: /\bhistory\b[^.;]{0,20}\bis (stored )?local to (the|your) browser\b/,
+  },
+  {
+    id: "E3",
+    truth: truthOf("E3"),
+    pattern: /\b(it|the (ai )?optimi[sz]er)\b only (provides|shows|gives|returns) (the |an |its )?explanation\b/,
+  },
+  {
+    id: "E3",
+    truth: truthOf("E3"),
+    pattern: /\bs[oó]lo (muestra|proporciona|da|ofrece|devuelve) (la recomendaci[oó]n y )?(su |la )explicaci[oó]n/,
+  },
+];
+
+/**
  * Models write non-breaking hyphens, narrow and no-break spaces and curly
  * quotes (A0 has all four). Fold them so a pattern written with ASCII matches.
  */
@@ -260,7 +326,7 @@ export function normalise(text: string): string {
 
 export function checkTranscript(text: string): { id: string; match: string }[] {
   const t = normalise(text);
-  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS, ...SPANISH_CLAIMS, ...ACC3_CLAIMS].flatMap(({ id, pattern }) => {
+  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS, ...SPANISH_CLAIMS, ...ACC3_CLAIMS, ...ACC4_CLAIMS].flatMap(({ id, pattern }) => {
     const m = pattern.exec(t);
     return m ? [{ id, match: m[0] }] : [];
   });
