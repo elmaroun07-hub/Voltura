@@ -96,7 +96,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx",
     symbol: 'name: t("mix.battery")',
   },
-  "Estimates the CO2 avoided with a location-based grid carbon factor. Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. United Kingdom: the official DESNZ factor. Australia, Austria, Belgium, Brazil, Canada, China, Denmark, Finland, France, Germany, Greece, India, Ireland, Italy, Japan, Mexico, Morocco, Netherlands, Norway, Poland, Portugal, Romania, South Korea, Sweden, Switzerland, Turkey and United States: an older factor with no cited source - not an official figure - which the results page does not mark as unsourced. Only the Spanish (REE) and UK (DESNZ) factors are official. Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.": {
+  "Estimates the CO2 avoided with a location-based grid carbon factor. Spain: the official REE factor, for mainland addresses only; an address in the Balearic or Canary Islands, Ceuta or Melilla, or a Spanish address whose region cannot be told, has no factor yet and the calculation is refused. United Kingdom: the official DESNZ factor. Australia, Austria, Belgium, Brazil, Canada, China, Denmark, Finland, France, Germany, Greece, India, Ireland, Italy, Japan, Mexico, Morocco, Netherlands, Norway, Poland, Portugal, Romania, South Korea, Sweden, Switzerland, Turkey and United States: an older factor with no cited source - not an official figure - which the results page does not mark as unsourced. Only the Spanish (REE) and UK (DESNZ) factors are official. The 27 countries in that list do get a full result, with that older factor. A country that is not Spain, the UK or one of those 27 countries has no factor, and the whole calculation is refused: no energy, money or CO2 result.": {
     file: "artifacts/api-server/src/lib/emissions/carbon-source.ts",
     symbol: "export function resolveCarbonSource(",
   },
@@ -112,11 +112,11 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: 'app.get("/api/calculate/:id/pdf"',
   },
-  "Keeps a history of past calculations. The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them. Another browser or device, or cleared site data, gets a new id and so an empty history; there are no user accounts.": {
+  "Keeps a history of past calculations. The calculations themselves are stored on Voltura's server, not in the browser; this browser keeps only a random id that links it to them. Another browser or device, or cleared site data, gets a new id and so an empty history; there are no user accounts.": {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "app.get(api.calculations.history.path",
   },
-  "The AI Optimizer returns a recommended PV size in watts and a battery capacity in kWh as numbers, computed by a formula from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. The formula sizes the array so its yearly generation equals 100% of yearly use, and the battery for the profile's night-time share. The AI writes only the explanation shown with those numbers; it cannot change them.": {
+  "The AI Optimizer returns a recommended PV size in watts and a battery capacity in kWh as numbers, computed by a formula from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. The formula sizes the array so its yearly generation equals 100% of yearly use, and the battery for the profile's night-time share. The AI Optimizer's numbers come from that formula; a language model then writes the explanation text shown beside them, and cannot change the numbers.": {
     file: "artifacts/api-server/src/lib/sizing.ts",
     symbol: "export function sizePvAndBattery(",
   },

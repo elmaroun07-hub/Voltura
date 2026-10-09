@@ -83,7 +83,12 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
       // H-ASST-ACC3 (C14): live, the model called this list's factors official.
       `${listed(LEGACY_CARBON_COUNTRIES)}: an older factor with no cited source - not an official figure - which the results page does not mark as unsourced. ` +
       "Only the Spanish (REE) and UK (DESNZ) factors are official. " +
-      "Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.",
+      // H-ASST-ACC4 (C15): live, the model copied the official sentences, dropped
+      // the list, and "any other country" then read as every country but two.
+      // The listed countries' result is said in its own sentence, and the
+      // refusal names whom it covers.
+      `The ${LEGACY_CARBON_COUNTRIES.length} countries in that list do get a full result, with that older factor. ` +
+      `A country that is not Spain, the UK or one of those ${LEGACY_CARBON_COUNTRIES.length} countries has no factor, and the whole calculation is refused: no energy, money or CO2 result.`,
   },
   {
     id: "tariff",
@@ -113,7 +118,8 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
     id: "history",
     // H-ASST-ACC2 (E2): where the calculations are, and what the browser keeps.
     text:
-      "Keeps a history of past calculations. The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them. " +
+      // H-ASST-ACC4 (E2, es live): "not in the browser" said outright.
+      "Keeps a history of past calculations. The calculations themselves are stored on Voltura's server, not in the browser; this browser keeps only a random id that links it to them. " +
       "Another browser or device, or cleared site data, gets a new id and so an empty history; there are no user accounts.",
   },
   {
@@ -122,7 +128,9 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
       // H-ASST-ACC2 (E3): it returns numbers; the AI's part is the prose beside them.
       "The AI Optimizer returns a recommended PV size in watts and a battery capacity in kWh as numbers, computed by a formula from the user's annual usage and location (NASA irradiance), using a fixed standard daily usage profile, not the user's own. " +
       `The formula sizes the array so its yearly generation equals ${percent(SIZING_DEFAULTS.coverageTarget)} of yearly use, and the battery for the profile's night-time share. ` +
-      "The AI writes only the explanation shown with those numbers; it cannot change them.",
+      // H-ASST-ACC4 (E3): live, "the AI" read as the AI Optimizer ("it only
+      // provides the explanation"). The writer is named apart from the Optimizer.
+      "The AI Optimizer's numbers come from that formula; a language model then writes the explanation text shown beside them, and cannot change the numbers.",
   },
   {
     id: "assistant",
@@ -209,7 +217,8 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
       "Reino Unido: el factor oficial del DESNZ. " +
       `${listedEs(LEGACY_CARBON_COUNTRIES_ES)}: un factor más antiguo sin fuente citada - no es una cifra oficial -, que la página de resultados no señala como sin fuente. ` +
       "Solo son oficiales los factores de España (REE) y del Reino Unido (DESNZ). " +
-      "Cualquier otro país no tiene factor, y se rechaza todo el cálculo: ningún resultado de energía, dinero ni CO2.",
+      `Los ${LEGACY_CARBON_COUNTRIES_ES.length} países de esa lista sí obtienen un resultado completo, con ese factor más antiguo. ` +
+      `Un país que no sea España, el Reino Unido ni uno de esos ${LEGACY_CARBON_COUNTRIES_ES.length} países no tiene factor, y se rechaza todo el cálculo: ningún resultado de energía, dinero ni CO2.`,
   },
   {
     id: "tariff",
@@ -236,7 +245,7 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
   {
     id: "history",
     text:
-      "Guarda un historial de cálculos anteriores. Los cálculos se almacenan en el servidor de Voltura; este navegador solo guarda un identificador aleatorio que lo vincula con ellos. " +
+      "Guarda un historial de cálculos anteriores. Los cálculos se almacenan en el servidor de Voltura, no en el navegador; este navegador solo guarda un identificador aleatorio que lo vincula con ellos. " +
       "Otro navegador u otro dispositivo, o borrar los datos del sitio, da un identificador nuevo y, por tanto, un historial vacío; no hay cuentas de usuario.",
   },
   {
@@ -244,7 +253,7 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
     text:
       "El Optimizador IA devuelve como números una potencia FV recomendada en vatios y una capacidad de batería en kWh, calculadas con una fórmula a partir del consumo anual del usuario y de su ubicación (irradiancia de la NASA), con un perfil de consumo diario estándar y fijo, no el del propio usuario. " +
       `La fórmula dimensiona los paneles para que su generación anual sea igual al ${percentEs(SIZING_DEFAULTS.coverageTarget)} del consumo anual, y la batería para la parte nocturna del perfil. ` +
-      "La IA solo escribe la explicación que se muestra con esos números; no puede cambiarlos.",
+      "Los números del Optimizador IA salen de esa fórmula; después, un modelo de lenguaje escribe el texto de explicación que se muestra junto a ellos, y no puede cambiar los números.",
   },
   {
     id: "assistant",

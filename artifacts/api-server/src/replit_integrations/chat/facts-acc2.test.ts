@@ -182,7 +182,7 @@ describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () 
 
   it("E2 history: calculations are stored on the server; the browser keeps only the id", async () => {
     expect(fact("history")).toContain(
-      "The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them.",
+      "The calculations themselves are stored on Voltura's server, not in the browser; this browser keeps only a random id that links it to them.",
     );
     expect(fact("history")).toContain("gets a new id and so an empty history");
     await withServer(async (b) => {
@@ -203,7 +203,7 @@ describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () 
   it("E3 optimizer: it returns the PV size and battery capacity as numbers; the AI supplies only the explanation", async () => {
     const o = fact("optimizer");
     expect(o).toContain("The AI Optimizer returns a recommended PV size in watts and a battery capacity in kWh as numbers, computed by a formula");
-    expect(o).toContain("The AI writes only the explanation shown with those numbers; it cannot change them.");
+    expect(o).toContain("The AI Optimizer's numbers come from that formula; a language model then writes the explanation text shown beside them, and cannot change the numbers.");
     const r = await withServer((b) =>
       post(b, "/api/optimize", { location: "Fuengirola, Málaga, Spain", annualUsageKwh: 5000, energyPattern: Array.from({ length: 24 }, (_, h) => (h >= 7 && h <= 22 ? 2 : 1)) }),
     );

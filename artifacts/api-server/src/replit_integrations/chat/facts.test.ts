@@ -282,6 +282,17 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(fact("carbon")).toContain("which the results page does not mark as unsourced");
   });
 
+  it("H-ASST-ACC4 (C15): the listed countries get a full result - the route refuses only an unknown country or a pending factor", () => {
+    expect(fact("carbon")).toContain(`The ${LEGACY_CARBON_COUNTRIES.length} countries in that list do get a full result, with that older factor.`);
+    expect(LEGACY_CARBON_COUNTRIES.length).toBe(27);
+    const routes = source("artifacts/api-server/src/routes/routes.ts");
+    const handler = routes.slice(routes.indexOf("app.post(api.calculations.create.path"), routes.indexOf("app.get(api.calculations.history.path"));
+    const refusals = [...handler.matchAll(/resolution\.carbonSource\.status === "(\w+)"\) \{\s*return res\.status\(400\)/g)].map((m) => m[1]);
+    expect(refusals.sort()).toEqual(["pending", "unknown_country"]);
+    // "any other country" no longer appears: it read as every country but Spain and the UK.
+    expect(fact("carbon")).not.toMatch(/any other country/i);
+  });
+
   it.each([
     ["Fuengirola, Málaga, Spain", 200, "REE", "peninsular"],
     ["London, United Kingdom", 200, "DESNZ", "gb"],
@@ -305,7 +316,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(r.body.code).toBe(code);
     for (const k of ["savingsKwh", "money", "co2Reduction", "monthlyData"]) expect(r.body[k]).toBeUndefined();
     expect(fact("carbon")).toContain("has no factor yet and the calculation is refused");
-    expect(fact("carbon")).toContain("Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.");
+    expect(fact("carbon")).toContain("A country that is not Spain, the UK or one of those 27 countries has no factor, and the whole calculation is refused: no energy, money or CO2 result.");
   });
 
   it("tariff: priced only for Spain and the UK; typed wins; Spain Eurostat 2025-S2; UK none", async () => {
@@ -371,7 +382,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
   });
 
   it("history: an id kept in this browser, sent as X-Session-Id; no accounts", async () => {
-    expect(fact("history")).toContain("The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them.");
+    expect(fact("history")).toContain("The calculations themselves are stored on Voltura's server, not in the browser; this browser keeps only a random id that links it to them.");
     const qc = source("artifacts/green-energy-calculator/src/lib/queryClient.ts");
     expect(qc).toContain('const SESSION_ID_KEY = "voltura.sessionId";');
     expect(qc).toContain("sessionId = crypto.randomUUID();");

@@ -51,7 +51,16 @@ describe("H-ASST-ACC3 — the checker knows tonight's slips", () => {
     }
   });
 
-  it.each(live.silent.map((l) => [l.lang, l.conv!, l.line] as const))(
+  // H-ASST-ACC4 reclassified one of these lines (95, the Spanish E3 wording);
+  // its test asserts the line is now flagged. The others stay silent.
+  const reclassified: { line: string }[] = json("h-asst-acc4/live-lines.json").reclassified;
+  const stillSilent = live.silent.filter((l) => !reclassified.some((r) => l.line.includes(r.line)));
+
+  it("ACC4 reclassified exactly one of ACC3's silent lines", () => {
+    expect(live.silent.length - stillSilent.length).toBe(1);
+  });
+
+  it.each(stillSilent.map((l) => [l.lang, l.conv!, l.line] as const))(
     "flags nothing in a correct %s line from the same run (conversation %i)",
     (_lang, _conv, line) => {
       expect(checkTranscript(line)).toEqual([]);

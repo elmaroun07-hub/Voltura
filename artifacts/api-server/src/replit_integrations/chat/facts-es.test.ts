@@ -64,7 +64,9 @@ const CLAUSES: [id: string, english: string, spanish: string][] = [
   ["carbon", "United Kingdom: the official DESNZ factor.", "Reino Unido: el factor oficial del DESNZ."],
   ["carbon", "an older factor with no cited source - not an official figure - which the results page does not mark as unsourced", "un factor más antiguo sin fuente citada - no es una cifra oficial -, que la página de resultados no señala como sin fuente"],
   ["carbon", "Only the Spanish (REE) and UK (DESNZ) factors are official.", "Solo son oficiales los factores de España (REE) y del Reino Unido (DESNZ)."],
-  ["carbon", "Any other country has no factor, and the whole calculation is refused: no energy, money or CO2 result.", "Cualquier otro país no tiene factor, y se rechaza todo el cálculo: ningún resultado de energía, dinero ni CO2."],
+  // H-ASST-ACC4 (C15)
+  ["carbon", "The 27 countries in that list do get a full result, with that older factor.", "Los 27 países de esa lista sí obtienen un resultado completo, con ese factor más antiguo."],
+  ["carbon", "A country that is not Spain, the UK or one of those 27 countries has no factor, and the whole calculation is refused: no energy, money or CO2 result.", "Un país que no sea España, el Reino Unido ni uno de esos 27 países no tiene factor, y se rechaza todo el cálculo: ningún resultado de energía, dinero ni CO2."],
   ["tariff", "Prices the saving only for Spain and the UK.", "Valora el ahorro en dinero solo para España y el Reino Unido."],
   ["tariff", "There, a tariff the user types is always used.", "Allí, siempre se usa la tarifa que escribe el usuario."],
   ["tariff", "With no tariff typed, Spain uses Eurostat's 2025-S2 national household average while that figure is current.", "Si no se escribe ninguna tarifa, España usa la media nacional de los hogares de Eurostat de 2025-S2 mientras esa cifra esté vigente."],
@@ -78,13 +80,13 @@ const CLAUSES: [id: string, english: string, spanish: string][] = [
   ["payback", "Without a cost, payback shows as pending.", "Sin coste, el retorno aparece como pendiente."],
   ["pdf", "the location and the inputs", "la ubicación y los datos introducidos"],
   ["pdf", "the result figures and the monthly table. The installation cost is not printed, and the PDF has no charts.", "las cifras de resultado y la tabla mensual. El coste de instalación no se imprime, y el PDF no tiene gráficos."],
-  ["history", "The calculations themselves are stored on Voltura's server; this browser keeps only a random id that links it to them.", "Los cálculos se almacenan en el servidor de Voltura; este navegador solo guarda un identificador aleatorio que lo vincula con ellos."],
+  ["history", "The calculations themselves are stored on Voltura's server, not in the browser; this browser keeps only a random id that links it to them.", "Los cálculos se almacenan en el servidor de Voltura, no en el navegador; este navegador solo guarda un identificador aleatorio que lo vincula con ellos."],
   ["history", "Another browser or device, or cleared site data, gets a new id and so an empty history; there are no user accounts.", "Otro navegador u otro dispositivo, o borrar los datos del sitio, da un identificador nuevo y, por tanto, un historial vacío; no hay cuentas de usuario."],
   ["optimizer", "The AI Optimizer returns a recommended PV size in watts and a battery capacity in kWh as numbers, computed by a formula", "El Optimizador IA devuelve como números una potencia FV recomendada en vatios y una capacidad de batería en kWh, calculadas con una fórmula"],
   ["optimizer", "from the user's annual usage and location (NASA irradiance)", "a partir del consumo anual del usuario y de su ubicación (irradiancia de la NASA)"],
   ["optimizer", "using a fixed standard daily usage profile, not the user's own", "con un perfil de consumo diario estándar y fijo, no el del propio usuario"],
   ["optimizer", `so its yearly generation equals ${SIZING_DEFAULTS.coverageTarget * 100}% of yearly use, and the battery for the profile's night-time share`, `para que su generación anual sea igual al ${SIZING_DEFAULTS.coverageTarget * 100} % del consumo anual, y la batería para la parte nocturna del perfil`],
-  ["optimizer", "The AI writes only the explanation shown with those numbers; it cannot change them.", "La IA solo escribe la explicación que se muestra con esos números; no puede cambiarlos."],
+  ["optimizer", "The AI Optimizer's numbers come from that formula; a language model then writes the explanation text shown beside them, and cannot change the numbers.", "Los números del Optimizador IA salen de esa fórmula; después, un modelo de lenguaje escribe el texto de explicación que se muestra junto a ellos, y no puede cambiar los números."],
   ["assistant", "which answers only questions about what Voltura does", "que solo responde preguntas sobre lo que hace Voltura"],
 ];
 
