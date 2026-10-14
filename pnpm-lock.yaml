@@ -660,11 +660,40 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
 
-  scripts:
+  lib/screening:
+    dependencies:
+      '@workspace/cte':
+        specifier: workspace:*
+        version: link:../cte
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
+      '@types/pg':
+        specifier: ^8.18.0
+        version: 8.18.0
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  scripts:
+    dependencies:
+      '@workspace/screening':
+        specifier: workspace:*
+        version: link:../lib/screening
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
+      '@types/pg':
+        specifier: ^8.18.0
+        version: 8.18.0
       tsx:
         specifier: 'catalog:'
         version: 4.21.0

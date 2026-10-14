@@ -1,0 +1,64 @@
+/**
+ * H3 screening schema — PostGIS.
+ *
+ * G3: DDL is granted by H3's fence (task 3.1, "PostGIS"). Every statement is
+ * idempotent (IF NOT EXISTS) so running it twice is a no-op, like
+ * ensure-chat-tables.ts. Nothing here alters or drops an existing table.
+ *
+ * Tables are prefixed h3_ so they cannot collide with the calculator's
+ * `calculations`, `conversations` and `messages`.
+ *
+ * Coordinates are stored in the CRS the Catastro publishes (ETRS89 / UTM 30N,
+ * EPSG:25830, for Córdoba). Lengths and azimuths are computed in that CRS;
+ * UTM is conformal, so a façade's bearing is preserved to within the grid
+ * convergence (≈1.4° at Córdoba, recorded in the methodology, not corrected).
+ */
+
+export const H3_SCHEMA_SQL: readonly string[] = [
+  `CREATE EXTENSION IF NOT EXISTS postgis`,
+
+  // One row per downloaded file. Every building row points at the file it was
+  // read from, so a score can always be traced back to a dated, hashed source.
+  `CREATE TABLE IF NOT EXISTS h3_sources (
+     id            text PRIMARY KEY,
+     publisher     text NOT NULL,
+     dataset       text NOT NULL,
+     url           text NOT NULL,
+     last_modified timestamptz NOT NULL,
+     sha256        text NOT NULL,
+     retrieved_at  timestamptz NOT NULL,
+     licence       text NOT NULL
+   )`,
+
+  `CREATE TABLE IF NOT EXISTS h3_buildings (
+     ref                  text PRIMARY KEY,
+     ine_municipality     text NOT NULL,
+     catastro_municipality text NOT NULL,
+     source_id            text NOT NULL REFERENCES h3_sources(id),
+     footprint            geometry(MultiPolygon, 25830) NOT NULL,
+     condition            text,
+     year_beginning       integer,
+     year_end             integer,
+     current_use          text,
+     building_units       integer,
+     dwellings            integer,
+     gross_floor_area_m2  numeric,
+     part_count           integer NOT NULL,
+     floors_above_max     integer,
+     ingested_at          timestamptz NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS h3_buildings_footprint_gix ON h3_buildings USING gist (footprint)`,
+  `CREATE INDEX IF NOT EXISTS h3_buildings_ine_idx ON h3_buildings (ine_municipality)`,
+
+  // 3.2 output: façade length per CTE orientation, exposed vs party wall.
+  // Inferred from geometry, never sourced — the column name says so.
+  `CREATE TABLE IF NOT EXISTS h3_facades_inferred (
+     ref            text PRIMARY KEY REFERENCES h3_buildings(ref) ON DELETE CASCADE,
+     method         text NOT NULL,
+     tolerance_m    numeric NOT NULL,
+     perimeter_m    numeric NOT NULL,
+     party_wall_m   numeric NOT NULL,
+     exposed_m      jsonb NOT NULL,
+     computed_at    timestamptz NOT NULL DEFAULT now()
+   )`,
+];
