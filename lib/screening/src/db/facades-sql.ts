@@ -19,9 +19,13 @@
  *      courtyard rings counter-clockwise. With that orientation the building
  *      is always on the RIGHT of an edge walked from start to end, so the
  *      outward normal is the edge azimuth minus 90° (see orientation.ts).
- *   3. Neighbours are the other buildings within `tolerance` metres; their
- *      footprints are merged and buffered by the same tolerance. The part of
- *      an edge inside that zone is a party wall; the rest is exposed.
+ *   3. Neighbours are the other buildings within `tolerance` metres of an
+ *      edge. The part of the edge inside any neighbour's footprint buffered
+ *      by the same tolerance is a party wall; the rest is exposed. (First
+ *      written as one merged zone per building; rewritten 14 Oct 2026 per
+ *      edge after the merged zone took minutes on Córdoba's largest
+ *      footprints. Same set, by distributivity: the edge ∩ ⋃ zones equals
+ *      ⋃ (edge ∩ zone). The oracle test pins it.)
  *
  * Parameters: $1 INE municipality code, $2 tolerance in metres, $3 the refs
  * of this batch (the caller pages through a municipality so no single result
@@ -48,30 +52,37 @@ outline AS (
          ) AS g
     FROM target
 ),
-neighbour_zone AS (
-  SELECT o.ref,
-         (SELECT ST_Buffer(ST_Union(n.footprint), $2)
-            FROM h3_buildings n
-           WHERE n.ref <> o.ref
-             AND ST_DWithin(n.footprint, o.g, $2)) AS zone
-    FROM outline o
-),
 segments AS (
   SELECT o.ref, d.path, d.geom AS s
     FROM outline o
    CROSS JOIN LATERAL ST_DumpSegments(o.g) AS d
+   WHERE ST_Length(d.geom) > 0
+),
+-- Party-wall length per edge: the edge intersected with the union of the
+-- buffered footprints of the neighbours near THAT edge. Pairs are found
+-- through the GiST index (ST_DWithin), so a 2,667-vertex footprint costs its
+-- own edges, not every edge times every neighbour vertex. The polygons are
+-- merged before intersecting: merging the per-neighbour line pieces instead
+-- left overlapping collinear pieces unmerged and counted 10.43 m of party
+-- wall on a 10.23 m edge (caught by the oracle test, 14 Oct 2026).
+shared AS (
+  SELECT s.ref, s.path,
+         ST_Length(ST_Intersection(s.s, ST_Union(ST_Buffer(n.footprint, $2)))) AS shared_m
+    FROM segments s
+    JOIN h3_buildings n
+      ON n.ref <> s.ref
+     AND ST_DWithin(n.footprint, s.s, $2)
+   GROUP BY s.ref, s.path, s.s
 )
 SELECT s.ref,
        s.path[2] AS ring,
        degrees(ST_Azimuth(ST_StartPoint(s.s), ST_EndPoint(s.s))) AS azimuth_deg,
        ST_Length(s.s) AS length_m,
-       -- No neighbour within tolerance is a measured fact (zone IS NULL), and
-       -- its shared length is zero by definition — not a default standing in
-       -- for a value that failed to compute.
-       CASE WHEN z.zone IS NULL THEN 0
-            ELSE ST_Length(ST_Intersection(s.s, z.zone)) END AS shared_m
+       -- No neighbour within tolerance of this edge is a measured fact (no row
+       -- in \`shared\`), and its party-wall length is zero by definition — not
+       -- a default standing in for a value that failed to compute.
+       CASE WHEN sh.shared_m IS NULL THEN 0 ELSE sh.shared_m END AS shared_m
   FROM segments s
-  JOIN neighbour_zone z USING (ref)
- WHERE ST_Length(s.s) > 0
+  LEFT JOIN shared sh USING (ref, path)
  ORDER BY s.ref, s.path
 `;
