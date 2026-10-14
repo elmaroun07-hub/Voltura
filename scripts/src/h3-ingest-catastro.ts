@@ -8,7 +8,8 @@
  *     [--tolerance 0.2] \
  *     [--dem-manifest data/sources/h3/ign-mdt25-cordoba.json --dem /path/to/wcs-response.asc] \
  *     [--census-manifest data/sources/h3/ine-censo2021.json --secc-dir /path/to/Seccionado_2021 --c2021 /path/to/C2021_Indicadores.csv] \
- *     [--epc-manifest data/sources/h3/junta-epc-cordoba.json --epc /path/to/CORDOBA.xml]
+ *     [--epc-manifest data/sources/h3/junta-epc-cordoba.json --epc /path/to/CORDOBA.xml] \
+ *     [--index]   (3.7/3.8: score every residential building; needs all steps above)
  *
  * Refuses to load a file whose sha256 differs from the manifest: every row
  * must trace to the exact file the manifest dates and hashes.
@@ -25,6 +26,7 @@ import {
   ingestMunicipality,
   loadCensusSections,
   loadEpcRegister,
+  computeIndex,
   upsertSource,
 } from "@workspace/screening/db";
 import { extractAsciiGridPart, parseAsciiGrid, parseC2021Indicators, readPolygonShapefile } from "@workspace/screening";
@@ -147,6 +149,12 @@ async function main() {
         em.source.id,
       );
       console.log(`epc ${JSON.stringify(e)} in ${((Date.now() - t4) / 1000).toFixed(1)} s`);
+    }
+
+    if (process.argv.includes("--index")) {
+      const t5 = Date.now();
+      const ix = await computeIndex(pool, manifest.municipality.ine);
+      console.log(`index ${JSON.stringify(ix)} in ${((Date.now() - t5) / 1000).toFixed(1)} s`);
     }
   } finally {
     await pool.end();

@@ -18,6 +18,8 @@ import { parseAsciiGrid } from "../dem/ascii-grid";
 import { assignBuildingsToSections, loadCensusSections } from "./census-db";
 import { parseC2021Indicators } from "../census/indicators";
 import { loadEpcRegister } from "./epc-db";
+import { computeIndex } from "./index-db";
+import { METHOD_V1 } from "../heat-index";
 
 const url = process.env.H3_TEST_DATABASE_URL;
 if (!url) {
@@ -58,7 +60,7 @@ const pool = new pg.Pool({ connectionString: url });
 
 beforeAll(async () => {
   await pool.query(
-    "DROP TABLE IF EXISTS h3_building_epc, h3_epc_certificates, h3_building_section, h3_census_sections, h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources",
+    "DROP TABLE IF EXISTS h3_index, h3_index_runs, h3_building_epc, h3_epc_certificates, h3_building_section, h3_census_sections, h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources",
   );
   await ensureH3Schema(pool);
 });
@@ -313,6 +315,31 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
       `SELECT column_name FROM information_schema.columns WHERE table_name IN ('h3_epc_certificates','h3_building_epc')`,
     );
     expect(cols.rows.map((r) => r.column_name)).not.toContain("direccion");
+  });
+
+  it("H3.7/3.8 — every residential building gets a banded score, ranked on the high end, and each score recomputes from what is stored", async () => {
+    const stats = await computeIndex(pool, "14021");
+    expect(stats).toMatchObject({ scored: 20, notScored: { notResidential: 0, noDwellings: 0 }, withCertificate: 19, withoutCensusInput: 0 });
+    const rows = (await pool.query(`SELECT * FROM h3_index WHERE run_id = $1 ORDER BY rank_high`, [stats.runId])).rows;
+    expect(rows.map((r) => r.rank_high)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    for (let i = 1; i < rows.length; i++) expect(Number(rows[i - 1].index_high)).toBeGreaterThanOrEqual(Number(rows[i].index_high));
+
+    const run = (await pool.query(`SELECT * FROM h3_index_runs WHERE id = $1`, [stats.runId])).rows[0];
+    const w = run.method.weights;
+    for (const r of rows) {
+      const f = r.factors;
+      const gm = (k: "low" | "mid" | "high") =>
+        Math.exp((w.hazard * Math.log(f.hazard[k]) + w.exposure * Math.log(f.exposure[k]) + w.sensitivity * Math.log(f.sensitivity[k]) + w.people * Math.log(f.people[k])) / (w.hazard + w.exposure + w.sensitivity + w.people));
+      expect(Number(r.index_low), r.ref).toBeCloseTo(gm("low"), 9);
+      expect(Number(r.index_mid), r.ref).toBeCloseTo(gm("mid"), 9);
+      expect(Number(r.index_high), r.ref).toBeCloseTo(gm("high"), 9);
+    }
+    expect(run.method.version).toBe(METHOD_V1.version);
+
+    // 2642103UG4924S has no certificate: its cooling factor is its age band's p10–p90, so its band is wider.
+    const r103 = rows.find((r) => r.ref === "2642103UG4924S");
+    expect(r103.completeness).toMatchObject({ certificateCoverage: 0, coolingPrior: "pre-1980" });
+    expect(Number(r103.index_high) - Number(r103.index_low)).toBeGreaterThan(0);
   });
 
   it("refuses a tolerance outside (0, 5) m", async () => {

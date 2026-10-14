@@ -70,3 +70,21 @@ export function parseC2021Indicators(csv: string, ineMunicipality: string): Sect
   }
   return out;
 }
+
+/**
+ * The three census figures the index's people factor uses (H3.7): share aged
+ * over 64 (t4_3), one-person households (t22_1) over all households (t21_1),
+ * unemployment (t10_1). Null when any of them is withheld or there are no
+ * households — the input is then absent, never zero.
+ */
+export function peopleInputs(values: Readonly<Record<string, number | null>> | null): {
+  over64: number;
+  onePersonHouseholds: number;
+  households: number;
+  unemployment: number;
+} | null {
+  if (!values) return null;
+  const { t4_3, t22_1, t21_1, t10_1 } = values;
+  if (t4_3 == null || t22_1 == null || t21_1 == null || t10_1 == null || !(t21_1 > 0)) return null;
+  return { over64: t4_3, onePersonHouseholds: t22_1, households: t21_1, unemployment: t10_1 };
+}

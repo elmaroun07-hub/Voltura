@@ -20,3 +20,4 @@ export {
   type SectionAssignStats,
 } from "./census-db";
 export { loadEpcRegister, type EpcLoadStats } from "./epc-db";
+export { computeIndex, type IndexRunStats } from "./index-db";

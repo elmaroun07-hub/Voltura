@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { CensusError, parseC2021Indicators } from "./indicators";
+import { CensusError, parseC2021Indicators, peopleInputs } from "./indicators";
 import { ShapefileError, readPolygonShapefile } from "./shapefile";
 
 /**
@@ -139,5 +139,21 @@ describe("readPolygonShapefile", () => {
   it("refuses a truncated .shp", () => {
     const { shp, dbf } = makeShapefile(RECORDS, FIELDS);
     expect(() => readPolygonShapefile(shp.subarray(0, shp.length - 8), dbf, () => true)).toThrow(ShapefileError);
+  });
+});
+
+describe("peopleInputs — the index's three census figures", () => {
+  it("maps Córdoba 1402101001 to over-64 share, one-person households, households, unemployment", () => {
+    const [s] = parseC2021Indicators(CSV, "14021");
+    expect(peopleInputs(s.values)).toEqual({ over64: 0.216, onePersonHouseholds: 95, households: 382, unemployment: 0.2009 });
+  });
+
+  it("a withheld figure leaves the input absent, not zero", () => {
+    const [withheld] = parseC2021Indicators(CSV, "04026");
+    expect(peopleInputs(withheld.values)).toBeNull();
+    const [s] = parseC2021Indicators(CSV, "14021");
+    expect(peopleInputs({ ...s.values, t10_1: null })).toBeNull();
+    expect(peopleInputs({ ...s.values, t21_1: 0 })).toBeNull();
+    expect(peopleInputs(null)).toBeNull();
   });
 });

@@ -131,4 +131,28 @@ export const H3_SCHEMA_SQL: readonly string[] = [
      letters                 jsonb NOT NULL,
      latest_date             date
    )`,
+
+  // 3.7 + 3.8: one row per index run (method and references, so a score can be
+  // recomputed by hand), and one row per scored building with its band.
+  `CREATE TABLE IF NOT EXISTS h3_index_runs (
+     id               text PRIMARY KEY,
+     ine_municipality text NOT NULL,
+     method           jsonb NOT NULL,
+     refs             jsonb NOT NULL,
+     scored           integer NOT NULL,
+     not_scored       jsonb NOT NULL,
+     computed_at      timestamptz NOT NULL DEFAULT now()
+   )`,
+  `CREATE TABLE IF NOT EXISTS h3_index (
+     ref           text PRIMARY KEY REFERENCES h3_buildings(ref) ON DELETE CASCADE,
+     run_id        text NOT NULL REFERENCES h3_index_runs(id),
+     index_low     numeric NOT NULL,
+     index_mid     numeric NOT NULL,
+     index_high    numeric NOT NULL,
+     rank_high     integer NOT NULL,
+     factors       jsonb NOT NULL,
+     completeness  jsonb NOT NULL,
+     CHECK (index_low <= index_mid AND index_mid <= index_high)
+   )`,
+  `CREATE INDEX IF NOT EXISTS h3_index_rank_idx ON h3_index (run_id, rank_high)`,
 ];

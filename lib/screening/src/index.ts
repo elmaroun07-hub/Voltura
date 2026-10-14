@@ -47,6 +47,7 @@ export {
   C2021_INDICATORS,
   CensusError,
   parseC2021Indicators,
+  peopleInputs,
   type C2021Indicator,
   type SectionIndicators,
 } from "./census/indicators";
@@ -67,3 +68,17 @@ export {
   type EpcRejection,
 } from "./epc/register";
 export { summariseBuilding, type BuildingEpcSummary } from "./epc/summary";
+export {
+  IndexInputError,
+  METHOD_V1,
+  ageBand,
+  computeReferences,
+  quantile,
+  scoreBuilding,
+  type AgeBand,
+  type BuildingInputs,
+  type IndexMethod,
+  type Range,
+  type References,
+  type Score,
+} from "./heat-index";
