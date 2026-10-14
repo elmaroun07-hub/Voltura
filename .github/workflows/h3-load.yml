@@ -1,0 +1,57 @@
+name: h3-load
+
+# H3 — load Córdoba's summer-heat screening into the database named by the
+# H3_LOAD_DATABASE_URL secret. Manual only; never runs on a push.
+#
+# Every source is downloaded fresh and checked against the sha256 in
+# data/sources/h3/; one mismatch and nothing is loaded. The secret is never
+# printed. Run it once per manifest change: it scores a new index run each time.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type LOAD-14021 to load Córdoba (INE 14021) into the database in the H3_LOAD_DATABASE_URL secret"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: h3-load
+  cancel-in-progress: false
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Confirm
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          HAS_URL: ${{ secrets.H3_LOAD_DATABASE_URL != '' }}
+        run: |
+          [ "$CONFIRM" = "LOAD-14021" ] || { echo "::error::confirm must be LOAD-14021"; exit 1; }
+          [ "$HAS_URL" = "true" ] || { echo "::error::secret H3_LOAD_DATABASE_URL is not set"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Fetch and check sources
+        run: bash scripts/h3-fetch-sources.sh "$RUNNER_TEMP/h3"
+      - name: Load, compute and score
+        env:
+          DATABASE_URL: ${{ secrets.H3_LOAD_DATABASE_URL }}
+          PGSSLMODE: require
+        run: |
+          W="$RUNNER_TEMP/h3"; S="$GITHUB_WORKSPACE/data/sources/h3"
+          pnpm --filter @workspace/scripts h3:ingest -- \
+            --manifest "$S/catastro-bu-14900.json" --dir "$W/cat" \
+            --dem-manifest "$S/ign-mdt25-cordoba.json" --dem "$W/dem/mdt25.asc" \
+            --census-manifest "$S/ine-censo2021.json" --secc-dir "$W/census/Seccionado_2021" --c2021 "$W/census/C2021_Indicadores.csv" \
+            --epc-manifest "$S/junta-epc-cordoba.json" --epc "$W/epc/CORDOBA.xml" \
+            --index
