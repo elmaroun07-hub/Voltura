@@ -57,3 +57,13 @@ export {
   type DbfField,
   type ShapeRecord,
 } from "./census/shapefile";
+export {
+  EpcParseError,
+  certificateBlocks,
+  parseCertificate,
+  type EpcCertificate,
+  type EpcLetter,
+  type EpcParsed,
+  type EpcRejection,
+} from "./epc/register";
+export { summariseBuilding, type BuildingEpcSummary } from "./epc/summary";

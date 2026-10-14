@@ -97,4 +97,38 @@ export const H3_SCHEMA_SQL: readonly string[] = [
      method   text NOT NULL,
      ties     integer NOT NULL
    )`,
+
+  // 3.6 (A26): certificates from the Junta's register that name a building of
+  // the municipality, keyed by their position in the source file; and each
+  // building's summary. No address column, by design.
+  `CREATE TABLE IF NOT EXISTS h3_epc_certificates (
+     source_id       text NOT NULL REFERENCES h3_sources(id),
+     ordinal         integer NOT NULL,
+     ref             text NOT NULL REFERENCES h3_buildings(ref) ON DELETE CASCADE,
+     unit_ref        text,
+     ref_form        text NOT NULL,
+     cert_date       date,
+     date_valid      boolean NOT NULL,
+     building_type   text,
+     scope           text,
+     procedure       text,
+     cooling_demand  numeric,
+     cooling_letter  text,
+     cooling_scale   jsonb,
+     PRIMARY KEY (source_id, ordinal)
+   )`,
+  `CREATE INDEX IF NOT EXISTS h3_epc_certificates_ref_idx ON h3_epc_certificates (ref)`,
+  `CREATE TABLE IF NOT EXISTS h3_building_epc (
+     ref                     text PRIMARY KEY REFERENCES h3_buildings(ref) ON DELETE CASCADE,
+     source_id               text NOT NULL REFERENCES h3_sources(id),
+     certificates            integer NOT NULL,
+     entries                 integer NOT NULL,
+     units_certified         integer NOT NULL,
+     entries_invalid_date    integer NOT NULL,
+     cooling_demand_median   numeric,
+     cooling_demand_min      numeric,
+     cooling_demand_max      numeric,
+     letters                 jsonb NOT NULL,
+     latest_date             date
+   )`,
 ];

@@ -17,6 +17,7 @@ import { computeClimate } from "./climate-db";
 import { parseAsciiGrid } from "../dem/ascii-grid";
 import { assignBuildingsToSections, loadCensusSections } from "./census-db";
 import { parseC2021Indicators } from "../census/indicators";
+import { loadEpcRegister } from "./epc-db";
 
 const url = process.env.H3_TEST_DATABASE_URL;
 if (!url) {
@@ -57,7 +58,7 @@ const pool = new pg.Pool({ connectionString: url });
 
 beforeAll(async () => {
   await pool.query(
-    "DROP TABLE IF EXISTS h3_building_section, h3_census_sections, h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources",
+    "DROP TABLE IF EXISTS h3_building_epc, h3_epc_certificates, h3_building_section, h3_census_sections, h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources",
   );
   await ensureH3Schema(pool);
 });
@@ -282,6 +283,36 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
       expect(row.cusec, row.ref).toBe(Number(row.x) < 342550 ? "1402101001" : "1402101002");
       expect(Number(row.over64)).toBe(row.cusec === "1402101001" ? 0.216 : 0.2287);
     }
+  });
+
+  it("H3.6 (A26) — certificates from the Junta's register attach to their buildings by cadastral reference", async () => {
+    await upsertSource(pool, { ...SOURCE, id: "test-epc", lastModified: null, sha256: "excerpt" });
+    const xml = () =>
+      createReadStream(fixture("../../epc/__fixtures__/cordoba-epc-excerpt.xml"), { encoding: "utf8", highWaterMark: 2048 }) as AsyncIterable<string>;
+    const stats = await loadEpcRegister(pool, "14021", xml(), "2026-08-28", "test-epc", 13);
+    expect(stats).toEqual({
+      certificatesInFile: 54,
+      matched: 51,
+      unmatchedBuilding: 2,
+      rejected: { "malformed-ref": 1, "unit-list-spans-parcels": 0 },
+      buildingsWithCertificate: 19,
+      buildingsInMunicipality: 20,
+    });
+    const again = await loadEpcRegister(pool, "14021", xml(), "2026-08-28", "test-epc");
+    expect(again.matched).toBe(51);
+    const n = await pool.query(`SELECT count(*)::int AS n FROM h3_epc_certificates`);
+    expect(n.rows[0].n).toBe(51);
+
+    const s = await pool.query(`SELECT * FROM h3_building_epc WHERE ref = '2642106UG4924S'`);
+    expect(Number(s.rows[0].cooling_demand_median)).toBeCloseTo(35.045, 6);
+    expect(s.rows[0].entries).toBe(2);
+    expect(s.rows[0].letters).toMatchObject({ G: 1, D: 1 });
+    const none = await pool.query(`SELECT count(*)::int AS n FROM h3_building_epc WHERE ref = '2642103UG4924S'`);
+    expect(none.rows[0].n).toBe(0);
+    const cols = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name IN ('h3_epc_certificates','h3_building_epc')`,
+    );
+    expect(cols.rows.map((r) => r.column_name)).not.toContain("direccion");
   });
 
   it("refuses a tolerance outside (0, 5) m", async () => {

@@ -7,7 +7,8 @@
  *     --dir /path/to/unzipped/A.ES.SDGC.BU.14900 \
  *     [--tolerance 0.2] \
  *     [--dem-manifest data/sources/h3/ign-mdt25-cordoba.json --dem /path/to/wcs-response.asc] \
- *     [--census-manifest data/sources/h3/ine-censo2021.json --secc-dir /path/to/Seccionado_2021 --c2021 /path/to/C2021_Indicadores.csv]
+ *     [--census-manifest data/sources/h3/ine-censo2021.json --secc-dir /path/to/Seccionado_2021 --c2021 /path/to/C2021_Indicadores.csv] \
+ *     [--epc-manifest data/sources/h3/junta-epc-cordoba.json --epc /path/to/CORDOBA.xml]
  *
  * Refuses to load a file whose sha256 differs from the manifest: every row
  * must trace to the exact file the manifest dates and hashes.
@@ -23,6 +24,7 @@ import {
   ensureH3Schema,
   ingestMunicipality,
   loadCensusSections,
+  loadEpcRegister,
   upsertSource,
 } from "@workspace/screening/db";
 import { extractAsciiGridPart, parseAsciiGrid, parseC2021Indicators, readPolygonShapefile } from "@workspace/screening";
@@ -126,6 +128,25 @@ async function main() {
       const assigned = await assignBuildingsToSections(pool, ine);
       console.log(`census ${JSON.stringify(loaded)} sections; buildings ${JSON.stringify({ assigned: assigned.assigned, unassigned: assigned.unassigned.length, ties: assigned.ties })} in ${((Date.now() - t3) / 1000).toFixed(1)} s`);
       if (assigned.unassigned.length > 0) console.log(`unassigned: ${assigned.unassigned.join(" ")}`);
+    }
+
+    const epcManifestPath = arg("epc-manifest");
+    if (epcManifestPath) {
+      const em = JSON.parse(readFileSync(epcManifestPath, "utf8"));
+      const xmlPath = required("epc");
+      const got = await sha256(xmlPath);
+      if (got !== em.xml.sha256) throw new Error(`${xmlPath}: sha256 ${got} ≠ manifest ${em.xml.sha256}. Refusing to load.`);
+      console.log(`ok  ${em.xml.name} sha256 ${got}`);
+      await upsertSource(pool, em.source);
+      const t4 = Date.now();
+      const e = await loadEpcRegister(
+        pool,
+        manifest.municipality.ine,
+        createReadStream(xmlPath, { encoding: "utf8" }) as AsyncIterable<string>,
+        em.xml.writtenOn,
+        em.source.id,
+      );
+      console.log(`epc ${JSON.stringify(e)} in ${((Date.now() - t4) / 1000).toFixed(1)} s`);
     }
   } finally {
     await pool.end();
