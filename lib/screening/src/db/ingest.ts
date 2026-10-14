@@ -73,6 +73,10 @@ interface PartSummary {
 export interface MunicipalityIngest {
   readonly ineMunicipality: string;
   readonly catastroMunicipality: string;
+  /** As the INE writes it, e.g. "Córdoba". */
+  readonly municipalityName: string;
+  /** climate-zones.json province key, e.g. "Córdoba". */
+  readonly province: string;
   readonly source: SourceRecord;
   readonly buildingGml: AsyncIterable<string>;
   readonly buildingPartGml: AsyncIterable<string>;
@@ -101,6 +105,11 @@ export async function ingestMunicipality(db: Db, job: MunicipalityIngest): Promi
   }
 
   await upsertSource(db, job.source);
+  await db.query(
+    `INSERT INTO h3_municipalities (ine, name, province, catastro) VALUES ($1,$2,$3,$4)
+     ON CONFLICT (ine) DO UPDATE SET name = EXCLUDED.name, province = EXCLUDED.province, catastro = EXCLUDED.catastro`,
+    [job.ineMunicipality, job.municipalityName, job.province, job.catastroMunicipality],
+  );
 
   const seen = new Set<string>();
   let withoutParts = 0;

@@ -30,6 +30,13 @@ export const H3_SCHEMA_SQL: readonly string[] = [
      licence       text NOT NULL
    )`,
 
+  `CREATE TABLE IF NOT EXISTS h3_municipalities (
+     ine       text PRIMARY KEY,
+     name      text NOT NULL,
+     province  text NOT NULL,
+     catastro  text NOT NULL
+   )`,
+
   `CREATE TABLE IF NOT EXISTS h3_buildings (
      ref                  text PRIMARY KEY,
      ine_municipality     text NOT NULL,

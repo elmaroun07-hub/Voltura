@@ -165,6 +165,9 @@ importers:
       '@workspace/i18n':
         specifier: workspace:*
         version: link:../../lib/i18n
+      '@workspace/screening':
+        specifier: workspace:*
+        version: link:../../lib/screening
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7

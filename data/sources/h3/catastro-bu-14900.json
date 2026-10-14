@@ -3,7 +3,7 @@
   "source": {
     "id": "catastro-bu-14900-2026-08-21",
     "publisher": "Dirección General del Catastro (Ministerio de Hacienda)",
-    "dataset": "INSPIRE Buildings (BU) — A.ES.SDGC.BU.14900, Buildings of 14900-CORDOBA",
+    "dataset": "INSPIRE Buildings (BU) — Buildings of 14900-CORDOBA (A.ES.SDGC.BU.14900)",
     "url": "https://www.catastro.hacienda.gob.es/INSPIRE/Buildings/14/14900-CORDOBA/A.ES.SDGC.BU.14900.zip",
     "lastModified": "2026-08-21T16:17:43Z",
     "sha256": "7124770efc5ad2220203fbc012eb73c99585380264ae63e3d7ee2a99d0d8ca53",
@@ -13,8 +13,16 @@
   "atomFeed": "https://www.catastro.hacienda.gob.es/INSPIRE/buildings/14/ES.SDGC.bu.atom_14.xml",
   "zipBytes": 25163963,
   "files": {
-    "building": { "name": "A.ES.SDGC.BU.14900.building.gml", "bytes": 184352236, "sha256": "3de31d14d5abf6b2d4cd46da34df71544e8910d3f225454d60977f5764898514" },
-    "buildingPart": { "name": "A.ES.SDGC.BU.14900.buildingpart.gml", "bytes": 389470058, "sha256": "a902f0c288fd8f11bde3e99c1890f615d5236c967f44c99d292d71bf60063330" }
+    "building": {
+      "name": "A.ES.SDGC.BU.14900.building.gml",
+      "bytes": 184352236,
+      "sha256": "3de31d14d5abf6b2d4cd46da34df71544e8910d3f225454d60977f5764898514"
+    },
+    "buildingPart": {
+      "name": "A.ES.SDGC.BU.14900.buildingpart.gml",
+      "bytes": 389470058,
+      "sha256": "a902f0c288fd8f11bde3e99c1890f615d5236c967f44c99d292d71bf60063330"
+    }
   },
   "municipality": {
     "name": "Córdoba",

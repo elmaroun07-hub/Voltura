@@ -19,6 +19,7 @@ import { assignBuildingsToSections, loadCensusSections } from "./census-db";
 import { parseC2021Indicators } from "../census/indicators";
 import { loadEpcRegister } from "./epc-db";
 import { computeIndex } from "./index-db";
+import { ScreeningNotLoaded, buildingTrace, exportRows, listBuildings, listMunicipalities, portfolioSummary } from "./portfolio";
 import { METHOD_V1 } from "../heat-index";
 
 const url = process.env.H3_TEST_DATABASE_URL;
@@ -60,7 +61,7 @@ const pool = new pg.Pool({ connectionString: url });
 
 beforeAll(async () => {
   await pool.query(
-    "DROP TABLE IF EXISTS h3_index, h3_index_runs, h3_building_epc, h3_epc_certificates, h3_building_section, h3_census_sections, h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources",
+    "DROP TABLE IF EXISTS h3_index, h3_index_runs, h3_municipalities, h3_building_epc, h3_epc_certificates, h3_building_section, h3_census_sections, h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources",
   );
   await ensureH3Schema(pool);
 });
@@ -72,6 +73,8 @@ const ingest = () =>
   ingestMunicipality(pool, {
     ineMunicipality: "14021",
     catastroMunicipality: "14900",
+    municipalityName: "Córdoba",
+    province: "Córdoba",
     source: SOURCE,
     buildingGml: stream("cordoba-26421.building.gml"),
     buildingPartGml: stream("cordoba-26421.buildingpart.gml"),
@@ -340,6 +343,58 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
     const r103 = rows.find((r) => r.ref === "2642103UG4924S");
     expect(r103.completeness).toMatchObject({ certificateCoverage: 0, coolingPrior: "pre-1980" });
     expect(Number(r103.index_high) - Number(r103.index_low)).toBeGreaterThan(0);
+  });
+
+  it("H3.9 — the portfolio reads: ranked list with filters, trace, aggregate, export", async () => {
+    const munis = await listMunicipalities(pool);
+    expect(munis).toEqual([expect.objectContaining({ ine: "14021", name: "Córdoba", province: "Córdoba", scored: 20, method: "h3-index-v1" })]);
+
+    const page1 = await listBuildings(pool, "14021", {}, { limit: 5, offset: 0 });
+    expect(page1.total).toBe(20);
+    expect(page1.rows.map((r) => r.rank)).toEqual([1, 2, 3, 4, 5]);
+    const page4 = await listBuildings(pool, "14021", {}, { limit: 5, offset: 15 });
+    expect(page4.rows.map((r) => r.rank)).toEqual([16, 17, 18, 19, 20]);
+
+    const without = await listBuildings(pool, "14021", { certificate: "without" }, { limit: 50, offset: 0 });
+    expect(without.rows.map((r) => r.ref)).toEqual(["2642103UG4924S"]);
+    const pre = await listBuildings(pool, "14021", { age: "pre-1980" }, { limit: 50, offset: 0 });
+    expect(pre.total).toBe(20); // the whole block is 1958–1967
+    const later = await listBuildings(pool, "14021", { age: "2007-on" }, { limit: 50, offset: 0 });
+    expect(later.total).toBe(0);
+    const d01 = await listBuildings(pool, "14021", { district: "01" }, { limit: 50, offset: 0 });
+    expect(d01.total).toBe(20); // both test sections are district 01
+
+    const t = await buildingTrace(pool, "14021", "2642106UG4924S");
+    expect(t).not.toBeNull();
+    expect(t!.row.zone).toBe("B4");
+    expect(t!.sources.map((s: { id: string }) => s.id)).toEqual(
+      expect.arrayContaining([SOURCE.id, "test-dem", "test-c2021", "test-secc", "test-epc"]),
+    );
+    expect(await buildingTrace(pool, "14021", "0000000XX0000X")).toBeNull();
+
+    const sum = await portfolioSummary(pool, "14021");
+    expect(sum.scored).toBe(20);
+    expect(sum.deciles).toHaveLength(10);
+    expect(sum.deciles.reduce((s, d) => s + d.buildings, 0)).toBe(20);
+    expect(sum.certified).toBe(19);
+    expect(sum.districts).toEqual(["01"]);
+
+    const ex = await exportRows(pool, "14021");
+    expect(ex.rows).toHaveLength(20);
+
+    await expect(listBuildings(pool, "41091", {}, { limit: 5, offset: 0 })).rejects.toBeInstanceOf(ScreeningNotLoaded);
+  });
+
+  it("H3.9 — a database without the h3_ tables answers 'not loaded', never an empty ranking", async () => {
+    await pool.query("CREATE SCHEMA IF NOT EXISTS h3_empty_test");
+    const empty = new pg.Pool({ connectionString: url, options: "-c search_path=h3_empty_test" });
+    try {
+      expect(await listMunicipalities(empty)).toEqual([]);
+      await expect(listBuildings(empty, "14021", {}, { limit: 5, offset: 0 })).rejects.toBeInstanceOf(ScreeningNotLoaded);
+      await expect(portfolioSummary(empty, "14021")).rejects.toBeInstanceOf(ScreeningNotLoaded);
+    } finally {
+      await empty.end();
+    }
   });
 
   it("refuses a tolerance outside (0, 5) m", async () => {

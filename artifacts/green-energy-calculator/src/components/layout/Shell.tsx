@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Leaf, History, Calculator, Zap, MessageSquare } from "lucide-react";
+import { Leaf, History, Calculator, Zap, MessageSquare, Thermometer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n, type Locale } from "@/i18n";
 import { LOCALES } from "@workspace/i18n";
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/history", label: "nav.history", icon: History },
   { href: "/optimizer", label: "nav.optimizer", icon: Zap },
   { href: "/assistant", label: "nav.assistant", icon: MessageSquare },
+  { href: "/cribado", label: "nav.screening", icon: Thermometer },
 ] as const;
 
 const CODE = { es: "lang.code.es", en: "lang.code.en" } as const satisfies Record<Locale, string>;
@@ -36,7 +37,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
         <nav className="p-4 space-y-2">
           {NAV_ITEMS.map((item) => {
-            const isActive = location === item.href;
+            // A section's detail pages (/cribado/:ine/:ref) keep its entry lit.
+            const isActive = location === item.href || (item.href !== "/" && location.startsWith(`${item.href}/`));
             return (
               <Link key={item.href} href={item.href} className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200",

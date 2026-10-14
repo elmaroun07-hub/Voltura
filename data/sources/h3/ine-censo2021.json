@@ -4,7 +4,7 @@
     "source": {
       "id": "ine-seccionado-2021-20210101",
       "publisher": "Instituto Nacional de Estadística (INE)",
-      "dataset": "Cartografía digitalizada de secciones censales — Seccionado_2021/SECC_CE_20210101 (ETRS89 / UTM 30N), from Cartografia_secc.zip",
+      "dataset": "Cartografía digitalizada de secciones censales — Seccionado_2021 (SECC_CE_20210101)",
       "url": "https://www.ine.es/censos2021/Cartografia_secc.zip",
       "lastModified": "2026-05-14T11:04:50Z",
       "sha256": "03e1b38b8ad6c48157783b34a7d7a52ae1af1ee25c6b7e95e1c9dbfffbac1bcd",
@@ -12,22 +12,31 @@
       "licence": "INE: reuse permitted with attribution (Instituto Nacional de Estadística), per the INE's general reuse terms."
     },
     "files": {
-      "shp": { "name": "SECC_CE_20210101.shp", "sha256": "adcce00adf7cc08d93e6a38a644735dd011c4077cd762f6827c020d04fe44029" },
-      "dbf": { "name": "SECC_CE_20210101.dbf", "sha256": "bedaf659e9a25e3b1b7b3fc9eaf4f538a9a18e647c6f6d733da292a2026220f3", "encoding": "utf8" },
+      "shp": {
+        "name": "SECC_CE_20210101.shp",
+        "sha256": "adcce00adf7cc08d93e6a38a644735dd011c4077cd762f6827c020d04fe44029"
+      },
+      "dbf": {
+        "name": "SECC_CE_20210101.dbf",
+        "sha256": "bedaf659e9a25e3b1b7b3fc9eaf4f538a9a18e647c6f6d733da292a2026220f3",
+        "encoding": "utf8"
+      },
       "prj": "ETRS_1989_UTM_Zone_30N"
-    }
+    },
+    "note": "Read from Cartografia_secc.zip; ETRS89 / UTM 30N per the .prj."
   },
   "indicators": {
     "source": {
       "id": "ine-c2021-indicadores-seccion-2023-06-30",
       "publisher": "Instituto Nacional de Estadística (INE)",
-      "dataset": "Censo de Población y Viviendas 2021 — indicadores por sección censal (C2021_Indicadores.csv); the INE marks them provisional",
+      "dataset": "Censo de Población y Viviendas 2021 — indicadores por sección censal (C2021_Indicadores.csv)",
       "url": "https://www.ine.es/censos2021/C2021_Indicadores.csv",
       "lastModified": "2023-06-30T08:59:23Z",
       "sha256": "f1749637f2b14da34b80f845accd5d13468905e7bddc166aaf333855524391d8",
       "retrievedAt": "2026-10-14T01:20:00Z",
       "licence": "INE: reuse permitted with attribution (Instituto Nacional de Estadística), per the INE's general reuse terms."
     },
-    "definitions": "https://www.ine.es/censos2021/indicadores_seccen_c2021.xlsx (sha256 9b9905d8a2a914d41b6a51c3ee990d900edc0349584b13d71e94f0d8aeba4e92)"
+    "definitions": "https://www.ine.es/censos2021/indicadores_seccen_c2021.xlsx (sha256 9b9905d8a2a914d41b6a51c3ee990d900edc0349584b13d71e94f0d8aeba4e92)",
+    "note": "The INE's page marks these indicators provisional."
   }
 }

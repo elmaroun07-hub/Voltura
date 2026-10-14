@@ -21,3 +21,18 @@ export {
 } from "./census-db";
 export { loadEpcRegister, type EpcLoadStats } from "./epc-db";
 export { computeIndex, type IndexRunStats } from "./index-db";
+export {
+  AGE_FILTERS,
+  ScreeningNotLoaded,
+  buildingTrace,
+  exportRows,
+  listBuildings,
+  listMunicipalities,
+  portfolioSummary,
+  type AgeFilter,
+  type BandValue,
+  type ListFilters,
+  type Municipality,
+  type PortfolioRow,
+  type PortfolioSummary,
+} from "./portfolio";

@@ -74,6 +74,8 @@ async function main() {
     const stats = await ingestMunicipality(pool, {
       ineMunicipality: manifest.municipality.ine,
       catastroMunicipality: manifest.municipality.catastro,
+      municipalityName: manifest.municipality.name,
+      province: manifest.municipality.province,
       source: manifest.source,
       buildingGml: createReadStream(paths.building, { encoding: "latin1" }) as AsyncIterable<string>,
       buildingPartGml: createReadStream(paths.buildingPart, { encoding: "latin1" }) as AsyncIterable<string>,
