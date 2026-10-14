@@ -130,3 +130,43 @@ jobs:
 
       - name: Build web
         run: pnpm --filter @workspace/green-energy-calculator build
+
+  # H3 — the screening layer's PostGIS suite (ingest + façades against the
+  # shapely oracle). It needs a database, so it cannot live in `pnpm -r test`.
+  # The image matches production's extension: voltura-db is Postgres 18 with
+  # PostGIS 3.6.2 available (pg_available_extensions, read 14 Oct 2026).
+  # The suite FAILS if H3_TEST_DATABASE_URL is missing — a skipped
+  # integration suite reads as green and proves nothing.
+  screening-postgis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgis:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: voltura
+          POSTGRES_PASSWORD: voltura
+          POSTGRES_DB: h3test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voltura -d h3test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: H3 PostGIS integration
+        env:
+          H3_TEST_DATABASE_URL: postgres://voltura:voltura@localhost:5432/h3test
+        run: pnpm --filter @workspace/screening test:integration

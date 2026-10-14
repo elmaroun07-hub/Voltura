@@ -674,3 +674,28 @@ switches the Assistant's.
 
 The English prompt is changed by one guideline line ("Always answer in English."). That
 changes what H-ASST-ACC2's pending L2 measures; its L2 is owed in both languages now.
+
+## A26 · 2026-10-14 — 3.6: certificates from the Junta's register, not the IECA grid
+
+**Operator ruling, 14 Oct 2026 01:32 ("a go ahead"), on REFUSAL — H3.6** (`contracts/rulings/h3.md`):
+option **A**. 3.6 now reads:
+
+| # | Task |
+|---|---|
+| 3.6 | Ingest the Junta de Andalucía's Registro de certificados energéticos de Andalucía (open data, CC BY 4.0) for the municipality's province; join each certificate to its building by the first 14 characters of the referencia catastral; keep the cooling demand (kWh/m²·year), its letter and the scale it was read against. This is the EPC input: present where a certificate exists, absent elsewhere. |
+
+Why: IECA's 250 m building grid carries Catastro-derived age, height, use and construction
+category — no energy-certificate variable. The register carries the certificates.
+
+Recorded, not hidden:
+- Coverage is partial by nature: only units sold, rented or built since the certificate
+  decrees have one. Córdoba: 12,223 of 37,850 buildings (32.3 %).
+- The cooling demand is the certification software's modelled figure, not a meter reading.
+- Certificates whose reference is malformed (719) or lists units of two parcels (263) are
+  counted and not repaired.
+- The address field is never read into H3.
+- The register's own CKAN file host is unreachable from both sandboxes; the same file is
+  served under www.juntadeandalucia.es (manifest `data/sources/h3/junta-epc-cordoba.json`).
+- What is NOT taken from the register in H3, though it is there: glazed-area percentages by
+  orientation. The block's constraint lists glazed area as available from no public register;
+  it is in this one, for certified units only. Left for H4, where glazing belongs.

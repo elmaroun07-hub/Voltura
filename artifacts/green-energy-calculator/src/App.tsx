@@ -8,6 +8,8 @@ import Home from "@/pages/Home";
 import History from "@/pages/History";
 import Optimizer from "@/pages/Optimizer";
 import Assistant from "@/pages/Assistant";
+import Screening from "@/pages/Screening";
+import ScreeningBuilding from "@/pages/ScreeningBuilding";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/history" component={History} />
       <Route path="/optimizer" component={Optimizer} />
       <Route path="/assistant" component={Assistant} />
+      <Route path="/cribado" component={Screening} />
+      <Route path="/cribado/:ine/:ref" component={ScreeningBuilding} />
       <Route component={NotFound} />
     </Switch>
   );

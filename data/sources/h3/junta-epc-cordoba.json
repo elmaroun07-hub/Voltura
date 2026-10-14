@@ -1,0 +1,21 @@
+{
+  "_what": "H3.6 (A26) source manifest: the Junta de Andalucía's register of energy certificates, Córdoba province. The pipeline refuses an XML whose sha256 differs.",
+  "source": {
+    "id": "junta-epc-cordoba-2026-09-01",
+    "publisher": "Junta de Andalucía — Consejería competente en energía (portal de datos abiertos)",
+    "dataset": "Registro de certificados energéticos de Andalucía — Córdoba.xml.7z (CORDOBA/CORDOBA.xml)",
+    "url": "https://www.juntadeandalucia.es/datosabiertos/portal/dataset/cb915b9d-f849-421e-99e3-61acec4aaff8/resource/55119bd5-387f-451e-a9aa-5ff3a24b917f/download/cordoba.7z",
+    "lastModified": "2026-09-01T10:51:17Z",
+    "sha256": "b781043e03a80ea1af8eae3fab9e48229abfd5ca0473d8440ec1486b9e2a503f",
+    "retrievedAt": "2026-10-14T01:33:00Z",
+    "licence": "CC BY 4.0 (Reconocimiento 4.0 Internacional), per the dataset page. Attribution: Junta de Andalucía."
+  },
+  "datasetPage": "https://www.juntadeandalucia.es/datosabiertos/portal/dataset/registro-de-certificados-energeticos-de-andalucia",
+  "note": "The CKAN storage host (gdc-pdpopendata-ckan.paas.junta-andalucia.es) was unreachable from both the cloud workspace and the linked computer's sandbox; the same file is served at the www.juntadeandalucia.es URL above. Archive bytes 14,634,696.",
+  "xml": {
+    "name": "CORDOBA.xml",
+    "bytes": 630226488,
+    "sha256": "47cf38b01a1d792b8b41bbf30149e9e3da41e84d9eb2a12191ec53f87c6b4ebc",
+    "writtenOn": "2026-08-28"
+  }
+}

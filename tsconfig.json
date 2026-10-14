@@ -17,6 +17,9 @@
     },
     {
       "path": "./lib/i18n"
+    },
+    {
+      "path": "./lib/screening"
     }
   ]
 }

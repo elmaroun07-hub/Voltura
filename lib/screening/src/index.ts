@@ -1,0 +1,84 @@
+/**
+ * @workspace/screening — HeatShield Layer 1 (H3): a portfolio-scale summer-heat
+ * screening index built only from data obtainable without entering a building.
+ *
+ * P7: what this package produces is a screening index with an uncertainty
+ * band. It is never a grade, a rating or a compliance result.
+ */
+export {
+  CatastroParseError,
+  SUPPORTED_EPSG,
+  featureBlocks,
+  parseBuildingFeature,
+  parseBuildingPartFeature,
+  type CatastroBuilding,
+  type CatastroBuildingPart,
+  type Polygon,
+  type Position,
+  type Ring,
+  type SupportedEpsg,
+} from "./catastro/gml";
+export {
+  CTE_ORIENTATIONS,
+  FacadeGeometryError,
+  exposedTotalM,
+  facadeProfile,
+  outwardNormalDeg,
+  type FacadeProfile,
+  type FacadeSegment,
+  type MetresByOrientation,
+  type Orientation,
+} from "./orientation";
+export {
+  ClimateLookupError,
+  julyExposure,
+  zoneFor,
+  type BuildingZone,
+  type JulyExposure,
+} from "./climate";
+export {
+  DemError,
+  extractAsciiGridPart,
+  parseAsciiGrid,
+  sampleCell,
+  type AsciiGrid,
+} from "./dem/ascii-grid";
+export {
+  C2021_INDICATORS,
+  CensusError,
+  parseC2021Indicators,
+  peopleInputs,
+  type C2021Indicator,
+  type SectionIndicators,
+} from "./census/indicators";
+export {
+  ShapefileError,
+  readDbfHeader,
+  readPolygonShapefile,
+  type DbfField,
+  type ShapeRecord,
+} from "./census/shapefile";
+export {
+  EpcParseError,
+  certificateBlocks,
+  parseCertificate,
+  type EpcCertificate,
+  type EpcLetter,
+  type EpcParsed,
+  type EpcRejection,
+} from "./epc/register";
+export { summariseBuilding, type BuildingEpcSummary } from "./epc/summary";
+export {
+  IndexInputError,
+  METHOD_V1,
+  ageBand,
+  computeReferences,
+  quantile,
+  scoreBuilding,
+  type AgeBand,
+  type BuildingInputs,
+  type IndexMethod,
+  type Range,
+  type References,
+  type Score,
+} from "./heat-index";

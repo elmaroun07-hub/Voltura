@@ -4,6 +4,8 @@ import { storage } from "../storage";
 import { api, monthlyEntrySchema } from "../shared-routes";
 import { z } from "zod/v4";
 import { registerChatRoutes } from "../replit_integrations/chat";
+import { pool } from "../db";
+import { createScreeningRouter } from "./screening";
 import { getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
 import rateLimit from "express-rate-limit";
@@ -811,6 +813,9 @@ const optimizeLimiter = rateLimit({
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerChatRoutes(app);
+
+  // H3.9 — the screening portfolio (read-only; see routes/screening.ts).
+  app.use(createScreeningRouter(pool));
 
   // Enhanced PDF report
   //
