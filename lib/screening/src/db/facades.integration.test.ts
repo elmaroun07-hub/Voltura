@@ -15,6 +15,8 @@ import { CTE_ORIENTATIONS } from "../orientation";
 import { computeFacades, ensureH3Schema, ingestMunicipality, upsertSource, type SourceRecord } from "./ingest";
 import { computeClimate } from "./climate-db";
 import { parseAsciiGrid } from "../dem/ascii-grid";
+import { assignBuildingsToSections, loadCensusSections } from "./census-db";
+import { parseC2021Indicators } from "../census/indicators";
 
 const url = process.env.H3_TEST_DATABASE_URL;
 if (!url) {
@@ -54,7 +56,9 @@ const ORACLE: Record<string, OracleBuilding> = JSON.parse(
 const pool = new pg.Pool({ connectionString: url });
 
 beforeAll(async () => {
-  await pool.query("DROP TABLE IF EXISTS h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources");
+  await pool.query(
+    "DROP TABLE IF EXISTS h3_building_section, h3_census_sections, h3_building_climate, h3_facades_inferred, h3_buildings, h3_sources",
+  );
   await ensureH3Schema(pool);
 });
 afterAll(async () => {
@@ -237,6 +241,47 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
   it("H3.3 refuses a building outside the terrain grid instead of guessing its altitude", async () => {
     const tiny = parseAsciiGrid(["ncols 1", "nrows 1", "xllcorner 0", "yllcorner 0", "cellsize 25", "100"].join("\n"));
     await expect(computeClimate(pool, "14021", "Córdoba", tiny, "test-dem")).rejects.toThrow(/outside the grid/);
+  });
+
+  it("H3.5 — each building lands in the census section that contains it; holes are honoured", async () => {
+    await upsertSource(pool, { ...SOURCE, id: "test-secc", lastModified: null, sha256: "synthetic" });
+    await upsertSource(pool, { ...SOURCE, id: "test-c2021", lastModified: null, sha256: "excerpt" });
+    const indicators = parseC2021Indicators(
+      readFileSync(fixture("../../census/__fixtures__/c2021-indicadores-excerpt.csv"), "utf8"),
+      "14021",
+    );
+    const p = await pool.query(
+      `SELECT ST_X(ST_PointOnSurface(footprint)) AS x, ST_Y(ST_PointOnSurface(footprint)) AS y
+         FROM h3_buildings WHERE ref = '2642106UG4924S'`,
+    );
+    const [hx, hy] = [Number(p.rows[0].x), Number(p.rows[0].y)];
+    const sq = (x: number, y: number, w: number, h: number): [number, number][] =>
+      [[x, y], [x, y + h], [x + w, y + h], [x + w, y], [x, y]];
+    // West section 001 (x < 342550) with a 2 m hole around 2642106's point; east section 002.
+    const shapes = [
+      { attributes: { CUSEC: "1402101001", CUMUN: "14021" }, rings: [sq(342400, 4193900, 150, 200), sq(hx - 1, hy - 1, 2, 2)] },
+      { attributes: { CUSEC: "1402101002", CUMUN: "14021" }, rings: [sq(342550, 4193900, 150, 200)] },
+    ];
+    const loaded = await loadCensusSections(pool, "14021", shapes, indicators, "test-secc", "test-c2021");
+    expect(loaded).toEqual({ sections: 2, withIndicators: 2, boundariesWithoutIndicators: [], indicatorsWithoutBoundary: [] });
+
+    const withHole = await assignBuildingsToSections(pool, "14021");
+    expect(hx).toBeLessThan(342550);
+    expect(withHole.unassigned).toEqual(["2642106UG4924S"]);
+    expect(withHole.assigned).toBe(19);
+
+    await loadCensusSections(pool, "14021", [{ ...shapes[0], rings: [shapes[0].rings[0]] }, shapes[1]], indicators, "test-secc", "test-c2021");
+    const full = await assignBuildingsToSections(pool, "14021");
+    expect(full).toEqual({ assigned: 20, unassigned: [], ties: 0 });
+
+    const r = await pool.query(
+      `SELECT bs.ref, bs.cusec, ST_X(ST_PointOnSurface(b.footprint)) AS x, (s.indicators->>'t4_3')::numeric AS over64
+         FROM h3_building_section bs JOIN h3_buildings b USING (ref) JOIN h3_census_sections s USING (cusec)`,
+    );
+    for (const row of r.rows) {
+      expect(row.cusec, row.ref).toBe(Number(row.x) < 342550 ? "1402101001" : "1402101002");
+      expect(Number(row.over64)).toBe(row.cusec === "1402101001" ? 0.216 : 0.2287);
+    }
   });
 
   it("refuses a tolerance outside (0, 5) m", async () => {

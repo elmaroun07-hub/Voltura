@@ -6,7 +6,8 @@
  *     --manifest data/sources/h3/catastro-bu-14900.json \
  *     --dir /path/to/unzipped/A.ES.SDGC.BU.14900 \
  *     [--tolerance 0.2] \
- *     [--dem-manifest data/sources/h3/ign-mdt25-cordoba.json --dem /path/to/wcs-response.asc]
+ *     [--dem-manifest data/sources/h3/ign-mdt25-cordoba.json --dem /path/to/wcs-response.asc] \
+ *     [--census-manifest data/sources/h3/ine-censo2021.json --secc-dir /path/to/Seccionado_2021 --c2021 /path/to/C2021_Indicadores.csv]
  *
  * Refuses to load a file whose sha256 differs from the manifest: every row
  * must trace to the exact file the manifest dates and hashes.
@@ -15,8 +16,16 @@ import { createHash } from "node:crypto";
 import { createReadStream, readFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
-import { computeClimate, computeFacades, ensureH3Schema, ingestMunicipality, upsertSource } from "@workspace/screening/db";
-import { extractAsciiGridPart, parseAsciiGrid } from "@workspace/screening";
+import {
+  assignBuildingsToSections,
+  computeClimate,
+  computeFacades,
+  ensureH3Schema,
+  ingestMunicipality,
+  loadCensusSections,
+  upsertSource,
+} from "@workspace/screening/db";
+import { extractAsciiGridPart, parseAsciiGrid, parseC2021Indicators, readPolygonShapefile } from "@workspace/screening";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -87,6 +96,36 @@ async function main() {
       const t2 = Date.now();
       const c = await computeClimate(pool, manifest.municipality.ine, manifest.municipality.province, grid, demManifest.source.id);
       console.log(`climate ${JSON.stringify(c)} in ${((Date.now() - t2) / 1000).toFixed(1)} s`);
+    }
+
+    const censusManifestPath = arg("census-manifest");
+    if (censusManifestPath) {
+      const cm = JSON.parse(readFileSync(censusManifestPath, "utf8"));
+      const seccDir = required("secc-dir");
+      const csvPath = required("c2021");
+      const shpPath = join(seccDir, cm.boundaries.files.shp.name);
+      const dbfPath = join(seccDir, cm.boundaries.files.dbf.name);
+      for (const [p, want] of [
+        [shpPath, cm.boundaries.files.shp.sha256],
+        [dbfPath, cm.boundaries.files.dbf.sha256],
+        [csvPath, cm.indicators.source.sha256],
+      ] as const) {
+        const got = await sha256(p);
+        if (got !== want) throw new Error(`${p}: sha256 ${got} ≠ manifest ${want}. Refusing to load.`);
+        console.log(`ok  ${p.split("/").pop()} sha256 ${got}`);
+      }
+      const prj = readFileSync(shpPath.replace(/\.shp$/, ".prj"), "utf8");
+      if (!prj.includes(cm.boundaries.files.prj)) throw new Error(`section boundaries are not in ${cm.boundaries.files.prj}`);
+      const ine = manifest.municipality.ine;
+      const shapes = readPolygonShapefile(readFileSync(shpPath), readFileSync(dbfPath), (a) => a.CUMUN === ine, cm.boundaries.files.dbf.encoding);
+      const indicators = parseC2021Indicators(readFileSync(csvPath, "utf8"), ine);
+      await upsertSource(pool, cm.boundaries.source);
+      await upsertSource(pool, cm.indicators.source);
+      const t3 = Date.now();
+      const loaded = await loadCensusSections(pool, ine, shapes, indicators, cm.boundaries.source.id, cm.indicators.source.id);
+      const assigned = await assignBuildingsToSections(pool, ine);
+      console.log(`census ${JSON.stringify(loaded)} sections; buildings ${JSON.stringify({ assigned: assigned.assigned, unassigned: assigned.unassigned.length, ties: assigned.ties })} in ${((Date.now() - t3) / 1000).toFixed(1)} s`);
+      if (assigned.unassigned.length > 0) console.log(`unassigned: ${assigned.unassigned.join(" ")}`);
     }
   } finally {
     await pool.end();

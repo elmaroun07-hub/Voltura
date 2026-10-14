@@ -43,3 +43,17 @@ export {
   sampleCell,
   type AsciiGrid,
 } from "./dem/ascii-grid";
+export {
+  C2021_INDICATORS,
+  CensusError,
+  parseC2021Indicators,
+  type C2021Indicator,
+  type SectionIndicators,
+} from "./census/indicators";
+export {
+  ShapefileError,
+  readDbfHeader,
+  readPolygonShapefile,
+  type DbfField,
+  type ShapeRecord,
+} from "./census/shapefile";

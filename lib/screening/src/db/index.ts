@@ -12,3 +12,10 @@ export {
   computeFacades,
 } from "./ingest";
 export { ALTITUDE_BASIS, IRRADIATION_SOURCE, computeClimate, type ClimateRunStats } from "./climate-db";
+export {
+  SECTION_METHOD,
+  assignBuildingsToSections,
+  loadCensusSections,
+  type CensusLoadStats,
+  type SectionAssignStats,
+} from "./census-db";

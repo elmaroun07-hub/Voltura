@@ -78,4 +78,23 @@ export const H3_SCHEMA_SQL: readonly string[] = [
      irradiation_source         text NOT NULL,
      computed_at                timestamptz NOT NULL DEFAULT now()
    )`,
+
+  // 3.5: INE census sections (boundaries 1 Jan 2021) with the Censo 2021
+  // indicators exactly as published, keyed by INE's own codes.
+  `CREATE TABLE IF NOT EXISTS h3_census_sections (
+     cusec                 text PRIMARY KEY,
+     ine_municipality      text NOT NULL,
+     boundary              geometry(MultiPolygon, 25830) NOT NULL,
+     boundary_source_id    text NOT NULL REFERENCES h3_sources(id),
+     indicators            jsonb,
+     indicators_source_id  text REFERENCES h3_sources(id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS h3_census_sections_boundary_gix ON h3_census_sections USING gist (boundary)`,
+
+  `CREATE TABLE IF NOT EXISTS h3_building_section (
+     ref      text PRIMARY KEY REFERENCES h3_buildings(ref) ON DELETE CASCADE,
+     cusec    text NOT NULL REFERENCES h3_census_sections(cusec),
+     method   text NOT NULL,
+     ties     integer NOT NULL
+   )`,
 ];
