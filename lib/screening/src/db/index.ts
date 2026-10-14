@@ -11,3 +11,4 @@ export {
   ingestMunicipality,
   computeFacades,
 } from "./ingest";
+export { ALTITUDE_BASIS, IRRADIATION_SOURCE, computeClimate, type ClimateRunStats } from "./climate-db";

@@ -26,7 +26,8 @@ export interface SourceRecord {
   readonly publisher: string;
   readonly dataset: string;
   readonly url: string;
-  readonly lastModified: string;
+  /** null when the publisher sends no Last-Modified (the IGN WCS). */
+  readonly lastModified: string | null;
   readonly sha256: string;
   readonly retrievedAt: string;
   readonly licence: string;

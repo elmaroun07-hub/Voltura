@@ -1,0 +1,16 @@
+{
+  "_what": "H3.3 source manifest: terrain altitude for Córdoba's buildings. The pipeline refuses a response whose sha256 differs from this one.",
+  "source": {
+    "id": "ign-mdt25-wcs-cordoba-2026-10-14",
+    "publisher": "Instituto Geográfico Nacional (CNIG / SCNE)",
+    "dataset": "Modelos Digitales del Terreno de España — INSPIRE WCS coverage Elevacion25830_25 (25 m, ETRS89 / UTM 30N), ESRI ASCII grid",
+    "url": "https://servicios.idee.es/wcs-inspire/mdt?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=Elevacion25830_25&SUBSET=x(325225,380450)&SUBSET=y(4170775,4209975)&FORMAT=application/asc",
+    "lastModified": null,
+    "sha256": "3bd7586a76699fa5b3c6ecca96a6972d8840a1d94a02367074350e4fdbe57941",
+    "retrievedAt": "2026-10-14T01:10:24Z",
+    "licence": "CC BY 4.0 (scne.es), per the service's GetCapabilities AccessConstraints; Fees: 'No se aplican condiciones'. Attribution: Instituto Geográfico Nacional."
+  },
+  "note": "The WCS sends no Last-Modified; the response is identified by its retrieval time and sha256. Bounding box = extent of Córdoba's 37,850 Catastro footprints plus 250 m, snapped to the 25 m grid. Grid: 2209 × 1568 cells, 25 m, lower-left (325225, 4170775); values 68–690 m, no nodata cells.",
+  "bytes": 27595363,
+  "province": "Córdoba"
+}

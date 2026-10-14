@@ -24,7 +24,7 @@ export const H3_SCHEMA_SQL: readonly string[] = [
      publisher     text NOT NULL,
      dataset       text NOT NULL,
      url           text NOT NULL,
-     last_modified timestamptz NOT NULL,
+     last_modified timestamptz,          -- NULL when the publisher sends none (WCS)
      sha256        text NOT NULL,
      retrieved_at  timestamptz NOT NULL,
      licence       text NOT NULL
@@ -60,5 +60,22 @@ export const H3_SCHEMA_SQL: readonly string[] = [
      party_wall_m   numeric NOT NULL,
      exposed_m      jsonb NOT NULL,
      computed_at    timestamptz NOT NULL DEFAULT now()
+   )`,
+
+  // 3.3 + 3.4: altitude, CTE zone, and July irradiation on the exposed façades.
+  `CREATE TABLE IF NOT EXISTS h3_building_climate (
+     ref                        text PRIMARY KEY REFERENCES h3_buildings(ref) ON DELETE CASCADE,
+     dem_source_id              text NOT NULL REFERENCES h3_sources(id),
+     altitude_m                 numeric NOT NULL,
+     altitude_basis             text NOT NULL,
+     province                   text NOT NULL,
+     zone                       text NOT NULL,
+     summer                     integer NOT NULL,
+     july_street_kwh_per_m      numeric NOT NULL,
+     july_street_mean_kwh_m2    numeric,
+     july_courtyard_kwh_per_m   numeric NOT NULL,
+     july_roof_kwh_m2           numeric NOT NULL,
+     irradiation_source         text NOT NULL,
+     computed_at                timestamptz NOT NULL DEFAULT now()
    )`,
 ];

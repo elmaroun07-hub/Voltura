@@ -29,3 +29,17 @@ export {
   type MetresByOrientation,
   type Orientation,
 } from "./orientation";
+export {
+  ClimateLookupError,
+  julyExposure,
+  zoneFor,
+  type BuildingZone,
+  type JulyExposure,
+} from "./climate";
+export {
+  DemError,
+  extractAsciiGridPart,
+  parseAsciiGrid,
+  sampleCell,
+  type AsciiGrid,
+} from "./dem/ascii-grid";

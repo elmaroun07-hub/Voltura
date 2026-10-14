@@ -5,7 +5,8 @@
  *   DATABASE_URL=… pnpm --filter @workspace/scripts h3:ingest -- \
  *     --manifest data/sources/h3/catastro-bu-14900.json \
  *     --dir /path/to/unzipped/A.ES.SDGC.BU.14900 \
- *     [--tolerance 0.2]
+ *     [--tolerance 0.2] \
+ *     [--dem-manifest data/sources/h3/ign-mdt25-cordoba.json --dem /path/to/wcs-response.asc]
  *
  * Refuses to load a file whose sha256 differs from the manifest: every row
  * must trace to the exact file the manifest dates and hashes.
@@ -14,7 +15,8 @@ import { createHash } from "node:crypto";
 import { createReadStream, readFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
-import { computeFacades, ensureH3Schema, ingestMunicipality } from "@workspace/screening/db";
+import { computeClimate, computeFacades, ensureH3Schema, ingestMunicipality, upsertSource } from "@workspace/screening/db";
+import { extractAsciiGridPart, parseAsciiGrid } from "@workspace/screening";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -67,6 +69,25 @@ async function main() {
     const t1 = Date.now();
     const f = await computeFacades(pool, manifest.municipality.ine, tolerance);
     console.log(`facades ${JSON.stringify(f)} tolerance ${tolerance} m in ${((Date.now() - t1) / 1000).toFixed(1)} s`);
+
+    const demManifestPath = arg("dem-manifest");
+    if (demManifestPath) {
+      const demManifest = JSON.parse(readFileSync(demManifestPath, "utf8"));
+      const demPath = required("dem");
+      const got = await sha256(demPath);
+      if (got !== demManifest.source.sha256) {
+        throw new Error(`${demPath}: sha256 ${got} ≠ manifest ${demManifest.source.sha256}. Refusing to load.`);
+      }
+      console.log(`ok  dem sha256 ${got}`);
+      if (demManifest.province !== manifest.municipality.province) {
+        throw new Error(`DEM manifest is for ${demManifest.province}, buildings for ${manifest.municipality.province}`);
+      }
+      const grid = parseAsciiGrid(extractAsciiGridPart(readFileSync(demPath, "latin1")));
+      await upsertSource(pool, demManifest.source);
+      const t2 = Date.now();
+      const c = await computeClimate(pool, manifest.municipality.ine, manifest.municipality.province, grid, demManifest.source.id);
+      console.log(`climate ${JSON.stringify(c)} in ${((Date.now() - t2) / 1000).toFixed(1)} s`);
+    }
   } finally {
     await pool.end();
   }
