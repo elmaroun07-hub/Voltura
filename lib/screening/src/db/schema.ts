@@ -11,7 +11,7 @@
  * Coordinates are stored in the CRS the Catastro publishes (ETRS89 / UTM 30N,
  * EPSG:25830, for Córdoba). Lengths and azimuths are computed in that CRS;
  * UTM is conformal, so a façade's bearing is preserved to within the grid
- * convergence (≈1.4° at Córdoba, recorded in the methodology, not corrected).
+ * convergence (≈1.1° at Córdoba city: (λ − λ₀)·sin φ with λ₀ = −3°; recorded in the methodology, not corrected).
  */
 
 export const H3_SCHEMA_SQL: readonly string[] = [
