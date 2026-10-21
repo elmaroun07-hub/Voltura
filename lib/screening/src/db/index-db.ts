@@ -7,7 +7,7 @@
 import type { Client, Pool, PoolClient } from "pg";
 import { peopleInputs } from "../census/indicators";
 import { entriesOf } from "../epc/summary";
-import { METHOD_V2, IndexInputError, computeReferences, scoreBuilding, type BuildingInputs, type IndexMethod } from "../heat-index";
+import { METHOD_V2, IndexInputError, computeReferences, scoreBuilding, type BuildingInputs, type IndexMethod, type References } from "../heat-index";
 
 type Db = Pool | PoolClient | Client;
 
@@ -22,6 +22,8 @@ export interface IndexRunStats {
   readonly withoutCensusInput: number;
   readonly coolingCap: number;
   readonly cappedBuildings: number;
+  /** v2: k, EPV, VHM, buildings and entries per band (also in the run's refs); null under v1. */
+  readonly credibility: References["coolingCredibility"] | null;
 }
 
 const INPUTS_SQL = `
@@ -165,5 +167,6 @@ export async function computeIndex(db: Db, ineMunicipality: string, method: Inde
     withoutCensusInput: inputs.filter((b) => b.census === null).length,
     coolingCap: refs.coolingCap.value,
     cappedBuildings: scores.filter((x) => x.completeness.certificateCapped).length,
+    credibility: refs.coolingCredibility ?? null,
   };
 }

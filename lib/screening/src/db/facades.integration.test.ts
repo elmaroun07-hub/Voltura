@@ -337,6 +337,7 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
     const summed = await pool.query(`SELECT sum(entries)::int AS n FROM h3_building_epc`);
     expect(stats.entries).toBe(summed.rows[0].n);
     expect(stats.entriesWithValue).toBe(44);
+    expect(stats.credibility).toBeNull();
     const rows = (await pool.query(`SELECT * FROM h3_index WHERE run_id = $1 ORDER BY rank_high`, [stats.runId])).rows;
     expect(rows.map((r) => r.rank_high)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
     for (let i = 1; i < rows.length; i++) expect(Number(rows[i - 1].index_high)).toBeGreaterThanOrEqual(Number(rows[i].index_high));

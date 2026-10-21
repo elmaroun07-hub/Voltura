@@ -699,3 +699,31 @@ Recorded, not hidden:
 - What is NOT taken from the register in H3, though it is there: glazed-area percentages by
   orientation. The block's constraint lists glazed area as available from no public register;
   it is in this one, for certified units only. Left for H4, where glazing belongs.
+
+## A27 · 2026-10-21 — 3.7/3.8: index method v2, a lone certificate no longer replaces the age estimate
+
+**Operator rulings, 21 Oct 2026** (block file `contracts/blocks/h3-index-v2.md`): 20:52 option
+**B** — one certificate must not replace the age estimate, fixed before the MIT Solve
+application; 20:57 guessed weights (blend k = 1 or 3; minimum 2 or 3 certificates) rejected as
+weak; 21:06 the fix comes first, before the list is shown to anyone in Córdoba — taken as the
+**measured** weight.
+
+3.8's band, for a certified building, now reads:
+
+| # | Task |
+|---|---|
+| 3.8 | … the building's own entries carry weight w = min(1, entries / dwellings) × entries / (entries + k), k measured per age band by Bühlmann–Straub credibility (Bühlmann 1967; Bühlmann & Straub 1970) over the municipality's certified scored buildings, on entries capped at p99 before estimation. Undefined k (VHM ≤ 0, or no building in the band with two entries) refuses the run. Every run records k, EPV, VHM, buildings and entries per band. |
+
+Why: on the live v1 run of 14 Oct 2026 (32,431 buildings), all 20 top buildings sat above the
+highest sensitivity an uncertified building could reach (1.503), because v1 gave one
+certificate on one dwelling w = 1. Fourteen of the 20 rested on one entry.
+
+Recorded, not hidden:
+- `METHOD_V1` is unchanged and stays reproducible; the run row's `method.version` says which.
+- `completeness.certificateCoverage` keeps its v1 meaning (share of dwellings — the page shows
+  it so); the v2 weight is a new field, `certificateWeight`.
+- A band with no certified building has no k (`null`) and no building uses it; a band with
+  certified buildings and undefined k refuses.
+- On the integration fixture (one city block) VHM < 0: v2 refuses there, by design.
+- `epc/summary.ts` exports its entry rule (`entriesOf`) so the index reuses it; behaviour
+  unchanged.
