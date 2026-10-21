@@ -1,11 +1,13 @@
 # H3-INDEX-V2 — a lone certificate no longer replaces the age estimate · Gate H3-INDEX-V2
 
-**BLOCK / GATE:** H3-INDEX-V2 / pre-merge — **OPEN**: every self-ruled criterion passes except two
-that cannot run here (the PostGIS integration suite and the local Córdoba run). The merge is
-the operator's.
-**DATE:** 21 October 2026
+**BLOCK / GATE:** H3-INDEX-V2 / Gate H3-INDEX-V2 — **CLOSED (self-ruled), 22 October 2026**.
+Merged by the operator as `a15dd1d`, loaded, and every L2 pin is measured live. Pre-merge
+record below, unchanged except where marked *closed 22 Oct*.
+**DATE:** 21 October 2026 (pre-merge) · 22 October 2026 (close)
 **COMMIT (before):** `a5c3df2` (`main`, Merge heatshield/h3-load-pnpm — unchanged by this block)
-**BRANCH:** `heatshield/h3-index-v2`. Unmerged, **unpushed**. Pushing is the operator's.
+**BRANCH:** `heatshield/h3-index-v2`, tip `10de388`, merged `--no-ff` into `main` as `a15dd1d`.
+Close-out evidence on `heatshield/h3-index-v2-live-evidence`, off `a15dd1d`; unmerged, it rides
+the next code merge.
 **Block file:** `contracts/blocks/h3-index-v2.md`. It arrived as an untracked file at the
 repository root; it was copied into `contracts/blocks/` as §14.1 requires, byte for byte, and
 committed with the block.
@@ -68,6 +70,10 @@ rejected; 21:06 the fix first, k **measured**.
    three bands. **Any other municipality** (OUT here) could refuse, and the refusal message
    names the band.
 
+*Closed 22 Oct.* **The operator's merge (`a15dd1d`, 21 Oct 22:03Z) accepted fence notes 1–3.**
+Note 4 measured on Córdoba: `entries` = `entriesWithValue` = 30,586, so there is no gap. Note 5:
+the load log shows k defined in every band, `all` included (LIVE EVIDENCE).
+
 ## DIFF SUMMARY
 
 At `28b23bc`: **9 files, +845 / −32** (plus this file's own fill-in commit). Files: `lib/screening/src/heat-index.ts`,
@@ -113,6 +119,10 @@ or `.github/`.
   server: no Docker; WSL Ubuntu has the `psql` 18 client only, no server and no sudo. The
   `screening-postgis` CI job runs it on the branch's first push, which is the operator's. Its
   new v2 assertion (refusal at VHM ≈ −4.15) was predicted offline as above.
+  *Closed 22 Oct:* **ran in CI, 18 / 18 green**, including the offline-predicted v2 refusal.
+  - Branch run `39682719319` on `10de388`: success, 21:56Z, before the merge.
+  - `main` run `39683628382` on `a15dd1d`: build, test and `screening-postgis` all success,
+    22:03:21Z → 22:04:54Z. Its `test` job logs the same 806: 17 · 72 · 104 · 23 · 590.
 - **Not mutation-tested:** the "entries read = Σ `h3_building_epc.entries`" assertion inside
   `computeIndex`. It needs a database. The integration test exercises it on the pass path only.
 
@@ -134,9 +144,46 @@ Which of `entries` / `entriesWithValue` the simulation's 30,586 counted is not s
 block. Both are logged; a pin match on either one is recorded as that one.
 **A miss is a STOP: report, do not tune.**
 
+*Closed 22 Oct:* every pin was measured live at L2 below. No miss. 30,586 is both `entries` and
+`entriesWithValue`.
+
 ## LIVE EVIDENCE
 
-None — pre-merge. Nothing reached production.
+*Closed 22 Oct.* Each line was re-read by the executor. Sources: `git`, the GitHub Actions API
+(`gh run view`, read-only), and GETs against production on 21 Oct 23:13:54Z–23:14:20Z. Lines
+marked *operator* cannot be observed from a coding session (§2, §5) and are the operator's
+statement.
+
+| Check | Value | Verified by |
+|---|---|---|
+| Merge | `a15dd1d`, parents `a5c3df2` + `10de388` (a real `--no-ff` merge), author `elmaroun07-hub@users.noreply.github.com`, committed 22:03:14Z 21 Oct, by the operator in Git Bash | `git log`; `origin/main` = `a15dd1d` after fetch |
+| CI on `main` | run `39683628382`, push to `main` at `a15dd1d`, created 22:03:21Z, **success** (build · test · screening-postgis) | Actions API |
+| Deploy | API `dep-dbcjdaek1f9s73anikrg` live 22:04:34Z · web `dep-dbcjdaek1f9s73anilk0` live 22:03:55Z | *operator* (Render). Not read here: the Render connector has no workspace selected and choosing one is the operator's. L1 below corroborates both. |
+| L1 | `GET /api/version` → `{"sha":"a15dd1d","shaFull":"a15dd1d3946523a82a4fd53bdd42ab0b178befb3","source":"render"}` · web `/` serves `<meta name="build-sha" content="a15dd1d" />` | GET, 200 / 200 |
+| Load | `h3-load` run `39684085979`, `workflow_dispatch` on `main` at `a15dd1d`, created 22:06:56Z, job `load` 22:06:59Z → 22:29:34Z, **success** (`LOAD-14021` guard step passed) | Actions API and log |
+| Run | `h3-index-v2-14021-2026-10-21T22:28:58.722Z`, method `h3-index-v2`, computed 22:28:58.771Z, scored **32,431** | `GET /api/screening/municipalities` |
+| L2 entries | `entries` **30,586** · `entriesWithValue` **30,586** | load log, `index {…}` at 22:29:31Z |
+| L2 k | pre-1980 **5.5860** (EPV 54.764, VHM 9.804; 5,520 buildings, 15,828 entries) · 1980–2006 **6.5691** (56.247, 8.562; 4,628, 11,110) · 2007-on **2.5834** (44.042, 17.048; 1,547, 3,648) · all **4.9446** (54.080, 10.937; 11,695, 30,586) | load log |
+| L2 top 20 | **19 pre-1980** (rank 2 is 1994, 127 dwellings), **0** one-dwelling, **0** built ≥ 2000 | `GET /api/screening/14021/buildings?limit=100` |
+| L2 top 100 pre-1980 | **82** | same response (ranks 1–100, one page: `MAX_LIMIT` is 500) |
+| L2 first tenth | **3,244 buildings / 33,179 dwellings** (1,665 with a certificate) | `GET /api/screening/14021/summary`, decile 1 |
+| L2 gap | **1,579 buildings / 3,827 dwellings** | `/summary` `gap` |
+| L3 | `/cribado` read in the operator's browser 22:39 local; cards and top rows match | *operator* screenshot |
+
+**Concentration:** 19 of the top 20 are in census section **1402109012**; the 20th (rank 2) is
+in 1402106012.
+
+Other load-log figures: 5,075 not residential, 344 without dwellings, 11,695 with a
+certificate, 5 without census input, cap 60.2245, 215 capped buildings.
+
+**Outside check** (operator, 21–22 Oct, read-only): `contracts/evidence/h3-index-v2/`
+- `h3-outside-check-2026-10-21.md` — sha256
+  `d822dc2687726e792f3e3a60cf33f14e6ef618d55ef1cfa3f72407da27887731`
+- `ine-adrh-30980-cordoba-2024-renta-persona.csv` — sha256
+  `fc8f18190ce53c1df0a0c550db1a1500e3cb561123f4a28a9fe3a52714ac246f`, re-hashed after the move:
+  matches.
+
+Its findings are in the methodology, §5 ter. It is context, not a criterion of this gate.
 
 ## ROLLBACK COMMAND
 
@@ -162,35 +209,65 @@ After the real merge the rollback is `git revert -m 1 <merge>`, then `h3-load` a
 is overwritten, so a re-score is needed. The v1 run row stays in `h3_index_runs`.
 **Deploy path UNPROVEN — A13 debt stands.**
 
+*Closed 22 Oct* — **Tier B re-run on the real merge** (scratch worktree detached at `a15dd1d`,
+removed afterwards, nothing pushed):
+
+```
+git revert --no-edit -m 1 a15dd1d
+```
+
+| | |
+|---|---|
+| scratch revert | `bfc51cd`, parent `a15dd1d`: 9 files, +32 / −853 (853 = 845 + the ruling fill-in commit) |
+| tree after revert | `60a5453` = `a5c3df2^{tree}` — **`a5c3df2`'s tree restored exactly** |
+| afterwards | worktree removed; `origin/main` still `a15dd1d` |
+
+Production rollback is `git revert -m 1 a15dd1d` on `main`, then `h3-load`. **It is a deploy**
+(A16), so it is never run as a check. **Deploy path UNPROVEN — A13 debt stands.**
+
 ## RESIDUE
 
-- Root `h3-index-v2.md`: the untracked original of the block file, left where the operator put
-  it. The committed copy is `contracts/blocks/h3-index-v2.md`.
+*Updated 22 Oct.*
+- §5 bis and §6 of the methodology were rewritten on the live-evidence branch from the measured
+  run. A new §5 ter, "Contraste externo", was added. Closed.
+- The root `h3-index-v2.md` original is gone from the working tree; the committed copy is
+  `contracts/blocks/h3-index-v2.md`.
+- The close-out prompt (`docs/heatshield/claude-code-h3-index-v2-closeout.md`) is left
+  untracked, as it instructs. An earlier draft of it is in the nested `Green-Energy-Calc/` copy.
 - Untracked and not this block's, left alone: `Green-Energy-Calc/` (a nested copy of the
   repository) and `contracts/blocks/voltura-h3-e0c1f4b.bundle`.
-- §6 of the methodology ("Concentración de certificados en la cabeza") still describes v1. It is
-  outside the doc sections the fence names; §5 bis says so. Rewrite it once the load measures v2.
-- §5 bis carries simulation figures, labelled. Replace them with the real run and its id after
-  the load.
+- The outside-check file names one building's street address (Catastro, public). It was
+  committed byte for byte, as instructed; the methodology does not repeat it.
+- `gate-check.sh --live` cannot read the web build-sha. Its regex stops at the hex letters of
+  `content=` in `<meta name="build-sha" content="…">`, so it prints SKIP. L1 was read directly.
+  Not fixed here: no code change.
 - `lib/screening/src/index.ts` (not in the fence) still exports `METHOD_V1` only. Nothing outside
   `lib/screening` needs `METHOD_V2`; the load uses the default.
 - Year field (`year_end`) recorded, not touched — OUT.
 
 ## STILL TO DO (operator)
 
-1. **Merge ruling** — `--no-ff`, by hand in Git Bash or from the session named. Re-confirm Render
-   Auto-Deploy state at the merge (§2: the operator is the sensor). Pushing the branch first runs
-   `screening-postgis` (the integration suite this session could not run).
-2. **Load** — dispatch `h3-load` from `main`, confirm `LOAD-14021`, about 23 min. If the runner
-   image (`ubuntu-latest` → Ubuntu 26 since 19 Oct) breaks it: STOP, report.
-3. **Live** — L1 `/api/version` and web `build-sha` = merge sha · L2 method `h3-index-v2`, scored
-   32,431, pins above · L3 `/cribado` in the operator's browser.
+*Closed 22 Oct:* merge, load and L1–L3 are done (LIVE EVIDENCE). Remaining:
+- Push `heatshield/h3-index-v2-live-evidence`. It is docs and evidence only and stays off `main`
+  (A13); it rides the next code merge.
 
 **What this gate cannot prove:** that the ranking matches real summer energy poverty in Córdoba.
 The check against an independent official list does that; it is the next step, not this block.
+*22 Oct:* the operator's income check (§5 ter of the methodology) is a first outside contrast.
+On its own terms it does not prove this either: income is not summer energy poverty, and part
+of the agreement is shared census input.
 
 ## RULING
 
-**OPEN** — pre-merge. Self-ruled criteria: suite green (806), typecheck 0, check-i18n clean,
-G9 6/6 caught, dry-run merge and Tier B revert proven. Not run here: the PostGIS integration
-suite (CI, on push) and the local Córdoba run (pins moved to L2). Merge: **operator's ruling.**
+~~**OPEN** — pre-merge.~~ (21 Oct: suite green (806), typecheck 0, check-i18n clean, G9 6/6
+caught, dry-run merge and Tier B revert proven; integration suite and Córdoba run pending.)
+
+**CLOSED (self-ruled), 22 October 2026.**
+- Merged by the operator: `a15dd1d`, `--no-ff`.
+- CI on `main` green, including the PostGIS integration suite (18 / 18).
+- Load succeeded.
+- L1 = `a15dd1d` on both services.
+- L2: method `h3-index-v2`, scored 32,431, every pin measured and matching.
+- L3: operator.
+- Tier B re-run on the real merge restores `a5c3df2`'s tree exactly.
+- **Deploy path UNPROVEN — A13 debt stands.**

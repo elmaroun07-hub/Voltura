@@ -212,27 +212,92 @@ v2 corrige eso (apartado 4.7). El criterio de orden no cambia.
 | **Brecha** del primer décimo sin certificado | **1.518 edificios, 3.729 viviendas**: donde una visita aporta más |
 | Primeros 1.000 | 67 % bloques de 4 o más plantas, 80 % anteriores a 1980, 13.972 viviendas |
 
-## 5 bis. Córdoba, método `h3-index-v2`
+## 5 bis. Córdoba, cálculo `h3-index-v2-14021-2026-10-21T22:28:58.722Z`
 
-**Pendiente de la carga en producción.** Mientras no se carga, las cifras de abajo proceden de una
-**simulación de solo lectura del 21 oct 2026** sobre la base de producción. La simulación
-reprodujo exactamente el orden del cálculo v1 en vigor (0 diferencias de puesto) antes de aplicar
-el método v2. Tras la carga, esta tabla se sustituye por el cálculo real y su identificador.
+Método `h3-index-v2`, en producción `a15dd1d`, cargado el 21 oct 2026 (22:29 UTC). Las cifras
+coinciden con la simulación de solo lectura hecha antes de la carga.
 
-| Referencia | Simulación v2 |
+| Referencia | Valor |
 |---|---|
-| Entradas usadas | 30.586 |
-| k por época | antes de 1980: 5,586 · 1980–2006: 6,569 · desde 2007: 2,583 |
-| Un certificado en una vivienda, antes de 1980 | pesa 1 ÷ (1 + 5,586) ≈ 0,15, antes 1 |
-| Primeros 20 | 19 anteriores a 1980; ninguna vivienda unifamiliar; ninguno de 2000 o después |
+| Edificios puntuados | 32.431 (158.165 viviendas) |
+| Entradas usadas | 30.586, todas con demanda de refrigeración, en 11.695 edificios certificados |
+| k por época | antes de 1980: **5,586** (5.520 edificios, 15.828 entradas) · 1980–2006: **6,569** (4.628 · 11.110) · desde 2007: **2,583** (1.547 · 3.648) · conjunto: **4,945** (11.695 · 30.586) |
+| Un certificado en una vivienda, antes de 1980 | pesa 1 ÷ (1 + 5,586) ≈ 0,15; con el v1 pesaba 1 |
+| Tope de certificados | 60,22 kWh/m²·año; afecta a 215 edificios |
+| Primeros 20 | 19 anteriores a 1980; ninguna vivienda unifamiliar; ninguno construido en 2000 o después |
 | Primeros 100 | 82 anteriores a 1980 |
-| Primer décimo | 33.179 viviendas |
-| **Brecha** del primer décimo sin certificado | **1.579 edificios, 3.827 viviendas** |
+| Primer décimo (3.244 edificios) | 33.179 viviendas; 1.665 edificios con certificado |
+| **Brecha** del primer décimo sin certificado | **1.579 edificios, 3.827 viviendas**: donde una visita aporta más |
+| Concentración | 19 de los 20 primeros están en la sección censal **1402109012** |
 
-La simulación fijó la mediana de referencia en 23,49; el método v2 la mueve. Eso reescala todos
-los índices por igual y no cambia ningún puesto.
+## 5 ter. Contraste externo
 
-El apartado 6 («Concentración de certificados en la cabeza») describe el cálculo v1.
+**Pregunta.** ¿Señala el índice las zonas de Córdoba que una fuente oficial independiente
+considera más pobres? Ningún dato de esa fuente entra en el índice.
+
+Contraste de solo lectura del 21–22 oct 2026: SQL sobre `voltura-db` y API pública del INE, con
+producción en `a15dd1d` y sobre el cálculo del apartado 5 bis. Registro completo en
+`contracts/evidence/h3-index-v2/h3-outside-check-2026-10-21.md`.
+
+**Fuente.** INE, *Atlas de Distribución de Renta de los Hogares* (operación 353, ADRH), tabla
+**30980** (provincia de Córdoba), serie «Córdoba sección DDSSS. Dato base. Renta neta media por
+persona». Último año, **2024**. Descargada de
+`servicios.ine.es/wstempus/js/ES/DATOS_TABLA/30980?nult=1` el 21 oct 2026: 256 secciones del
+municipio de Córdoba. Copia fijada:
+`contracts/evidence/h3-index-v2/ine-adrh-30980-cordoba-2024-renta-persona.csv`
+(sha256 `fc8f18190ce53c1df0a0c550db1a1500e3cb561123f4a28a9fe3a52714ac246f`).
+
+**Método.**
+- Para cada sección censal (límites de 2021, como en el índice) se calculan dos valores:
+  - la media de `index_mid` ponderada por viviendas;
+  - la proporción de sus viviendas que están en el primer décimo (`rank_high ≤ 3.244`).
+- Unión con el INE por código de sección (`14021` + DDSSS). Coinciden **251 de las 253**
+  secciones del cribado. El seccionado del INE de 2024 tiene 256 secciones; los códigos creados o
+  divididos desde 2021 no coinciden.
+- Spearman: puesto por renta (la más pobre = 1) frente a puesto por índice (el más alto = 1).
+- «Solo edificio»: se repite sin el término censal. Es la media geométrica de peligro, exposición
+  y sensibilidad con sus pesos del v2 (⅙, ⅙, ⅓) renormalizados a ¼, ¼, ½, sin población.
+
+**Resultados.**
+
+| Medida | Valor |
+|---|---|
+| Spearman, renta frente al índice | **0,36** |
+| Spearman, renta frente a la parte «solo edificio» | **0,14** |
+| Proporción de viviendas en el primer décimo: las 25 secciones más pobres | **59,7 %** |
+| La misma proporción: el resto de secciones | **18,0 %** |
+| De las 25 más pobres, las que tienen al menos la mitad de sus viviendas en el primer décimo | **15 de 25** |
+| De las 25 más pobres, las que están también entre las 25 primeras secciones del índice | **10 de 25** |
+
+La sección **1402109012**, donde están 19 de los 20 primeros edificios del índice, es la
+**segunda sección más pobre de Córdoba: 6.042 € por persona (2024)**.
+
+Las diez secciones más pobres y la proporción de sus viviendas en el primer décimo:
+
+| Sección (DDSSS) | €/persona, 2024 | Proporción en el primer décimo |
+|---|---|---|
+| 06037 | 5.828 | 1,00 |
+| 09012 | 6.042 | 1,00 |
+| 06014 | 6.650 | **0,00** |
+| 06041 | 6.697 | 0,24 |
+| 06026 | 7.022 | 0,88 |
+| 06035 | 7.594 | 1,00 |
+| 09032 | 8.088 | 0,25 |
+| 06033 | 8.150 | **0,00** |
+| 09014 | 8.157 | 1,00 |
+| 06013 | 8.364 | 1,00 |
+
+**Lo que esto no demuestra.**
+- **Parte de la coincidencia viene de un dato compartido.** El término de población (⅓ del
+  índice) usa el paro del Censo 2021, que se mueve con la renta. La parte «solo edificio» coincide
+  solo débilmente (0,14).
+- La renta no es pobreza energética en verano. Esto muestra que el índice mira donde las rentas
+  son más bajas. No muestra que esas viviendas se sobrecalienten.
+- Dos de las diez secciones más pobres (06014 y 06033) **no** tienen ninguna vivienda en el primer
+  décimo. Todavía no tiene explicación.
+- El registro del contraste también relaciona secciones con barrios. Esa correspondencia se apoya
+  en la dirección de un solo edificio y en portales inmobiliarios. Las listas de secciones de las
+  zonas ERACIS no aparecían en los documentos consultados.
 
 ## 6. Limitaciones
 
@@ -248,9 +313,16 @@ El apartado 6 («Concentración de certificados en la cabeza») describe el cál
     alquiladas o construidas desde los decretos de certificación.
   - La demanda es un valor modelizado.
   - El tope del percentil 99 recorta también algún valor alto que podría ser real.
-- **Concentración de certificados en la cabeza.** Un edificio certificado con una vivienda de
-  demanda alta sube en el orden. El 81 % de los primeros 1.000 tiene certificado, frente al 36 %
-  del conjunto.
+- **Concentración en la cabeza.**
+  - Con el método v1, un edificio con un solo certificado de demanda alta subía en el orden. El
+    81 % de los primeros 1.000 tenía certificado, frente al 36 % del conjunto.
+  - Con el método v2, un certificado aislado ya no sustituye a la estimación por época: pesa
+    1 ÷ (1 + k), unos 0,15 antes de 1980 (apartado 4.7). Entre los 20 primeros no hay ninguna
+    vivienda unifamiliar. En el primer décimo, 1.665 de los 3.244 edificios tienen certificado
+    (51 %), frente a 11.695 de 32.431 en el conjunto (36 %).
+  - La concentración que queda es geográfica: 19 de los 20 primeros edificios están en una sola
+    sección censal, la **1402109012**. Todas las viviendas de una sección comparten el factor de
+    población (ver «Censo»).
 - **Censo.** Datos de 2021, provisionales según el INE, por sección y no por edificio: todas las
   viviendas de una sección comparten el mismo factor de población.
 - **Zona por altitud del edificio.** Se calcula por edificio; el CTE la define por localidad
