@@ -70,7 +70,7 @@ rejected; 21:06 the fix first, k **measured**.
 
 ## DIFF SUMMARY
 
-Recomputed at the final tip by the dry run below. Files: `lib/screening/src/heat-index.ts`,
+At `28b23bc`: **9 files, +845 / −32** (plus this file's own fill-in commit). Files: `lib/screening/src/heat-index.ts`,
 `heat-index.test.ts`, `db/index-db.ts`, `db/facades.integration.test.ts`, `epc/summary.ts`,
 `docs/heatshield/h3-metodologia-cribado.md`, `contracts/blocks/h3-index-v2.md`,
 `contracts/rulings/h3-index-v2.md`, `contracts/AMENDMENTS.md`. No file in `artifacts/`, `scripts/`
@@ -148,7 +148,15 @@ git merge --no-ff heatshield/h3-index-v2        # scratch merge, parents main + 
 git revert -m 1 <scratch merge>                  # scratch revert
 ```
 
-DRY-RUN RESULT: recorded below at the final tip.
+DRY-RUN RESULT at tip `28b23bc` (the commit after it changes only this file):
+
+| | |
+|---|---|
+| scratch merge | `20d69ed`, parents `a5c3df2` + `28b23bc` (a real merge commit, so `-m 1` applies) |
+| merge diff vs `main` | 9 files, +845 / −32, identical to the block diff `main...tip` |
+| scratch revert | `402ff43`: 9 files, +32 / −845, exactly the block's diff inverted |
+| tree after revert | **identical to `main`** (`git diff --quiet a5c3df2 402ff43`) |
+| afterwards | scratch worktree removed; `main` still `a5c3df2`; 0 remote refs for the block branch |
 
 After the real merge the rollback is `git revert -m 1 <merge>`, then `h3-load` again: `h3_index`
 is overwritten, so a re-score is needed. The v1 run row stays in `h3_index_runs`.
