@@ -124,7 +124,7 @@ municipio** (1,00 = edificio típico):
 |---|---|---|---|
 | Peligro (Hz) | Sol de julio sobre la cubierta | radiación horizontal de la zona ÷ mediana | 1/6 |
 | Exposición (Ex) | Cubierta y fachadas a la calle | (1 + [radiación de julio sobre fachadas expuestas por metro de perímetro ÷ mediana]) ÷ 2 | 1/6 |
-| Sensibilidad (En) | Demanda de refrigeración | demanda (apartado 4.7) ÷ mediana | 1/3 |
+| Sensibilidad (En) | Demanda de refrigeración | demanda (apartado 4.7, con el peso de credibilidad del método v2) ÷ mediana | 1/3 |
 | Población (Vu) | Personas más expuestas al calor | media de las tres proporciones censales, cada una ÷ su mediana | 1/3 |
 
 **Índice = media geométrica ponderada de los cuatro factores**:
@@ -149,10 +149,34 @@ Por qué así:
 
 El peligro y la exposición son puntuales. La sensibilidad y la población llevan rango:
 
-- **Edificio con certificados.** La proporción evidenciada es w = mín(1, entradas ÷ viviendas).
+- **Edificio con certificados.** w es el peso de las entradas propias del edificio frente a su
+  época.
   - extremo bajo = w·mínimo + (1−w)·p10 de su época
   - valor central = w·mediana + (1−w)·p50 de su época
   - extremo alto = w·máximo + (1−w)·p90 de su época
+  - **Método v1:** w = mín(1, entradas ÷ viviendas). Un certificado en una vivienda unifamiliar
+    daba w = 1: el certificado **sustituía** a la estimación por época y el rango quedaba en un
+    punto.
+  - **Método v2 (desde el 21 oct 2026):** w = mín(1, entradas ÷ viviendas) × entradas ÷
+    (entradas + k). Un certificado en una vivienda pesa ahora 1 ÷ (1 + k).
+  - **k se mide, no se elige.** Es el estimador de credibilidad de **Bühlmann–Straub** (Bühlmann
+    1967, *ASTIN Bulletin* 4(3); Bühlmann y Straub 1970, *Mitteilungen der VSVM* 70), calculado
+    para cada época (y para el conjunto, que usan los edificios sin año) sobre los edificios
+    certificados puntuados del municipio. Se usan sus **entradas** (una por vivienda, la regla
+    del apartado 4.4), cada valor ya limitado por el tope:
+    - varianza dentro del edificio: EPV = Σᵢ Σⱼ (xᵢⱼ − x̄ᵢ)² ÷ Σᵢ (nᵢ − 1)
+    - varianza entre edificios: VHM = [Σᵢ nᵢ (x̄ᵢ − x̄)² − (r − 1)·EPV] ÷ (N − Σᵢ nᵢ² ÷ N)
+    - k = EPV ÷ VHM
+
+    nᵢ son las entradas del edificio i, r el número de edificios, N = Σ nᵢ y x̄ la media
+    ponderada por nᵢ. Dicho de otro modo: k es el número de entradas que necesita un edificio
+    para que su propia evidencia pese tanto como su época. Si los certificados de un mismo
+    edificio discrepan mucho entre sí, k crece y el certificado aislado pesa menos.
+  - **Si k no está definido, no se calcula.** Si en una época VHM ≤ 0, o ningún edificio tiene
+    dos entradas, el cálculo se detiene con un error. No se sustituye por un valor.
+  - Cada cálculo guarda k, EPV, VHM, edificios y entradas por época.
+  - La **cobertura** que muestra la página («% de las viviendas») sigue siendo
+    mín(1, entradas ÷ viviendas). El peso w se guarda aparte (`certificateWeight`).
 - **Edificio sin certificado.** Se usan p10, p50 y p90 de los edificios certificados de la misma
   época del municipio. Si además falta el año, se usan los de todos los certificados.
   - Épocas: **antes de 1980** (sin norma térmica; la NBE-CT-79 es el Real Decreto 2429/1979),
@@ -169,6 +193,13 @@ hacen con todos los edificios.
 Se ordena por el **extremo alto** del rango. Es un criterio de precaución: se mira primero donde
 el riesgo **podría** ser mayor. Una visita técnica (capa 2) reduce el rango.
 
+Con el método v1, ese criterio favorecía a los edificios con un solo certificado. Su rango se
+reducía a un punto y podía llegar hasta el tope (60,22 kWh/m²·año, sensibilidad 2,563). Un
+edificio sin certificado no pasaba de 1,503 (p90 anterior a 1980, 35,32, frente a la mediana,
+23,49). En el cálculo del 14 oct 2026, **los 20 primeros** superaban 1,503. De ellos, 14 tenían
+una sola entrada, 14 eran viviendas unifamiliares y 8 se construyeron en 2000 o después. El método
+v2 corrige eso (apartado 4.7). El criterio de orden no cambia.
+
 ## 5. Córdoba, cálculo `h3-index-v1-14021-2026-10-14T02:14:18.269Z`
 
 | Referencia | Valor |
@@ -180,6 +211,28 @@ el riesgo **podría** ser mayor. Una visita técnica (capa 2) reduce el rango.
 | Primer décimo (3.244 edificios) | 32.564 viviendas; 1.726 edificios con certificado |
 | **Brecha** del primer décimo sin certificado | **1.518 edificios, 3.729 viviendas**: donde una visita aporta más |
 | Primeros 1.000 | 67 % bloques de 4 o más plantas, 80 % anteriores a 1980, 13.972 viviendas |
+
+## 5 bis. Córdoba, método `h3-index-v2`
+
+**Pendiente de la carga en producción.** Mientras no se carga, las cifras de abajo proceden de una
+**simulación de solo lectura del 21 oct 2026** sobre la base de producción. La simulación
+reprodujo exactamente el orden del cálculo v1 en vigor (0 diferencias de puesto) antes de aplicar
+el método v2. Tras la carga, esta tabla se sustituye por el cálculo real y su identificador.
+
+| Referencia | Simulación v2 |
+|---|---|
+| Entradas usadas | 30.586 |
+| k por época | antes de 1980: 5,586 · 1980–2006: 6,569 · desde 2007: 2,583 |
+| Un certificado en una vivienda, antes de 1980 | pesa 1 ÷ (1 + 5,586) ≈ 0,15, antes 1 |
+| Primeros 20 | 19 anteriores a 1980; ninguna vivienda unifamiliar; ninguno de 2000 o después |
+| Primeros 100 | 82 anteriores a 1980 |
+| Primer décimo | 33.179 viviendas |
+| **Brecha** del primer décimo sin certificado | **1.579 edificios, 3.827 viviendas** |
+
+La simulación fijó la mediana de referencia en 23,49; el método v2 la mueve. Eso reescala todos
+los índices por igual y no cambia ningún puesto.
+
+El apartado 6 («Concentración de certificados en la cabeza») describe el cálculo v1.
 
 ## 6. Limitaciones
 
@@ -235,6 +288,10 @@ En una base PostgreSQL con PostGIS, Córdoba completa tarda unos dos minutos.
 | Pesos por tercios de riesgo; la puntuación describe la vivienda de última planta; orden por el extremo alto | Ejecutor, por delegación expresa del operador («elige la mejor opción»), con las alternativas medidas | 14 oct 2026 |
 | Tope de certificados en el percentil 99 | Ejecutor, tras detectar el efecto de un dato erróneo en la primera ejecución | 14 oct 2026 |
 | Tolerancia de medianeras de 0,2 m; reparto 50/50 entre cubierta y fachada | Ejecutor; hipótesis declaradas, sensibilidad publicada | 14 oct 2026 |
+| Método v2: un certificado aislado no sustituye a la estimación por época (opción B) | Operador | 21 oct 2026, 20:52 |
+| Rechazo de pesos supuestos (mezcla con k = 1 o 3; mínimo de 2 o 3 certificados) | Operador | 21 oct 2026, 20:57 |
+| La corrección va primero, antes de mostrar la lista a nadie en Córdoba; k medido por Bühlmann–Straub con los certificados del propio municipio | Operador (la corrección); ejecutor (el estimador, sin constantes elegidas a mano) | 21 oct 2026, 21:06 |
+| Sin k definido, el cálculo se detiene; no hay valor de reserva | Operador («refuse, never default») | 21 oct 2026 |
 
 El método es intercambiable: todos los pesos, cuantiles y el tope son parámetros de
 `IndexMethod` y se guardan con cada cálculo. Si una norma técnica nacional llegase a definir este

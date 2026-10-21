@@ -320,9 +320,24 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
     expect(cols.rows.map((r) => r.column_name)).not.toContain("direccion");
   });
 
+  it("H3-INDEX-V2 — on one city block k is undefined (VHM ≤ 0): the run is refused, and nothing is written", async () => {
+    // 19 certified buildings of one 1958–1967 block, 44 entry values: their
+    // spread between buildings is smaller than within them (VHM ≈ −4.15,
+    // computed offline from the same fixtures). The default method refuses
+    // rather than fill k. That the refusal is about variance, not about
+    // entries, also shows the entries read matched h3_building_epc.entries.
+    await expect(computeIndex(pool, "14021")).rejects.toThrow(/band all: between-building variance is -4\.15/);
+    const runs = await pool.query(`SELECT count(*)::int AS n FROM h3_index_runs`);
+    expect(runs.rows[0].n).toBe(0);
+  });
+
   it("H3.7/3.8 — every residential building gets a banded score, ranked on the high end, and each score recomputes from what is stored", async () => {
-    const stats = await computeIndex(pool, "14021");
+    const stats = await computeIndex(pool, "14021", METHOD_V1);
     expect(stats).toMatchObject({ scored: 20, notScored: { notResidential: 0, noDwellings: 0 }, withCertificate: 19, withoutCensusInput: 0 });
+    const summed = await pool.query(`SELECT sum(entries)::int AS n FROM h3_building_epc`);
+    expect(stats.entries).toBe(summed.rows[0].n);
+    expect(stats.entriesWithValue).toBe(44);
+    expect(stats.credibility).toBeNull();
     const rows = (await pool.query(`SELECT * FROM h3_index WHERE run_id = $1 ORDER BY rank_high`, [stats.runId])).rows;
     expect(rows.map((r) => r.rank_high)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
     for (let i = 1; i < rows.length; i++) expect(Number(rows[i - 1].index_high)).toBeGreaterThanOrEqual(Number(rows[i].index_high));

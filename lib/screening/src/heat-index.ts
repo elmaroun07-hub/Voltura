@@ -39,12 +39,20 @@
  * ── The band ──────────────────────────────────────────────────────────────
  * Hz and Ex are points (computed from sourced tables and geometry). En and Vu
  * carry ranges:
- *   En, certified:   w = min(1, entries / dwellings) of the building is
- *                    evidenced; the rest falls back on its age band.
+ *   En, certified:   w is the weight on the building's own entries; the rest
+ *                    falls back on its age band.
  *                    low  = w·min(entries) + (1−w)·p10(band)
  *                    mid  = w·median(entries) + (1−w)·p50(band)
  *                    high = w·max(entries) + (1−w)·p90(band)
- *                    A fully certified single dwelling has a zero-width band.
+ *                    v1: w = min(1, entries / dwellings). A single dwelling
+ *                    with one certificate got w = 1 — a zero-width band — and
+ *                    on Córdoba (run of 14 Oct 2026) that put every one of the
+ *                    top 20 above the highest value an uncertified building
+ *                    could reach.
+ *                    v2: w = min(1, entries / dwellings) × entries / (entries + k),
+ *                    k measured per age band from the municipality's own
+ *                    certificates (Bühlmann–Straub credibility; below). One
+ *                    certificate on one dwelling now counts 1 / (1 + k).
  *   En, no certificate: p10 / p50 / p90 of certified buildings of the same age
  *                    band in the municipality; with no year either, of all
  *                    certified buildings.
@@ -60,6 +68,20 @@
  * precautionary high end amplifies a data-entry error. Capped values stay
  * high — at the 99th percentile — so a genuinely bad certificate still counts;
  * the raw value stays in h3_epc_certificates.
+ *
+ * ── Credibility (v2) ──────────────────────────────────────────────────────
+ * Bühlmann (1967), ASTIN Bulletin 4(3); Bühlmann & Straub (1970), Mitt. VSVM 70.
+ * Per age band B (and `all`), over the certified scored buildings of B, on
+ * their ENTRIES (one per unit, the epc/summary.ts rule), each value capped
+ * before estimation:
+ *   EPV = Σ_i Σ_j (x_ij − x̄_i)² / Σ_i (n_i − 1)            within a building
+ *   VHM = [Σ_i n_i (x̄_i − x̄)² − (r − 1)·EPV] / (N − Σ n_i² / N)   between buildings
+ *   k   = EPV / VHM
+ * k is how many entries a building needs before its own evidence weighs as
+ * much as its band: no constant is chosen by hand, and every run records k,
+ * EPV, VHM, buildings and entries per band. If VHM ≤ 0, or no building in a
+ * band has two entries, k is undefined and the run is refused (P2) — never
+ * filled with a value.
  *
  * Every constant above is a parameter of IndexMethod, recorded with each run.
  */
@@ -97,6 +119,12 @@ export interface BuildingInputs {
     readonly median: number;
     readonly min: number;
     readonly max: number;
+    /**
+     * Cooling demand of each entry that has one, uncapped (one per entry, the
+     * epc/summary.ts rule). Required by a method with credibility; v1 reads
+     * only the summary above.
+     */
+    readonly values?: readonly number[];
   } | null;
   readonly census: {
     readonly over64: number;
@@ -119,6 +147,12 @@ export interface IndexMethod {
   readonly bandQuantiles: { readonly low: number; readonly high: number };
   /** Certificate values above this quantile of the municipality's certificates are capped to it. */
   readonly certificateCapQuantile: number;
+  /**
+   * How far a building's own entries are trusted against its age band,
+   * measured per band. Absent in v1, where entries counted by dwelling
+   * coverage alone.
+   */
+  readonly credibility?: { readonly estimator: "buhlmann-straub"; readonly source: string };
 }
 
 export const METHOD_V1: IndexMethod = {
@@ -126,6 +160,18 @@ export const METHOD_V1: IndexMethod = {
   weights: { hazard: 1 / 6, exposure: 1 / 6, sensitivity: 1 / 3, people: 1 / 3 },
   bandQuantiles: { low: 0.1, high: 0.9 },
   certificateCapQuantile: 0.99,
+};
+
+/** v1 with credibility weighting (ruling of 21 Oct 2026, contracts/rulings/h3-index-v2.md). */
+export const METHOD_V2: IndexMethod = {
+  version: "h3-index-v2",
+  weights: METHOD_V1.weights,
+  bandQuantiles: METHOD_V1.bandQuantiles,
+  certificateCapQuantile: METHOD_V1.certificateCapQuantile,
+  credibility: {
+    estimator: "buhlmann-straub",
+    source: "Bühlmann (1967), ASTIN Bulletin 4(3); Bühlmann & Straub (1970), Mitteilungen der VSVM 70",
+  },
 };
 
 /** Linear-interpolation quantile (Hyndman & Fan type 7, R's default). */
@@ -143,6 +189,38 @@ const range = (xs: number[], m: IndexMethod): Range => {
   const s = asc(xs);
   return { low: quantile(s, m.bandQuantiles.low), mid: quantile(s, 0.5), high: quantile(s, m.bandQuantiles.high) };
 };
+const sum = (xs: readonly number[]) => xs.reduce((s, x) => s + x, 0);
+
+export interface Credibility {
+  /** EPV / VHM: entries a building needs before its own evidence weighs as much as its band. */
+  readonly k: number;
+  /** Expected process variance: within a building, between its entries. */
+  readonly epv: number;
+  /** Variance of hypothetical means: between buildings. */
+  readonly vhm: number;
+  readonly buildings: number;
+  readonly entries: number;
+}
+
+/**
+ * Bühlmann–Straub structural parameters, one group of values per building.
+ * Throws where k is undefined; it never substitutes a value.
+ */
+export function buhlmannStraub(groups: readonly (readonly number[])[]): Credibility {
+  if (groups.some((g) => g.length === 0)) throw new IndexInputError("a building with no entry cannot enter the estimate");
+  if (groups.some((g) => g.some((x) => !Number.isFinite(x)))) throw new IndexInputError("an entry is not a finite number");
+  if (!groups.some((g) => g.length >= 2)) {
+    throw new IndexInputError("no building has two or more entries: the within-building variance, and so k, is undefined");
+  }
+  const n = groups.map((g) => g.length);
+  const N = sum(n);
+  const means = groups.map((g) => sum(g) / g.length);
+  const grand = sum(means.map((m, i) => n[i] * m)) / N;
+  const epv = sum(groups.map((g, i) => sum(g.map((x) => (x - means[i]) ** 2)))) / sum(n.map((x) => x - 1));
+  const vhm = (sum(means.map((m, i) => n[i] * (m - grand) ** 2)) - (groups.length - 1) * epv) / (N - sum(n.map((x) => x * x)) / N);
+  if (!(vhm > 0)) throw new IndexInputError(`between-building variance is ${vhm}: k is undefined`);
+  return { k: epv / vhm, epv, vhm, buildings: groups.length, entries: N };
+}
 
 /** Everything a score is measured against, computed from the municipality's own buildings. */
 export interface References {
@@ -160,6 +238,8 @@ export interface References {
   };
   /** Cooling demand of certified buildings (their median), by age band and overall. */
   readonly coolingPrior: Readonly<Record<AgeBand | "all", Range & { readonly n: number }>>;
+  /** v2: credibility per band; null for a band with no certified building (no building uses it). Absent in v1. */
+  readonly coolingCredibility?: Readonly<Record<AgeBand | "all", Credibility | null>>;
   /** Vu over buildings with a census section. */
   readonly peoplePrior: Range;
 }
@@ -193,9 +273,19 @@ export function computeReferences(
   const coolingCap = { value: quantile(asc([...certificateValues]), method.certificateCapQuantile), certificates: certificateValues.length };
   const cap = (v: number) => Math.min(v, coolingCap.value);
   const byBand: Record<AgeBand, number[]> = { "pre-1980": [], "1980-2006": [], "2007-on": [] };
+  const groupsByBand: Record<AgeBand, number[][]> = { "pre-1980": [], "1980-2006": [], "2007-on": [] };
+  const entryValues = (b: BuildingInputs): number[] => {
+    const v = b.certificate!.values;
+    if (!v || v.length === 0 || v.length > b.certificate!.entries) {
+      throw new IndexInputError(`${b.ref}: credibility needs the value of each certificate entry`);
+    }
+    // Capped BEFORE estimation, so one data-entry error cannot inflate the variances.
+    return v.map(cap);
+  };
   for (const b of certified) {
     const band = ageBand(b.year);
     if (band) byBand[band].push(cap(b.certificate!.median));
+    if (band && method.credibility) groupsByBand[band].push(entryValues(b));
   }
   const withBand = (xs: number[]) => ({ ...range(xs, method), n: xs.length });
   const coolingPrior = {
@@ -205,6 +295,20 @@ export function computeReferences(
     // A band with no certified building falls back on all certified buildings,
     // recorded by n = 0 on that band rather than by an invented value.
     coolingPrior[band] = byBand[band].length ? withBand(byBand[band]) : { ...coolingPrior.all, n: 0 };
+  }
+  let coolingCredibility: Record<AgeBand | "all", Credibility | null> | undefined;
+  if (method.credibility) {
+    const of = (key: AgeBand | "all", groups: number[][]) => {
+      try {
+        return buhlmannStraub(groups);
+      } catch (e) {
+        throw e instanceof IndexInputError ? new IndexInputError(`cooling credibility, band ${key}: ${e.message}`) : e;
+      }
+    };
+    coolingCredibility = { all: of("all", certified.map(entryValues)), "pre-1980": null, "1980-2006": null, "2007-on": null };
+    for (const band of Object.keys(groupsByBand) as AgeBand[]) {
+      if (groupsByBand[band].length) coolingCredibility[band] = of(band, groupsByBand[band]);
+    }
   }
 
   const placed = buildings.filter((b) => b.census !== null);
@@ -221,7 +325,11 @@ export function computeReferences(
   for (const [k, v] of Object.entries(median)) {
     if (k !== "coolingDemand" && !(v > 0)) throw new IndexInputError(`median ${k} is ${v}; ratios to it are undefined`);
   }
-  const partial = { method, buildings: buildings.length, coolingCap, median, coolingPrior, peoplePrior: { low: 0, mid: 0, high: 0 } };
+  const partial = {
+    method, buildings: buildings.length, coolingCap, median, coolingPrior,
+    ...(coolingCredibility ? { coolingCredibility } : {}),
+    peoplePrior: { low: 0, mid: 0, high: 0 },
+  };
   median.coolingDemand = quantile(asc(buildings.map((b) => coolingRange(b, partial).mid)), 0.5);
   if (!(median.coolingDemand > 0)) throw new IndexInputError(`median coolingDemand is ${median.coolingDemand}`);
   const peoplePrior = range(placed.map((b) => peoplePoint(b.census!, b.ref, partial)), method);
@@ -230,25 +338,32 @@ export function computeReferences(
 
 function coolingRange(
   b: BuildingInputs,
-  r: Pick<References, "coolingPrior" | "coolingCap">,
-): Range & { evidenced: number; prior: AgeBand | "all"; capped: boolean } {
+  r: Pick<References, "coolingPrior" | "coolingCap" | "coolingCredibility">,
+): Range & { coverage: number; weight: number; prior: AgeBand | "all"; capped: boolean } {
   const band = ageBand(b.year);
   const key: AgeBand | "all" = band ?? "all";
   const p = r.coolingPrior[key];
-  if (b.certificate === null) return { low: p.low, mid: p.mid, high: p.high, evidenced: 0, prior: key, capped: false };
+  if (b.certificate === null) return { low: p.low, mid: p.mid, high: p.high, coverage: 0, weight: 0, prior: key, capped: false };
   const c = b.certificate;
   if (!(c.entries > 0) || !(c.min <= c.median && c.median <= c.max)) {
     throw new IndexInputError(`${b.ref}: certificate summary is inconsistent`);
   }
   if (!(b.dwellings > 0)) throw new IndexInputError(`${b.ref}: dwellings must be positive`);
-  const w = Math.min(1, c.entries / b.dwellings);
+  const coverage = Math.min(1, c.entries / b.dwellings);
+  let w = coverage;
+  if (r.coolingCredibility) {
+    const cred = r.coolingCredibility[key];
+    if (!cred) throw new IndexInputError(`${b.ref}: band ${key} has no credibility estimate`);
+    w = coverage * (c.entries / (c.entries + cred.k));
+  }
   // Capping commutes with min, median and max: they are order statistics.
   const cap = (v: number) => Math.min(v, r.coolingCap.value);
   return {
     low: w * cap(c.min) + (1 - w) * p.low,
     mid: w * cap(c.median) + (1 - w) * p.mid,
     high: w * cap(c.max) + (1 - w) * p.high,
-    evidenced: w,
+    coverage,
+    weight: w,
     prior: key,
     capped: c.max > r.coolingCap.value,
   };
@@ -272,6 +387,12 @@ export interface Score {
   readonly completeness: {
     /** Share of the building's dwellings evidenced by a certificate (0–1). */
     readonly certificateCoverage: number;
+    /**
+     * Weight the building's own entries carry against its age band (0–1):
+     * the coverage in v1; coverage × entries / (entries + k) in v2. Kept apart
+     * from the coverage, which the page shows as a share of dwellings.
+     */
+    readonly certificateWeight: number;
     /** Which cooling prior filled the rest. */
     readonly coolingPrior: AgeBand | "all";
     /** True when at least one of its certificates was above the cap. */
@@ -309,7 +430,8 @@ export function scoreBuilding(b: BuildingInputs, r: References): Score {
     factors: { hazard, exposure, sensitivity, people },
     index: { low: at("low"), mid: at("mid"), high: at("high") },
     completeness: {
-      certificateCoverage: cool.evidenced,
+      certificateCoverage: cool.coverage,
+      certificateWeight: cool.weight,
       coolingPrior: cool.prior,
       certificateCapped: cool.capped,
       censusSection: b.census !== null,

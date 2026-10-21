@@ -32,7 +32,9 @@ export interface BuildingEpcSummary {
   readonly latestDate: string | null;
 }
 
-function better(a: EpcCertificate, b: EpcCertificate): EpcCertificate {
+type Ranked = Pick<EpcCertificate, "unitRef" | "date" | "dateValid">;
+
+function better<C extends Ranked>(a: C, b: C): C {
   if (a.dateValid !== b.dateValid) return a.dateValid ? a : b;
   // Same validity: the later date wins; on equal or missing dates, the later in the file.
   if (a.date !== null && b.date !== null && a.date !== b.date) return a.date > b.date ? a : b;
@@ -45,14 +47,13 @@ function median(xs: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-/** `certs` must all name the same building, in file order. */
-export function summariseBuilding(certs: readonly EpcCertificate[]): BuildingEpcSummary {
-  if (certs.length === 0) throw new Error("summariseBuilding needs at least one certificate");
-  const ref = certs[0].buildingRef;
-  if (certs.some((c) => c.buildingRef !== ref)) throw new Error("certificates for more than one building");
-
-  const perUnit = new Map<string, EpcCertificate>();
-  let whole: EpcCertificate | null = null;
+/**
+ * The rule above, alone: one building's certificates (in file order) to its
+ * entries. Exported so the index reads the same entries the summary counts.
+ */
+export function entriesOf<C extends Ranked>(certs: readonly C[]): C[] {
+  const perUnit = new Map<string, C>();
+  let whole: C | null = null;
   for (const c of certs) {
     if (c.unitRef !== null) {
       const prev = perUnit.get(c.unitRef);
@@ -61,7 +62,17 @@ export function summariseBuilding(certs: readonly EpcCertificate[]): BuildingEpc
       whole = whole ? better(whole, c) : c;
     }
   }
-  const entries = [...perUnit.values(), ...(whole ? [whole] : [])];
+  return [...perUnit.values(), ...(whole ? [whole] : [])];
+}
+
+/** `certs` must all name the same building, in file order. */
+export function summariseBuilding(certs: readonly EpcCertificate[]): BuildingEpcSummary {
+  if (certs.length === 0) throw new Error("summariseBuilding needs at least one certificate");
+  const ref = certs[0].buildingRef;
+  if (certs.some((c) => c.buildingRef !== ref)) throw new Error("certificates for more than one building");
+
+  const entries = entriesOf(certs);
+  const unitsCertified = entries.filter((e) => e.unitRef !== null).length;
   const demands = entries.map((e) => e.coolingDemand).filter((d): d is number => d !== null);
   const letters: Record<EpcLetter, number> = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0 };
   for (const e of entries) if (e.coolingLetter) letters[e.coolingLetter]++;
@@ -70,7 +81,7 @@ export function summariseBuilding(certs: readonly EpcCertificate[]): BuildingEpc
     buildingRef: ref,
     certificates: certs.length,
     entries: entries.length,
-    unitsCertified: perUnit.size,
+    unitsCertified,
     entriesWithInvalidDate: entries.filter((e) => !e.dateValid).length,
     coolingDemandMedian: demands.length ? median(demands) : null,
     coolingDemandMin: demands.length ? Math.min(...demands) : null,
