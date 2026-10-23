@@ -1,7 +1,8 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { execFileSync } from "child_process";
+import { securityMetaTags } from "./security-meta";
 
 /**
  * Short git SHA of the build, resolved at build time only — no runtime cost and
@@ -38,7 +39,19 @@ function buildShaPlugin(sha: string): Plugin {
   };
 }
 
-export default defineConfig(async ({ command }) => {
+/** H-HEADERS: the page's CSP and referrer policy, in production builds only
+ *  (the dev server injects inline scripts a strict policy would block). */
+function securityMetaPlugin(apiUrl: string | undefined): Plugin {
+  return {
+    name: "voltura-security-meta",
+    apply: "build",
+    transformIndexHtml() {
+      return securityMetaTags(apiUrl);
+    },
+  };
+}
+
+export default defineConfig(async ({ command, mode }) => {
   const isBuild = command === "build";
 
   // PORT only matters when running a server (dev/preview), NOT for a build.
@@ -59,7 +72,11 @@ export default defineConfig(async ({ command }) => {
 
   return {
     base: basePath,
-    plugins: [react(), buildShaPlugin(resolveBuildSha())],
+    plugins: [
+      react(),
+      buildShaPlugin(resolveBuildSha()),
+      securityMetaPlugin(loadEnv(mode, import.meta.dirname, "VITE_").VITE_API_URL),
+    ],
     css: {
       postcss: {
         plugins: [
