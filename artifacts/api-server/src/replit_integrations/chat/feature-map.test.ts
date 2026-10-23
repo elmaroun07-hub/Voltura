@@ -129,6 +129,13 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
 const LIST_HEADING = { en: "What Voltura does - the complete list:", es: "Lo que hace Voltura - la lista completa:" } as const;
 type Lang = keyof typeof LIST_HEADING;
 
+// H-ASST-QUOTA: the message route allows 5 per client per 15 minutes, and this
+// file sends more than that. Each request is its own client (a distinct IPv6
+// documentation-range address in CF-Connecting-IP, the header the limiter keys
+// on), so the limit never decides what this file checks.
+let clientSeq = 0;
+const nextClient = () => `2001:db8:${(++clientSeq).toString(16)}::1`;
+
 async function sentSystemPrompt(lang: Lang = "en"): Promise<string> {
   sent = undefined;
   const app = express();
@@ -139,7 +146,7 @@ async function sentSystemPrompt(lang: Lang = "en"): Promise<string> {
   const { port } = server.address() as AddressInfo;
   const res = await fetch(`http://127.0.0.1:${port}/api/conversations/1/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Session-Id": SESSION, "Accept-Language": lang },
+    headers: { "Content-Type": "application/json", "X-Session-Id": SESSION, "Accept-Language": lang, "CF-Connecting-IP": nextClient() },
     body: JSON.stringify({ content: "What is Voltura?" }),
   });
   await res.text();
@@ -226,7 +233,7 @@ describe("Assistant feature map, Spanish prompt (2b.5)", () => {
     const { port } = server.address() as AddressInfo;
     const res = await fetch(`http://127.0.0.1:${port}/api/conversations/1/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Session-Id": SESSION },
+      headers: { "Content-Type": "application/json", "X-Session-Id": SESSION, "CF-Connecting-IP": nextClient() },
       body: JSON.stringify({ content: "¿Qué es Voltura?" }),
     });
     await res.text();

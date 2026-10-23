@@ -32,10 +32,10 @@ vi.mock("../../lib/llm", () => ({
   }),
 }));
 
-const { registerChatRoutes } = await import("./routes");
+const { registerChatRoutes, MESSAGES_PER_WINDOW } = await import("./routes");
 
 describe("2b.5 — the Assistant's rate limit, in the reader's language", () => {
-  it("the 21st message in 15 minutes is refused: Spanish by default, English on request", async () => {
+  it(`message ${MESSAGES_PER_WINDOW + 1} in 15 minutes is refused: Spanish by default, English on request`, async () => {
     const app = express();
     app.use(express.json());
     registerChatRoutes(app);
@@ -49,7 +49,7 @@ describe("2b.5 — the Assistant's rate limit, in the reader's language", () => 
         body: JSON.stringify({ content: "hola" }),
       });
     try {
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < MESSAGES_PER_WINDOW; i++) {
         const ok = await send();
         await ok.text();
         expect(ok.status).toBe(200);

@@ -54,6 +54,13 @@ const { serverCatalog } = await import("../../i18n");
 
 type Lang = "es" | "en";
 
+// H-ASST-QUOTA: the message route allows 5 per client per 15 minutes, and this
+// file sends more than that. Each request is its own client (a distinct IPv6
+// documentation-range address in CF-Connecting-IP, the header the limiter keys
+// on), so the limit never decides what this file checks.
+let clientSeq = 0;
+const nextClient = () => `2001:db8:${(++clientSeq).toString(16)}::1`;
+
 async function send(lang: Lang) {
   sent = undefined;
   const app = express();
@@ -64,7 +71,7 @@ async function send(lang: Lang) {
   const { port } = server.address() as AddressInfo;
   const res = await fetch(`http://127.0.0.1:${port}/api/conversations/1/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Session-Id": SESSION, "Accept-Language": lang },
+    headers: { "Content-Type": "application/json", "X-Session-Id": SESSION, "Accept-Language": lang, "CF-Connecting-IP": nextClient() },
     body: JSON.stringify({ content: "And the PDF?" }),
   });
   await res.text();
@@ -150,7 +157,7 @@ describe.each(LANGS)("H-ASST-ACC3 — the scope rule and its one refusal sentenc
     expect(prompt).not.toMatch(SCOPE[lang].gone);
   });
 
-  // One send for both checks: the suite shares the route's real limiter (20 per window).
+  // One send for both checks.
   it("the NASA sentences and the whole carbon entry are copied word for word; H-ASST-ACC4: a question about whether Voltura does or claims something is in scope, said before the scope rule", async () => {
     const prompt = (await send(lang)).messages[0].content;
     expect(prompt).toContain(SCOPE[lang].verbatim);
