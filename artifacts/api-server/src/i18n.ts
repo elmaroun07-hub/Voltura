@@ -57,6 +57,9 @@ export const serverCatalog = defineCatalog(
     "error.screeningNotLoaded": "No hay un cribado cargado para el municipio {ine}.",
     "error.screeningBadParam": "Valor no válido en «{param}».",
     "error.screeningBuildingNotFound": "El edificio {ref} no está en el cribado de este municipio.",
+    // H-D17B: the screening routes' limit and their busy answer.
+    "error.screeningRateLimited": "Demasiadas solicitudes de cribado. Inténtelo de nuevo en un minuto.",
+    "error.screeningBusy": "El cribado está atendiendo muchas solicitudes. Inténtelo de nuevo en unos segundos.",
     "csv.rank": "Orden",
     "csv.ref": "Referencia catastral",
     "csv.dwellings": "Viviendas",
@@ -199,6 +202,8 @@ export const serverCatalog = defineCatalog(
     "error.screeningNotLoaded": "No screening is loaded for municipality {ine}.",
     "error.screeningBadParam": "Invalid value for “{param}”.",
     "error.screeningBuildingNotFound": "Building {ref} is not in this municipality's screening.",
+    "error.screeningRateLimited": "Too many screening requests. Please try again in a minute.",
+    "error.screeningBusy": "The screening is handling many requests. Please try again in a few seconds.",
     "csv.rank": "Rank",
     "csv.ref": "Cadastral reference",
     "csv.dwellings": "Dwellings",
