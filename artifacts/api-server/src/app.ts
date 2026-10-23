@@ -54,8 +54,11 @@ app.use(
 );
 
 // Render terminates TLS at its proxy, so req.ip is the proxy's address unless
-// the hop count is declared. The rate limiters below key on IP; without this
-// every visitor shares one bucket.
+// the hop count is declared. H-D17: one hop was not enough. Cloudflare sits in
+// front of Render, and req.ip came out as a proxy address that changed per
+// request, so the rate limiters never counted a visitor twice. They now key on
+// lib/client-key.ts, which reads Cloudflare's CF-Connecting-IP; this setting is
+// left as it was for everything else that reads req.ip (the request log).
 app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

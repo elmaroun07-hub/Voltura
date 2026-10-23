@@ -109,11 +109,18 @@ async function withServer<T>(fn: (base: string) => Promise<T>): Promise<T> {
   }
 }
 
+// H-D17: /api/calculate allows 20 requests per client per 15 minutes, and the
+// facts below are read through far more than that. Each request is its own
+// client (a distinct IPv6 documentation-range address in CF-Connecting-IP, the
+// header the limiter keys on), so the limit never decides a fact's outcome.
+let clientSeq = 0;
+const nextClient = () => `2001:db8:${(++clientSeq).toString(16)}::1`;
+
 async function calculate(body: Record<string, unknown>) {
   return withServer(async (base) => {
     const res = await realFetch(`${base}/api/calculate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Session-Id": SESSION },
+      headers: { "Content-Type": "application/json", "X-Session-Id": SESSION, "CF-Connecting-IP": nextClient() },
       body: JSON.stringify({ location: "Fuengirola, Málaga, Spain", energyUsage: 5000, pvWattage: 4000, batteryCapacity: 10, ...body }),
     });
     return { status: res.status, body: (await res.json()) as any };

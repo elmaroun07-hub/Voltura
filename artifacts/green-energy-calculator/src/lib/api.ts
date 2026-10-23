@@ -3,7 +3,8 @@ import { z } from "zod";
 export const calculationInputSchema = z.object({
   // No message here: the form maps zod's issue codes to the catalog (H2b), and
   // a message written on the schema would override that in English.
-  location: z.string().min(2),
+  // H-D17: max mirrors the server's cap; too_big maps to validation.max.
+  location: z.string().min(2).max(200),
   energyUsage: z.number().min(100).max(100000),
   pvWattage: z.number().min(100).max(100000),
   batteryCapacity: z.number().min(0).max(200),

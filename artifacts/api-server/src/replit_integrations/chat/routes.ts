@@ -1,7 +1,9 @@
 import type { Express, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
+import { z } from "zod";
 import { chatStorage } from "./storage";
 import { getLlmClient, llmModel } from "../../lib/llm";
+import { clientKey } from "../../lib/client-key";
 import { FACTS_BY_LOCALE } from "./facts";
 import { requestLocale, serverCatalog, serverT, type Locale } from "../../i18n";
 
@@ -137,14 +139,44 @@ function notFound(req: Request, res: Response) {
 /**
  * The other paid route: every message is a streamed Mistral completion. Higher
  * than the optimizer because a real conversation is many turns, still far below
- * what a script would do. Keyed on IP by the library default.
+ * what a script would do. Keyed by clientKey (H-D17): the library default
+ * keyed on a Cloudflare address that changed per request, so this limit never
+ * fired in production.
  */
 const messageLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  keyGenerator: clientKey,
   message: (req: Request) => ({ error: serverT(requestLocale(req))("chat.rateLimited") }),
+});
+
+/**
+ * H-D17: creating a conversation is one database insert per request and had no
+ * limit at all, so a script could add rows until the database filled. A reader
+ * opens a handful of chats; ten in a quarter hour is far above that.
+ */
+const createLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: clientKey,
+  message: (req: Request) => ({ error: serverT(requestLocale(req))("chat.createRateLimited") }),
+});
+
+/** H-D17: a title was stored at whatever length the body carried. Optional;
+ *  absent means the default title, as before. */
+export const MAX_TITLE_CHARS = 200;
+const createBody = z.object({ title: z.string().max(MAX_TITLE_CHARS).optional() });
+
+/** H-D17: a message was stored and sent to the model at whatever length and
+ *  type the body carried, and every later turn resends it with the history. */
+export const MAX_MESSAGE_CHARS = 4000;
+const messageBody = z.object({
+  // Stored exactly as sent; the trim only decides whether there is any text.
+  content: z.string().max(MAX_MESSAGE_CHARS).refine((s) => s.trim().length > 0),
 });
 
 export function registerChatRoutes(app: Express): void {
@@ -182,12 +214,16 @@ export function registerChatRoutes(app: Express): void {
   });
 
   // Create new conversation
-  app.post("/api/conversations", async (req: Request, res: Response) => {
+  app.post("/api/conversations", createLimiter, async (req: Request, res: Response) => {
     try {
       const sessionId = requireSessionId(req, res);
       if (!sessionId) return;
 
-      const { title } = req.body;
+      const parsed = createBody.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: serverT(requestLocale(req))("chat.titleInvalid", { max: MAX_TITLE_CHARS }) });
+      }
+      const { title } = parsed.data;
       const conversation = await chatStorage.createConversation(title || serverT(requestLocale(req))("chat.defaultTitle"), sessionId);
       return res.status(201).json(conversation);
     } catch (error) {
@@ -227,7 +263,12 @@ export function registerChatRoutes(app: Express): void {
         return notFound(req, res);
       }
 
-      const { content } = req.body;
+      // Checked before anything is stored or sent to the model.
+      const parsed = messageBody.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: serverT(requestLocale(req))("chat.contentInvalid", { max: MAX_MESSAGE_CHARS }) });
+      }
+      const { content } = parsed.data;
 
       // Save user message
       await chatStorage.createMessage(conversationId, "user", content);

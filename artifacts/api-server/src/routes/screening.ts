@@ -20,6 +20,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
+import { clientKey } from "../lib/client-key";
 import {
   AGE_FILTERS,
   ScreeningNotLoaded,
@@ -108,7 +109,9 @@ export function toCsv(rows: readonly PortfolioRow[], t: ServerTranslate): string
 
 export function createScreeningRouter(pool: Pool): IRouter {
   const router: IRouter = Router();
-  const exportLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false });
+  // H-D17: keyed by clientKey. On the library default it counted every request
+  // as a new visitor in production (measured on this route, 23 Oct 2026).
+  const exportLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: clientKey });
 
   const handle =
     (fn: (req: Request, res: Response, t: ServerTranslate) => Promise<void>) => async (req: Request, res: Response) => {
