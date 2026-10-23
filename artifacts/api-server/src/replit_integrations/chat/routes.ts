@@ -139,9 +139,8 @@ function notFound(req: Request, res: Response) {
 /**
  * The other paid route: every message is a streamed Mistral completion. Higher
  * than the optimizer because a real conversation is many turns, still far below
- * what a script would do. Keyed by clientKey (H-D17): the library default
- * keyed on a Cloudflare address that changed per request, so this limit never
- * fired in production.
+ * what a script would do. Keyed by clientKey (H-D17), which does not depend on
+ * Render's unpublished proxy hop count.
  */
 const messageLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

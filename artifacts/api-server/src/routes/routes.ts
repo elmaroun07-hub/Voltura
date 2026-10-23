@@ -800,9 +800,8 @@ export function simulate8760(
  * /api/optimize is one of only two routes that spend money on a paid API, and
  * it was open. Conservative on purpose: a single Mistral completion per request,
  * and no legitimate visitor runs the optimizer ten times in a quarter hour.
- * Keyed by clientKey (H-D17) - the library default keyed on a Cloudflare address
- * that changed per request, so this limit never fired in production. No store,
- * no bypass list.
+ * Keyed by clientKey (H-D17), which does not depend on Render's unpublished
+ * proxy hop count. No store, no bypass list.
  */
 const optimizeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
