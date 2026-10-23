@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { securityHeaders } from "./lib/security-headers";
 
 /**
  * The single browser origin allowed to call this API.
@@ -21,6 +22,11 @@ if (!webOrigin) {
 }
 
 const app: Express = express();
+
+// H-HEADERS: no framework banner, and the security headers on every response -
+// first, so error answers and rate-limit refusals carry them too.
+app.disable("x-powered-by");
+app.use(securityHeaders);
 
 app.use(
   pinoHttp({
