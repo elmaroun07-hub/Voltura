@@ -109,8 +109,8 @@ export function toCsv(rows: readonly PortfolioRow[], t: ServerTranslate): string
 
 export function createScreeningRouter(pool: Pool): IRouter {
   const router: IRouter = Router();
-  // H-D17: keyed by clientKey. On the library default it counted every request
-  // as a new visitor in production (measured on this route, 23 Oct 2026).
+  // H-D17: keyed by clientKey, which does not depend on Render's unpublished
+  // proxy hop count. Proven per client on this route live, 23 Oct 2026.
   const exportLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: clientKey });
 
   const handle =

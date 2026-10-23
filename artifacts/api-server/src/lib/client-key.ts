@@ -5,12 +5,12 @@ import { ipKeyGenerator } from "express-rate-limit";
  * H-D17: the one key every rate limiter in this API counts by.
  *
  * Render serves this API behind Cloudflare: live responses carry
- * `server: cloudflare` and a `cf-ray` id. With `trust proxy 1`, `req.ip`
- * resolved to a proxy address that changed from request to request. Measured
- * live on 23 Oct 2026 at a15dd1d: three consecutive requests from one client
- * to /api/screening/:ine/export.csv each answered `RateLimit: remaining=9`.
- * Every limiter in the app was counting each request as a new visitor, so
- * none of them limited anything.
+ * `server: cloudflare` and a `cf-ray` id. Behind it, `req.ip` is right only if
+ * `trust proxy` matches a hop count Render does not publish. Correction, 23 Oct
+ * 2026: a probe that seemed to show `trust proxy 1` gave each request a new key
+ * (three reads of `remaining=9`) was confounded - the prober's own outgoing
+ * address changed on every request. Whether the old key was right is unknown.
+ * Keying on Cloudflare's header removes the dependence on the hop count.
  *
  * Cloudflare writes the connecting client's address into CF-Connecting-IP on
  * every request it proxies, replacing any value the client sent. That is the
