@@ -48,6 +48,13 @@ import { requestLocale, serverCatalog, serverT, type Locale } from "../../i18n";
 // sentences without the country list. A question about whether Voltura does
 // or claims something is now said outright to be in scope, and the carbon
 // copy rule covers the whole entry.
+//
+// H-ASST-QUOTA (operator ruling, 23 Oct 2026): shorter prompt. Removed, in both
+// languages, the "Context" paragraph (what users typically entered - the model
+// is told nothing it needs from it) and the sentence "Never describe a feature,
+// calculation or output that is not on this list as part of Voltura", which
+// repeats the rule that describes features only with the facts and adds no
+// detail. Every fact sentence and every pinned rule is unchanged.
 const OUT_OF_SCOPE: Readonly<Record<Locale, string>> = {
   es: serverCatalog.es["chat.outOfScope"],
   en: serverCatalog.en["chat.outOfScope"],
@@ -56,12 +63,10 @@ const OUT_OF_SCOPE: Readonly<Record<Locale, string>> = {
 export const SYSTEM_PROMPTS: Readonly<Record<Locale, string>> = {
   en: `You are Voltura's Energy Assistant. You answer only questions about what Voltura does.
 
-Context: Users have typically run a solar and battery savings calculation (location, annual electricity use, PV size in watts, battery capacity in kWh, and optionally their tariff and installation cost) and want to know what Voltura does, how it works, or what its results mean.
-
 What Voltura does - the complete list:
 ${FACTS_BY_LOCALE.en.map((f) => `- ${f.text}`).join("\n")}
 
-When asked what Voltura is or does, describe it from this list. If the user asks whether Voltura does something that is not on this list, say plainly that Voltura does not do it. Never describe a feature, calculation or output that is not on this list as part of Voltura.
+When asked what Voltura is or does, describe it from this list. If the user asks whether Voltura does something that is not on this list, say plainly that Voltura does not do it.
 
 A question asking whether Voltura does, computes, shows, offers or claims something is always a question about what Voltura does: answer it, even when the answer is no. It never gets the out-of-scope answer below.
 
@@ -81,12 +86,10 @@ Guidelines:
 - Never claim that Voltura meets any law, regulation or standard. If asked whether it does, say Voltura makes no such claim; that question is about Voltura, so it never gets the out-of-scope answer.`,
   es: `Usted es el Asistente energético de Voltura. Solo responde preguntas sobre lo que hace Voltura.
 
-Contexto: normalmente, el usuario ha hecho un cálculo de ahorro solar y con batería (ubicación, consumo eléctrico anual, potencia FV en vatios, capacidad de la batería en kWh y, si quiere, su tarifa y el coste de instalación) y quiere saber qué hace Voltura, cómo funciona o qué significan sus resultados.
-
 Lo que hace Voltura - la lista completa:
 ${FACTS_BY_LOCALE.es.map((f) => `- ${f.text}`).join("\n")}
 
-Cuando le pregunten qué es o qué hace Voltura, descríbalo a partir de esta lista. Si el usuario pregunta si Voltura hace algo que no está en esta lista, diga claramente que Voltura no lo hace. No describa nunca como parte de Voltura una función, un cálculo o un resultado que no esté en esta lista.
+Cuando le pregunten qué es o qué hace Voltura, descríbalo a partir de esta lista. Si el usuario pregunta si Voltura hace algo que no está en esta lista, diga claramente que Voltura no lo hace.
 
 Una pregunta sobre si Voltura hace, calcula, muestra, ofrece o afirma algo es siempre una pregunta sobre lo que hace Voltura: respóndala, aunque la respuesta sea no. Nunca recibe la respuesta de fuera de ámbito de más abajo.
 
@@ -137,14 +140,20 @@ function notFound(req: Request, res: Response) {
 }
 
 /**
- * The other paid route: every message is a streamed Mistral completion. Higher
- * than the optimizer because a real conversation is many turns, still far below
- * what a script would do. Keyed by clientKey (H-D17), which does not depend on
- * Render's unpublished proxy hop count.
+ * The other model route: every message is a streamed completion from the
+ * configured provider (Groq since 10 Sept 2026). Keyed by clientKey (H-D17),
+ * which does not depend on Render's unpublished proxy hop count.
+ *
+ * H-ASST-QUOTA (operator ruling, 23 Oct 2026): 5 per 15 minutes, was 20. The
+ * Assistant and Optimizer share Groq's free quota for the whole site (on
+ * gpt-oss-120b: 1,000 requests and 200,000 tokens a day, 30 requests and 8,000
+ * tokens a minute), so every message one visitor sends is taken from everyone.
  */
+export const MESSAGES_PER_WINDOW = 5;
+
 const messageLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  limit: MESSAGES_PER_WINDOW,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   keyGenerator: clientKey,

@@ -50,7 +50,7 @@ vi.mock("../../lib/llm", () => ({
   }),
 }));
 
-const { registerChatRoutes, MAX_TITLE_CHARS, MAX_MESSAGE_CHARS } = await import("./routes");
+const { registerChatRoutes, MAX_TITLE_CHARS, MAX_MESSAGE_CHARS, MESSAGES_PER_WINDOW } = await import("./routes");
 
 async function serve() {
   const app = express();
@@ -169,12 +169,12 @@ describe("H-D17 — the message is capped before it is stored or sent to the mod
 });
 
 describe("H-D17 — the message limiter counts per client, not per proxy address", () => {
-  it("one client's 21st message is refused while another client's first goes through", async () => {
+  it(`one client's message ${MESSAGES_PER_WINDOW + 1} is refused while another client's first goes through`, async () => {
     const { base, close } = await serve();
     const send = (client: string) =>
       fetch(`${base}/api/conversations/1/messages`, { method: "POST", headers: headers(client), body: JSON.stringify({ content: "hola" }) });
     try {
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < MESSAGES_PER_WINDOW; i++) {
         const ok = await send("203.0.113.40");
         await ok.text();
         expect(ok.status).toBe(200);
