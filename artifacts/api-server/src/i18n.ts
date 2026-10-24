@@ -168,6 +168,9 @@ export const serverCatalog = defineCatalog(
     // H-ASST-ACC3 (operator ruling, 8 Oct 2026): the one answer to any question
     // outside Voltura's jobs. The system prompt quotes it from here.
     "chat.outOfScope": "No puedo responder a eso. Solo respondo preguntas sobre lo que hace Voltura.",
+    // H-ASST-ACC5 (operator ruling, 23 Oct 2026): the one answer to whether
+    // Voltura meets a law, regulation or standard. The system prompt quotes it.
+    "chat.lawAnswer": "Voltura no hace ninguna afirmación sobre si se ajusta o no a alguna ley, reglamento o norma.",
 
     // ── Units ─────────────────────────────────────────────────────────────
     "unit.kwh": "{n} kWh",
@@ -305,6 +308,7 @@ export const serverCatalog = defineCatalog(
     "chat.contentInvalid": "The message must be text of 1 to {max} characters.",
     "chat.defaultTitle": "New Chat",
     "chat.outOfScope": "I can't answer that. I only answer questions about what Voltura does.",
+    "chat.lawAnswer": "Voltura makes no claim about whether it meets any law, regulation or standard.",
 
     "unit.kwh": "{n} kWh",
     "unit.w": "{n} W",

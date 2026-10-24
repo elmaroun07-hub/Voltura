@@ -312,6 +312,45 @@ export const ACC4_CLAIMS: KnownFalseClaim[] = [
 ];
 
 /**
+ * H-ASST-ACC5: the two slips of H-ASST-QUOTA's live L2 at 36457ba
+ * (contracts/evidence/h-asst-quota/l2-probe-36457ba.json).
+ *   C16 Voltura said to compute nothing outside the Calculator - 162's closing
+ *       summary, verbatim; English row a rendering. The Optimizer computes too.
+ *   C17 Voltura said to comply, or not to comply, with a law or standard - the
+ *       words of ACC4's 135 ("Voltura no cumple la Ley de IA de la UE"). 166's
+ *       "No, Voltura no lo hace." names no law, so only the question gives it
+ *       away: the live gate checks the law answer against the catalog sentence.
+ */
+const C16_TRUTH =
+  "Voltura computes in the Calculator and in the AI Optimizer (PV and battery sizes by formula); only the Assistant computes nothing";
+const C17_TRUTH = "Voltura makes no claim either way about meeting any law, regulation or standard";
+
+export const ACC5_CLAIMS: KnownFalseClaim[] = [
+  {
+    id: "C16",
+    truth: C16_TRUTH,
+    pattern: /\b(sin (realizar|hacer) c[aá]lculos? propios?|no (realiza|hace) (ning[uú]n )?c[aá]lculos?( propios?)?) fuera de la calculadora\b/,
+  },
+  {
+    id: "C16",
+    truth: C16_TRUTH,
+    // English: a rendering.
+    pattern: /\b(without (doing|performing|making)|(does not|doesn't) (do|perform|make)) (any )?(calculations?|computations?)( of its own)? outside the calculator\b/,
+  },
+  {
+    id: "C17",
+    truth: C17_TRUTH,
+    pattern: /\bvoltura (no )?(cumple|se ajusta)( con)? (a |con )?(la |el |alguna |ninguna )?(ley|reglamento|norma|normativa)\b/,
+  },
+  {
+    id: "C17",
+    truth: C17_TRUTH,
+    // English: a rendering.
+    pattern: /\bvoltura (is (not )?|isn't )(fully )?(eu ai act )?compliant\b|\bvoltura (does not |doesn't )?compl(y|ies) with\b/,
+  },
+];
+
+/**
  * Models write non-breaking hyphens, narrow and no-break spaces and curly
  * quotes (A0 has all four). Fold them so a pattern written with ASCII matches.
  */
@@ -326,7 +365,7 @@ export function normalise(text: string): string {
 
 export function checkTranscript(text: string): { id: string; match: string }[] {
   const t = normalise(text);
-  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS, ...SPANISH_CLAIMS, ...ACC3_CLAIMS, ...ACC4_CLAIMS].flatMap(({ id, pattern }) => {
+  return [...KNOWN_FALSE_CLAIMS, ...LIVE_SLIP_CLAIMS, ...SPANISH_CLAIMS, ...ACC3_CLAIMS, ...ACC4_CLAIMS, ...ACC5_CLAIMS].flatMap(({ id, pattern }) => {
     const m = pattern.exec(t);
     return m ? [{ id, match: m[0] }] : [];
   });
