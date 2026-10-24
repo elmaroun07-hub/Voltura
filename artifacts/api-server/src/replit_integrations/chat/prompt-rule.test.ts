@@ -122,8 +122,8 @@ const SCOPE: Record<
     // H-ASST-ACC4 (over-refusal, 106/107/110).
     inScope:
       "A question asking whether Voltura does, computes, shows, offers or claims something is always a question about what Voltura does: answer it, even when the answer is no. It never gets the out-of-scope answer below.",
-    lawInScope:
-      "If asked whether it does, say Voltura makes no such claim; that question is about Voltura, so it never gets the out-of-scope answer.",
+    // H-ASST-ACC5: the law question now gets one catalog sentence to copy.
+    lawInScope: "That question is about Voltura, so it never gets the out-of-scope answer.",
     gone: /General solar and battery advice is fine|expert advisor|Prefer concrete numbers|sizing reasoning of your own|Stay on energy topics|ask for it briefly/,
   },
   es: {
@@ -134,8 +134,7 @@ const SCOPE: Record<
       "Cuando una respuesta diga qué pasa cuando NASA POWER falla, copie palabra por palabra las frases del caso 1 y del caso 2 de la lista. Cuando una respuesta mencione factores de carbono, o qué países obtienen un resultado de CO2, copie palabra por palabra la entrada de carbono completa de la lista, incluida la lista de países.",
     inScope:
       "Una pregunta sobre si Voltura hace, calcula, muestra, ofrece o afirma algo es siempre una pregunta sobre lo que hace Voltura: respóndala, aunque la respuesta sea no. Nunca recibe la respuesta de fuera de ámbito de más abajo.",
-    lawInScope:
-      "Si le preguntan si lo hace, diga que Voltura no hace tal afirmación; esa pregunta trata de Voltura, así que nunca recibe la respuesta de fuera de ámbito.",
+    lawInScope: "Esa pregunta trata de Voltura, así que nunca recibe la respuesta de fuera de ámbito.",
     gone: /consejos generales sobre energía solar y baterías están bien|asesor experto|Prefiera cifras y rangos|razonamiento propio sobre el dimensionamiento|Cíñase a los temas de energía|pídalos brevemente/,
   },
 };
