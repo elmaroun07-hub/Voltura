@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { chatStorage } from "./storage";
 import { getLlmClient, llmModel } from "../../lib/llm";
 import { clientKey } from "../../lib/client-key";
