@@ -7,7 +7,7 @@ DATE, COMMIT (before)
 TASKS CLAIMED CLOSED
 - D.1 patched versions — `pnpm audit` 89 → **2** (0 critical, 1 high, 1 moderate, 0 low)
 - D.2 behaviour unchanged — suites at baseline, built API boots and validates as before
-- D.3 OPEN — live, after merge
+- D.3 live — **L1, L2 PASS** (below)
 
 DIFF SUMMARY
 `pnpm-workspace.yaml` (catalog vite ^7.3.7, zod 4.6.7; esbuild override 0.28.2; 23 patched floors; one `packageExtensions` entry), `pnpm-lock.yaml`, version fields in 8 `package.json` files (vitest ^4.1.12 ×5, esbuild ^0.28.2, orval ^8.44.0, vite ^7.3.7 in mockup-sandbox, web zod pinned 3.25.76), `from "zod"` → `from "zod/v3"` in `chat/routes.ts` and `lib/api-zod/src/generated/api.ts`; this ruling and `contracts/blocks/h-deps.md`.
@@ -24,10 +24,13 @@ REMAINING (2, both in the web app's build or browser code, none in the API)
 - **postcss-selector-parser 6.1.5 (moderate, GHSA-rj75-hqrm-r3gf)** — Tailwind CSS 3 at build time, parsing the site's own CSS. Fixed only in 7.x, which Tailwind 3 does not accept.
 
 LIVE EVIDENCE
-OPEN until merge.
+Merge `1a04df3` (`--no-ff`, parents `9b6d5c1` + `24567f7`), pushed 14:11:02Z 24 Oct from the cloud session on the operator's ruling ("Merge and test now"). CI on the branch `40100765805` green (test, build, screening-postgis — the 5 PDF tests that fail in this container pass there). Render re-read before push: API autoDeploy on commit, branch main, 1 instance.
+- **L1 PASS** — `/api/version` and the web `build-sha` both `1a04df3` at 14:12:30Z.
+- **L2 PASS** (14:12:57Z, no rows written, no model, geocoder or NASA call): calculate bad input → 400 "Please enter a valid location"; optimize 25-hour pattern → 400 "energyPattern must carry one weight per hour of the day"; conversation title 201 chars → 400; history and conversations for a fresh session → 200 `[]`; screening summary → 200 (2.31 s, first read after deploy fills the cache); building list → 200, run `h3-index-v2-14021-2026-10-21T22:28:58.722Z`, total 32,431; unknown PDF → 404; all five security headers present, no `X-Powered-By`. Web: page, its JS (1,103,301 B) and CSS (95,044 B) → 200; `/cribado`, `/assistant`, `/optimizer`, `/history` → 200.
+- **voltura-proof refreshed** on the operator's second ruling ("Push after merge"): commit `44f86d3` on its `main` (parent `5ce6fdc`), the 58 code and data files byte-identical to `1a04df3`, README names `1a04df3`. Fresh clone: 33 / 72 / 21 tests pass, also with the outside network cut; typecheck 0; `pnpm audit` "No known vulnerabilities found"; detect-secrets = the public ENPE PDF sha256 and lockfile integrity lines only. Its GitHub "About" text still names `a15dd1d`: this session cannot write repository settings (proxy 403), so that edit is the operator's.
 
 ROLLBACK COMMAND
-Pre-merge: `main` unchanged at `9b6d5c1`, branch unmerged.
+`git revert -m 1 1a04df3` — Tier B: computed on scratch ref `scratch/h-deps-revert-proof` before the push, revert `580c962`, its tree == `9b6d5c1`'s tree, 13 files against the merge. Cloud clone only, unpushed. **Deploy path UNPROVEN** (A13 debt stands).
 
 RULING
-OPEN — pre-merge criteria met; merge is the operator's ruling (§14.2).
+**CLOSED (self-ruled under §14.2)** — 24 Oct 2026, `1a04df3`. L1, L2 pass; 2 advisories remain as recorded, both in the web app's own code.
