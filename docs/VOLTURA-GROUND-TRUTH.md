@@ -124,7 +124,7 @@ Server-rendered Jinja templates, Flask blueprints, SQLite. Started by
 `gunicorn -w 2 -b 0.0.0.0:5000 app:app`; this is what the Replit "Project" run
 button launches.
 
-Screens and endpoints, all in [`artifacts/greencalc/routes/`](../artifacts/greencalc/routes):
+Screens and endpoints, all in [`artifacts/greencalc/routes/`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/routes):
 
 | Route | Method | What it does |
 |---|---|---|
@@ -146,7 +146,7 @@ Screens and endpoints, all in [`artifacts/greencalc/routes/`](../artifacts/green
 | `/export/pdf` | POST | 8-page ReportLab PDF, looked up by calculation UUID |
 | `/export/pdf/<id>` | GET | Same PDF, looked up by integer id |
 
-The `/calculate` flow ([`routes/calculator.py`](../artifacts/greencalc/routes/calculator.py)):
+The `/calculate` flow ([`routes/calculator.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/routes/calculator.py)):
 parse and validate ~15 form fields → geocode via Nominatim if no coordinates →
 fetch NASA POWER (2019–2023 monthly means, cached in the Flask session) → look up
 grid carbon intensity from a bounding-box country guess → run the **monthly**
@@ -181,7 +181,7 @@ code (CTE) compliance check. Nothing in either UI reaches `lib/cte`.
   audit endpoint, AI badges and disclaimers. All wired and reachable (§5).
 - **`lib/cte`** — the CTE DB-HE solar-control engine. 72 tests, all passing
   *(verified by running)*. It is genuinely finished for the scope it claims.
-- **Test hardening for GreenCalc**: [`tests/conftest.py`](../artifacts/greencalc/tests/conftest.py)
+- **Test hardening for GreenCalc**: [`tests/conftest.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/tests/conftest.py)
   makes the whole Python suite offline and deterministic — no-op CodeCarbon,
   stubbed NASA/Nominatim, and a `requests.get` guard that raises if any live call
   leaks. This is careful work.
@@ -212,7 +212,7 @@ code (CTE) compliance check. Nothing in either UI reaches `lib/cte`.
   name is misleading.
 - **GreenCalc panel tilt and orientation** — collected on the form, validated,
   stored in the database, and **discarded**.
-  [`routes/calculator.py:137`](../artifacts/greencalc/routes/calculator.py) calls
+  [`routes/calculator.py:137`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/routes/calculator.py) calls
   `panel_efficiency_factor(tilt, orientation)` and throws the return value away;
   `calculate_energy()` has no parameter for it. Tilt and orientation have zero
   effect on any GreenCalc number. The landing page says results are *"adjusted for
@@ -221,7 +221,7 @@ code (CTE) compliance check. Nothing in either UI reaches `lib/cte`.
   POST handler is the JSON API. Submitting the form shows the user a raw JSON
   blob. The template's `{% if result %}` branch is unreachable.
 - **GreenCalc installation cost** — the engine uses `pv_w/1000 × €1,200` only
-  ([`energy_model.py:284`](../artifacts/greencalc/models/energy_model.py)). Battery
+  ([`energy_model.py:284`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/models/energy_model.py)). Battery
   and wind capacity are collected and priced nowhere. A companion note in the
   workspace (`VOLTURA_fix3b_fix6_patch.md`) states that battery and wind costs
   were already included; in this commit they are not.
@@ -449,7 +449,7 @@ in the UI, which is the right behaviour.
 
 Two independent tables, in two different units, that disagree with each other.
 
-**GreenCalc:** [`artifacts/greencalc/data/grid_carbon_intensity.json`](../artifacts/greencalc/data/grid_carbon_intensity.json) —
+**GreenCalc:** [`artifacts/greencalc/data/grid_carbon_intensity.json`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/data/grid_carbon_intensity.json) —
 32 ISO country codes plus `"DEFAULT": 400`, in **gCO₂/kWh**. No source cited in
 the file or in any code comment. No date, no vintage. The country is chosen by
 `country_from_latlon()`, which is a hand-written list of 34 rectangular
@@ -481,7 +481,7 @@ GreenCalc's landing page claims *"Country-specific grid carbon intensity data fo
 
 ### Computation-carbon figures
 
-GreenCalc wraps its engine call in **CodeCarbon** ([`models/carbon_tracker.py`](../artifacts/greencalc/models/carbon_tracker.py))
+GreenCalc wraps its engine call in **CodeCarbon** ([`models/carbon_tracker.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/models/carbon_tracker.py))
 and persists a real measurement per calculation. If CodeCarbon is absent it falls
 back to `duration × 10 W × 0.4 kgCO₂/kWh`. Voltura's equivalent is entirely
 synthetic: `duration × 50 W × carbonIntensity`, with a floor of 1 mg, displayed as
@@ -494,14 +494,14 @@ synthetic: `duration × 50 W × carbonIntensity`, with a floor of 1 mg, displaye
 ### Where it exists
 
 Essentially all of it is in the **Flask app**, and it is real code, not just
-documentation. [`routes/compliance.py`](../artifacts/greencalc/routes/compliance.py)
+documentation. [`routes/compliance.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/routes/compliance.py)
 opens with a header naming Articles 50, 14, 10 and 73.
 
 **Logging and traceability (Art. 73).** An `audit_log` table
-([`models/db_models.py`](../artifacts/greencalc/models/db_models.py)) with
+([`models/db_models.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/models/db_models.py)) with
 timestamp, session id, endpoint, a SHA-256 input hash, a JSON output summary,
 model version, `fallback_used`, `boundary_violation`, and measured emissions.
-Written on every `/calculate` via [`models/audit_utils.py`](../artifacts/greencalc/models/audit_utils.py),
+Written on every `/calculate` via [`models/audit_utils.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/models/audit_utils.py),
 which is explicitly non-throwing. `GET /admin/audit` returns prediction volume,
 fallback rate, boundary-violation rate, feedback sentiment, and the last 50
 entries; it returns 403 unless `X-Admin-Token` matches the `ADMIN_TOKEN`
@@ -523,7 +523,7 @@ a certified energy professional…"*; and a footer on every PDF page reading
 *"AI-assisted estimate | Not financial advice | Model v… "*.
 
 **Model documentation (Art. 10-adjacent).** `GET /model-info` and
-`/model-info/page` ([`routes/predictions.py`](../artifacts/greencalc/routes/predictions.py))
+`/model-info/page` ([`routes/predictions.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/routes/predictions.py))
 return a genuine model card: algorithm, seed, training-sample count, feature list,
 train/test split, geographic scope, intended use, **stated known bias**
 ("Underrepresented at lat > 60° … calibrated for residential scale only"), stated
@@ -539,7 +539,7 @@ country only. `/delete-my-data` deletes every calculation for the current sessio
 id, cascading to emissions, feedback and overrides.
 
 **Out-of-distribution handling.** `ML_TRAINING_BOUNDS` in
-[`energy_model.py`](../artifacts/greencalc/models/energy_model.py) defines the
+[`energy_model.py`](https://github.com/elmaroun07-hub/voltura/blob/a464bb5/artifacts/greencalc/models/energy_model.py) defines the
 training envelope; inputs outside it set `boundary_violation`, which forces the
 `/predict` endpoint down a physics fallback path and is recorded in the audit log.
 
