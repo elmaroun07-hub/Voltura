@@ -1,4 +1,9 @@
-# Voltura
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/voltura-wordmark-dark.png">
+    <img src="docs/brand/voltura-wordmark-light.png" alt="Voltura" width="332">
+  </picture>
+</h1>
 
 **Summer energy-poverty screening for Spain's oldest housing, built so it never invents a number.**
 
