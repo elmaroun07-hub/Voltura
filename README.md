@@ -66,7 +66,7 @@ Live demo. No agency uses it yet. I'm looking for a first partner in Andalusia: 
 
 The screening says where a technical visit should look first. It is not a grade, a pass-or-fail verdict or a decision about any household. The calculator's figures are estimates, not energy, financial or legal advice.
 
-Single-family houses are scored but not published one by one: the public list, building pages and CSV export show buildings with two or more dwellings. Privacy notice: https://voltura-web.onrender.com/privacy.html
+Single-family houses are scored but not published one by one: the public list, building pages and CSV export show buildings with two or more dwellings. An agency working with Voltura gets an access key that shows every scored building; each use of a key is logged. Privacy notice: https://voltura-web.onrender.com/privacy.html
 
 ## Data sources and licences
 

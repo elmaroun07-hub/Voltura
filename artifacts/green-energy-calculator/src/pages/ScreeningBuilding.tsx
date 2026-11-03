@@ -2,7 +2,7 @@ import { Link, useParams } from "wouter";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Shell } from "@/components/layout/Shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { NotLoaded, useBuildingTrace } from "@/hooks/use-screening";
+import { AgencyKeyInvalid, NotLoaded, useBuildingTrace } from "@/hooks/use-screening";
 import { useI18n } from "@/i18n";
 import { bandText } from "@/pages/Screening";
 
@@ -35,7 +35,9 @@ export default function ScreeningBuilding() {
             ? trace.error.message === "building_not_published"
               ? t("building.notPublished")
               : t("building.notFound")
-            : t("screening.loadError")}
+            : trace.error instanceof AgencyKeyInvalid
+              ? t("screening.agency.invalidBody")
+              : t("screening.loadError")}
         </CardContent></Card>
       </Shell>
     );

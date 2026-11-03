@@ -42,6 +42,7 @@ Voltura has no user accounts, passwords or payment data. It stores the calculati
 ## What is already in place
 
 - Rate limits on the routes that do real work: calculations, history, the Assistant and the screening.
+- Agency access keys (they show single-family houses in the screening) are random, stored only as a SHA-256 hash, revocable, and every use is logged. A wrong or revoked key is refused, never treated as the public view.
 - Security headers on the API, and a Content Security Policy on the web page.
 - No secrets in the repository. Keys live in the hosting environment. The full git history was scanned with gitleaks before the repository went public.
 - Dependencies are checked with `pnpm audit`.

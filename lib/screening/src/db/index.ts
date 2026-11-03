@@ -32,6 +32,7 @@ export {
   PUBLISHED_MIN_DWELLINGS,
   isPublished,
   type NotPublished,
+  type ReadScope,
   type AgeFilter,
   type BandValue,
   type ListFilters,

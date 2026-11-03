@@ -57,3 +57,26 @@ describe("VPUB audit pages and markup", () => {
     expect(src("../pages/Optimizer.tsx")).toContain('data-ai-disclosure="machine-generated"');
   });
 });
+
+describe("Agency access keys (3 Nov 2026)", () => {
+  it.each(["es", "en"] as const)("the %s page explains the key and says each use is logged", (lang) => {
+    const c = catalog[lang] as Record<string, string>;
+    for (const k of ["title", "help", "use", "remove", "checking", "active", "allShown", "invalid", "invalidBody"]) {
+      expect(c[`screening.agency.${k}`], k).toBeTruthy();
+    }
+    expect(c["screening.agency.active"]).toMatch(lang === "es" ? /registrado/ : /logged/);
+  });
+
+  it("sends the key as X-Agency-Key on every screening read and on the export", () => {
+    const hooks = src("../hooks/use-screening.ts");
+    expect(hooks).toContain('"X-Agency-Key"');
+    expect(hooks).toContain("sessionFetch(path, { headers: agencyHeaders() })");
+    expect(hooks).toContain("export.csv`, { headers: agencyHeaders() })");
+  });
+
+  it("the privacy notice says agencies with a key see single-family houses and that uses are logged", () => {
+    const html = src("../../public/privacy.html");
+    expect(html).toContain("clave de acceso");
+    expect(html).toContain("access key");
+  });
+});

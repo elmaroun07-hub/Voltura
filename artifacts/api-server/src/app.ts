@@ -55,7 +55,8 @@ app.use(
     // before the handler is ever reached - every read and write fails at once.
     // Accept-Language (H2b) is CORS-safelisted for the values the web sends
     // ("es", "en"); it is named here anyway so a preflight never depends on that.
-    allowedHeaders: ["Content-Type", "X-Session-Id", "Accept-Language"],
+    // X-Agency-Key: the agency access key (routes/screening.ts).
+    allowedHeaders: ["Content-Type", "X-Session-Id", "Accept-Language", "X-Agency-Key"],
     // Article 50(2): the AI-generated mark on Assistant and Optimizer responses
     // is readable by the web app and by any other browser client.
     exposedHeaders: ["AI-Disclosure"],

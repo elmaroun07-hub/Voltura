@@ -155,7 +155,7 @@ NUMDEF=$(grep -rnE '(\|\||\?\?)\s*-?[0-9]+(\.[0-9]+)?\b' \
 if [ -z "$NUMDEF" ]; then
   row PASS "G5 no numeric default" "none in code (|| and ??)"
 else
-  row FAIL "G5 no numeric default" "$(printf '%s' "$NUMDEF" | wc -l | tr -d ' ') hit(s) — OPEN AND READ each, comments are excluded already"
+  row FAIL "G5 no numeric default" "$(printf '%s\n' "$NUMDEF" | wc -l | tr -d ' ') hit(s) — OPEN AND READ each, comments are excluded already"
   printf '%s\n' "$NUMDEF" | sed 's/^/        /' >&2
 fi
 

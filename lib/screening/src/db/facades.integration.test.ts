@@ -414,6 +414,13 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
       expect(await buildingTrace(pool, "14021", ref)).toEqual({ runId: before.runId, notPublished: true });
       expect((await exportRows(pool, "14021")).rows.map((r) => r.ref)).not.toContain(ref);
       expect((await portfolioSummary(pool, "14021")).scored).toBe(before.total);
+      // An agency key (the API decides) sees it, with its full trace and in the export.
+      const agency = await listBuildings(pool, "14021", {}, { limit: 50, offset: 0 }, "agency");
+      expect(agency.total).toBe(before.total);
+      expect(agency.rows.map((r) => r.ref)).toContain(ref);
+      const trace = await buildingTrace(pool, "14021", ref, "agency");
+      expect(trace && "row" in trace ? trace.row.ref : null).toBe(ref);
+      expect((await exportRows(pool, "14021", "agency")).rows.map((r) => r.ref)).toContain(ref);
     } finally {
       await pool.query("UPDATE h3_buildings SET dwellings = 10 WHERE ref = $1", [ref]);
     }

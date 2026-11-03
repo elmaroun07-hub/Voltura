@@ -68,8 +68,53 @@ export class NotLoaded extends Error {
   readonly name = "NotLoaded";
 }
 
+/**
+ * Agency access key (operator ruling 3 Nov 2026). An agency the maintainer
+ * works with gets a key; pasted on the screening page it is kept in this
+ * browser and sent as X-Agency-Key, and the API then shows every scored
+ * building, single-family houses included. A key the API refuses is an error
+ * of its own, so the page can say so instead of quietly showing the public view.
+ */
+export const AGENCY_KEY_STORAGE = "voltura.agencyKey";
+
+export function getAgencyKey(): string | null {
+  try {
+    return globalThis.localStorage?.getItem(AGENCY_KEY_STORAGE) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function setAgencyKey(key: string | null): void {
+  try {
+    if (key) globalThis.localStorage?.setItem(AGENCY_KEY_STORAGE, key);
+    else globalThis.localStorage?.removeItem(AGENCY_KEY_STORAGE);
+  } catch {
+    // Storage can be absent or throw; the key then lasts only until reload.
+  }
+}
+
+function agencyHeaders(): Record<string, string> {
+  const key = getAgencyKey();
+  return key ? { "X-Agency-Key": key } : {};
+}
+
+/** Part of every screening query key, so adding or removing a key refetches. */
+function agencyScopeKey(): string {
+  const key = getAgencyKey();
+  return key ? `agency:${key.slice(0, 10)}` : "public";
+}
+
+export class AgencyKeyInvalid extends Error {
+  readonly name = "AgencyKeyInvalid";
+}
+
 async function getJson<T>(path: ApiPath, schema: z.ZodType<T>): Promise<T> {
-  const res = await sessionFetch(path);
+  const res = await sessionFetch(path, { headers: agencyHeaders() });
+  if (res.status === 401) {
+    const body = await res.json().catch(() => null);
+    if (body?.code === "agency_key_invalid") throw new AgencyKeyInvalid(body.message);
+  }
   if (res.status === 404) {
     const body = await res.json().catch(() => null);
     if (body?.code === "screening_not_loaded" || body?.code === "building_not_found" || body?.code === "building_not_published") {
@@ -104,10 +149,10 @@ export function useScreeningList(ine: string | undefined, filters: Filters, page
   q.set("offset", String(page * PAGE_SIZE));
   const path = `/api/screening/${ine}/buildings?${q.toString()}` as ApiPath;
   return useQuery({
-    queryKey: [path],
+    queryKey: [path, agencyScopeKey()],
     queryFn: () => getJson(path, listSchema),
     enabled: Boolean(ine),
-    retry: (count, err) => !(err instanceof NotLoaded) && count < 2,
+    retry: (count, err) => !(err instanceof NotLoaded) && !(err instanceof AgencyKeyInvalid) && count < 2,
   });
 }
 
@@ -117,28 +162,41 @@ export function useScreeningSummary(ine: string | undefined) {
     queryKey: [path],
     queryFn: () => getJson(path, summarySchema),
     enabled: Boolean(ine),
-    retry: (count, err) => !(err instanceof NotLoaded) && count < 2,
+    retry: (count, err) => !(err instanceof NotLoaded) && !(err instanceof AgencyKeyInvalid) && count < 2,
   });
 }
 
 export function useBuildingTrace(ine: string, ref: string) {
   const path = `/api/screening/${ine}/buildings/${ref}` as ApiPath;
   return useQuery({
-    queryKey: [path],
+    queryKey: [path, agencyScopeKey()],
     queryFn: () => getJson(path, traceSchema),
-    retry: (count, err) => !(err instanceof NotLoaded) && count < 2,
+    retry: (count, err) => !(err instanceof NotLoaded) && !(err instanceof AgencyKeyInvalid) && count < 2,
+  });
+}
+
+const agencySchema = z.object({ agency: z.string() });
+
+/** Which agency the stored key belongs to; disabled when no key is stored. */
+export function useAgency(key: string | null) {
+  const path = "/api/screening/agency" as ApiPath;
+  return useQuery({
+    queryKey: [path, key ? key.slice(0, 10) : "none"],
+    queryFn: () => getJson(path, agencySchema),
+    enabled: Boolean(key),
+    retry: false,
   });
 }
 
 /** Fetch the CSV through sessionFetch (the one place the API base is applied) and save it. */
 export async function downloadScreeningCsv(ine: string): Promise<void> {
-  const res = await sessionFetch(`/api/screening/${ine}/export.csv`);
+  const res = await sessionFetch(`/api/screening/${ine}/export.csv`, { headers: agencyHeaders() });
   if (!res.ok) throw new UserMessage(tNow()("screening.exportError"));
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `cribado-${ine}.csv`;
+  a.download = getAgencyKey() ? `cribado-${ine}-completo.csv` : `cribado-${ine}.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
