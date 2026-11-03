@@ -366,6 +366,17 @@ describe("priceSavings and roi — typed by currency, computed not guessed", () 
     expect(r.paybackYears).toBe(25);
   });
 
+  it("#3 R1: a cost first covered in the 26th year is null — payback never sits past the 25-year curve", () => {
+    // 1,000 a year rising 1.5%: 25 years sum to 30,063 and 26 years to about
+    // 31,5xx, so a 31,000 cost (31x the first year) is covered only in year 26.
+    const annual: Money<"EUR"> = { amount: 1000, currency: "EUR" };
+    const cost: Money<"EUR"> = { amount: 31_000, currency: "EUR" };
+    const r = roi(annual, cost);
+    expect(r.curve).toHaveLength(26);
+    expect(r.curve[25].netPosition).toBeLessThan(0);
+    expect(r.paybackYears).toBeNull();
+  });
+
   it("a zero cost is paid back at year 0, not 'never'", () => {
     const annual: Money<"GBP"> = { amount: 300, currency: "GBP" };
     const cost: Money<"GBP"> = { amount: 0, currency: "GBP" };

@@ -439,7 +439,9 @@ export function roi(annualSavings: Money<Currency>, installCost: Money<Currency>
       netPosition: parseFloat((cumulative - installCost.amount).toFixed(0)),
     });
     const yearSavings = annualSavings.amount * Math.pow(1 + ROI_INFLATION, y);
-    if (cumulative < installCost.amount && cumulative + yearSavings >= installCost.amount) {
+    // #3 R1: the pass at y = ROI_YEARS tests the 26th year, which is on neither the
+    // curve nor in lifetimeSavings, so it may not produce a payback.
+    if (y < ROI_YEARS && cumulative < installCost.amount && cumulative + yearSavings >= installCost.amount) {
       paybackYears = parseFloat((y + (installCost.amount - cumulative) / yearSavings).toFixed(1));
     }
     cumulative += yearSavings;
