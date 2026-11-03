@@ -58,9 +58,6 @@ const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
  *                                 facing the pole 0.70; tilt loss 0.003 per
  *                                 degree from 35 degrees, floor 0.4
  *   SYSTEM_EFFICIENCY             0.78 (losses from panel to socket)
- *   fallbackIrradiance            used only when NASA POWER does not answer, and
- *                                 labelled "estimated from latitude" in the
- *                                 response and on the page
  *
  * The household's annual kWh is the user's own: the consumption shape is
  * rescaled to it (consumptionScale in simulate8760).
@@ -259,10 +256,11 @@ const NASA_PERIOD_END = 2023;
  * all — never a substitution, which is the whole of H1.0.
  *
  * `http`, `request-failed` and `malformed` are TRANSPORT defects: NASA did not
- * answer. Those keep the existing labelled latitude fallback, which is not a
- * silent default — it is reported as `fallback-lat` and rendered as such.
- * H1.0 is about the fill value; widening it to kill the transport fallback
- * would be a different change and is not taken here.
+ * answer, or not readably. Until 3 Nov 2026 those fell back to an irradiance
+ * estimated from the latitude, labelled `fallback-lat`. That was the
+ * "different change" H1.0 left open; the operator ruled it ("NASA
+ * unavailable"), and a transport defect is now a typed 503 `nasa_unavailable`
+ * with no figure, like the data defects.
  */
 type NasaFailure =
   | { kind: "http"; status: number }
@@ -387,14 +385,10 @@ export function nasaDataFailureToHttp(
  *   2. the fill value -> FATAL. H1.0. NASA answered "I have no data for this
  *                      month" in a finite number, and no figure can be built
  *                      on it.
- *   3. non-finite   -> NOT fatal. null, "", {} and friends: the key is there
- *                      and the value is garbage. That is a malformed response,
- *                      which the existing design already answers with the
- *                      labelled latitude fallback and reports as
- *                      `fallback-lat`. Gate A3.5 pins that behaviour and it is
- *                      not H1.0's to change - H1.0 is about the fill value.
- *                      Promoting this to a hard error would silently retire a
- *                      tested honesty guarantee under cover of a different task.
+ *   3. non-finite   -> malformed. null, "", {} and friends: the key is there
+ *                      and the value is garbage. Until 3 Nov 2026 this fell
+ *                      back to the latitude estimate (`fallback-lat`); it is
+ *                      now the typed 503 `nasa_unavailable`, with no figure.
  */
 function readNasaSeries(
   raw: Record<string, unknown>,
@@ -532,23 +526,6 @@ async function fetchNasaPower(
   }
 }
 
-// Fallback irradiance by latitude
-export function fallbackIrradiance(lat: number): { irradiance: number[]; temperature: number[] } {
-  // Was `Math.abs(lat || 45)`. `||` is falsy-coalescing, so it also fired at
-  // latitude 0 and silently moved the equator to 45 degrees north. Deleted, not
-  // replaced: this function receives a real latitude or it is not called.
-  if (!Number.isFinite(lat)) {
-    throw new Error(`fallbackIrradiance received a non-finite latitude: ${lat}`);
-  }
-  const absLat = Math.abs(lat);
-  const baseIrr = Math.max(2.5, 6.5 - absLat * 0.06);
-  const irradiance = MONTH_NAMES.map((_, i) => {
-    const seasonalFactor = 1 + 0.45 * Math.cos(((i + 6) * Math.PI) / 6);
-    return parseFloat((baseIrr * seasonalFactor).toFixed(2));
-  });
-  const temperature = [3,4,8,12,17,21,23,22,18,13,7,3].map((t) => t + (15 - absLat) * 0.3);
-  return { irradiance, temperature };
-}
 
 /**
  * The provenance record every location-derived response carries.
@@ -563,7 +540,7 @@ type ResolutionRecord = {
   geocodeStatus: "resolved" | "failed";
   lat: number | null;
   lon: number | null;
-  irradianceSource: "nasa-live" | "fallback-lat" | "not-reached";
+  irradianceSource: "nasa-live" | "not-reached";
   irradiancePeriod: { start: number; end: number } | null;
   nasaHttpStatus: number | "not-called" | "request-failed";
   nasaKeysRequested: string[];
@@ -587,10 +564,10 @@ type ResolvedResolutionRecord = ResolutionRecord & { lat: number; lon: number };
 
 type IrradianceRejection = {
   ok: false;
-  status: 422;
+  status: 422 | 503;
   body: {
     message: string;
-    code: "geocode_failed" | "nasa_fill_value" | "nasa_partial_coverage";
+    code: "geocode_failed" | "nasa_fill_value" | "nasa_partial_coverage" | "nasa_unavailable";
     field: "location";
     resolution: ResolutionRecord;
   };
@@ -605,13 +582,14 @@ type IrradianceResolved = {
   temperatureMonthly: number[];
   /** The twelve-month mean, at the precision the response reports it. */
   avgIrradiance: number;
-  irradianceSource: "nasa-live" | "fallback-lat";
-  irradiancePeriod: { start: number; end: number } | null;
+  irradianceSource: "nasa-live";
+  irradiancePeriod: { start: number; end: number };
   resolution: ResolvedResolutionRecord;
 };
 
 /**
- * Location string in, irradiance and provenance out — or a typed 422.
+ * Location string in, irradiance and provenance out — or a typed 422 (or 503
+ * `nasa_unavailable` when NASA POWER cannot be used).
  *
  * Extracted at H-OPT, behaviour unchanged, because `/api/optimize` needs
  * exactly this and had none of it: it passed the raw location string to a
@@ -704,15 +682,39 @@ async function resolveLocationIrradiance(
     };
   }
 
-  let nasaData = nasaProbe.data;
-  let irradiancePeriod = nasaProbe.period;
-  let irradianceSource: "nasa-live" | "fallback-lat" = "nasa-live";
-  if (!nasaData) {
-    // Transport failure only - NASA did not answer. Labelled, never silent.
-    nasaData = fallbackIrradiance(lat);
-    irradianceSource = "fallback-lat";
-    irradiancePeriod = null;
+  // VPUB, 3 Nov 2026 (operator ruling "NASA unavailable"): a TRANSPORT failure
+  // - NASA did not answer, answered with an error status, or sent an answer
+  // that cannot be read - used to be replaced by an irradiance estimated from
+  // the latitude. It was labelled, but it was a formula with unsourced
+  // constants standing in for missing data, against this repo's rule that a
+  // missing input is reported as missing. It is now a typed 503 and no figure.
+  const nasaData = nasaProbe.data;
+  const irradiancePeriod = nasaProbe.period;
+  if (!nasaData || !irradiancePeriod) {
+    return {
+      ok: false,
+      status: 503,
+      body: {
+        message: serverT(locale)("error.nasaUnavailable"),
+        code: "nasa_unavailable",
+        field: "location",
+        resolution: {
+          locationInput,
+          geocodeStatus: "resolved",
+          lat,
+          lon,
+          irradianceSource: "not-reached",
+          irradiancePeriod: null,
+          nasaHttpStatus: nasaProbe.httpStatus,
+          nasaKeysRequested: nasaProbe.keysRequested,
+          nasaKeysPresent: nasaProbe.keysPresent,
+          irradianceMonthly: [],
+          carbonSource,
+        },
+      },
+    };
   }
+  const irradianceSource = "nasa-live" as const;
 
   const { irradiance: irrMonthly, temperature: tempMonthly } = nasaData;
 
@@ -1278,7 +1280,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // No irradiance claim here, in either direction. This footer renders a
         // persisted calculations row, and that row carries no provenance - no
         // source, no year - so the PDF cannot know whether the figures came
-        // from NASA or from the latitude fallback. Naming a year it cannot
+        // from NASA or (rows before 3 Nov 2026) from the latitude estimate. Naming a year it cannot
         // verify would read as a verified fact on the artefact most likely to
         // be forwarded onward. Silence is the honest option until the row can
         // carry the fact.

@@ -45,11 +45,8 @@ const CLAUSES: [id: string, english: string, spanish: string][] = [
   ["geocoder", "OpenStreetMap Nominatim geocoder", "geocodificador Nominatim de OpenStreetMap"],
   ["nasa", `averaged over ${NASA_FACT.start}-${NASA_FACT.end}: twelve monthly values, not hourly data`, `promediadas en ${NASA_FACT.start}-${NASA_FACT.end}: doce valores mensuales, no datos horarios`],
   ["nasa", "Temperature affects only the modelled household consumption, not the solar generation.", "La temperatura solo afecta al consumo doméstico modelizado, no a la generación solar."],
-  // H-ASST-ACC3: the two NASA failures as two numbered cases.
-  ["nasa", "NASA POWER can fail in two different ways, and they end differently.", "NASA POWER puede fallar de dos maneras distintas, y terminan de forma distinta."],
-  ["nasa", "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page.", "Caso 1 - NASA no contesta, contesta con un estado de error o envía una respuesta que Voltura no puede leer: Voltura estima la irradiancia y la temperatura a partir de la latitud, e identifica el resultado como esa estimación en la respuesta de la API y en la página."],
-  ["nasa", "Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error.", "Caso 2 - NASA contesta, pero uno o más meses no tienen valor o se omiten: no hay estimación ni resultado, y el cálculo se detiene con un error."],
-  ["nasa", "Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.", "Solo el caso 1 da una estimación por latitud; solo el caso 2 detiene el cálculo."],
+  // VPUB: the NASA failures in one sentence (the latitude estimate is gone).
+  ["nasa", "If NASA POWER cannot be used (it does not answer, answers with an error status, sends an answer Voltura cannot read, or leaves one or more months without a value), there is no estimate and no result: the calculation stops with an error.", "Si NASA POWER no se puede usar (no contesta, contesta con un estado de error, envía una respuesta que Voltura no puede leer o deja uno o más meses sin valor), no hay estimación ni resultado: el cálculo se detiene con un error."],
   ["simulation", "(8,760 hours)", "(8760 horas)"],
   ["simulation", "spread from the annual kWh the user enters over a typical residential profile", "repartido a partir de los kWh anuales que introduce el usuario según un perfil residencial típico"],
   ["simulation", "and battery charge and discharge", "y la carga y descarga de la batería"],

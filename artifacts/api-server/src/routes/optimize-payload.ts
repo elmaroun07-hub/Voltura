@@ -38,14 +38,15 @@ export type OptimizeFacts = {
   lat: number;
   lon: number;
   /**
-   * `nasa-live` or `fallback-lat`, exactly as `resolution.irradianceSource`
-   * carries it. It is a machine enum and is mapped below before it reaches the
+   * `nasa-live`, exactly as `resolution.irradianceSource` carries it on a
+   * success (a NASA failure is a typed error before this exists). It
+   * is a machine enum and is mapped below before it reaches the
    * prompt: the model writes prose for a person to read, so a raw `nasa-live`
    * in the input is a raw `nasa-live` one echo away from a screen (G7). This
    * map is prompt-only — the UI has its own at its render site, which is where
    * G7's gate inspects, and neither reads the other.
    */
-  irradianceSource: "nasa-live" | "fallback-lat";
+  irradianceSource: "nasa-live";
   irradiancePeriod: { start: number; end: number } | null;
   sizing: Sizing;
 };
@@ -68,8 +69,6 @@ function irradianceProvenanceLine(f: OptimizeFacts): string {
       const span = start === end ? `${start}` : `${start}–${end}`;
       return `Irradiance source: NASA POWER satellite measurement, ${span} monthly mean`;
     }
-    case "fallback-lat":
-      return "Irradiance source: estimated from latitude because NASA POWER did not answer";
   }
 }
 

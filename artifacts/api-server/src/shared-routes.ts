@@ -133,7 +133,7 @@ const resolutionSchema = z.object({
   geocodeStatus: z.enum(['resolved', 'failed']),
   lat: z.number().nullable(),
   lon: z.number().nullable(),
-  irradianceSource: z.enum(['nasa-live', 'fallback-lat', 'not-reached']),
+  irradianceSource: z.enum(['nasa-live', 'not-reached']),
   // H1.8: the period the figure was actually computed over, not the period
   // that was requested. Null whenever no NASA figure was used at all.
   // A mean is meaningless without the years it spans, so this travels with it.

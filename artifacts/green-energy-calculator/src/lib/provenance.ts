@@ -35,8 +35,6 @@ export function irradianceLabel(resolution: Resolution, t: WebTranslate): string
       const span = start === end ? `${start}` : `${start}–${end}`;
       return t("irradiance.nasa", { span });
     }
-    case "fallback-lat":
-      return t("irradiance.fallback");
     case "not-reached":
       // Unreachable on a 200: an unresolvable location returns 422 before any
       // result exists to render.

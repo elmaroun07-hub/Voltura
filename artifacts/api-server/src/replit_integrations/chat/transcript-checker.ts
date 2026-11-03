@@ -74,7 +74,8 @@ export const KNOWN_FALSE_CLAIMS: KnownFalseClaim[] = [
 export const LIVE_SLIP_CLAIMS: KnownFalseClaim[] = [
   {
     id: "E1",
-    truth: "missing NASA data gives no result; the latitude estimate runs only when NASA does not reply, errors, or sends an unreadable reply",
+    // VPUB (3 Nov 2026): the latitude estimate is gone; the pattern is unchanged.
+    truth: "missing or unusable NASA data gives no result; there is no latitude estimate (VPUB)",
     pattern: /\b(data|values?|months?) (is |are )?missing\b[^.;*]{0,40}\b(falls? back|latitude)\b|\blatitude\b[^.;*]{0,40}\bif (the )?nasa data (is |are )?missing\b/,
   },
   {
@@ -370,3 +371,57 @@ export function checkTranscript(text: string): { id: string; match: string }[] {
     return m ? [{ id, match: m[0] }] : [];
   });
 }
+
+/**
+ * VPUB, 3 Nov 2026 ("NASA unavailable"): the latitude estimate is gone. When
+ * NASA POWER cannot be used, the calculation now stops with a typed 503.
+ *
+ * Two consequences for the checker:
+ *   - N1's "false claim" ("NASA unavailable -> the calculation stops") is now
+ *     TRUE, so N1 is retired from the live check.
+ *   - Any claim that Voltura estimates from the latitude is now FALSE (V1).
+ *     E1 and N2 already flag that claim for missing data and stay.
+ *
+ * `checkTranscript` is kept exactly as it was: the recorded evidence of the
+ * H-ASST-ACC rounds was judged against it, and its suites assert the lines of
+ * those rounds. `checkTranscriptNow` is the checker for live runs from VPUB on.
+ */
+export const RETIRED_BY_VPUB = new Set(["N1"]);
+
+const V1_TRUTH =
+  "there is no latitude estimate: when NASA POWER cannot be used, the calculation stops with an error and gives no result";
+
+export const VPUB_CLAIMS: KnownFalseClaim[] = [
+  {
+    id: "V1",
+    truth: V1_TRUTH,
+    pattern:
+      /\b(estimat\w*|falls? back|fallback)\b[^.;*]{0,50}\b(from|on|by|using) (the )?latitude\b|\blatitude[- ]based (estimates?|fallback|values?)\b|\blatitude (estimates?|fallback)\b/,
+  },
+  {
+    id: "V1",
+    truth: V1_TRUTH,
+    // Spanish.
+    pattern:
+      /\b(estima\w*|recurre\w*)\b[^.;*]{0,60}\b(a partir de|por|seg[uú]n|basad[ao]s? en) la latitud\b|\bestimaci[oó]n (basada en la latitud|por latitud|a partir de la latitud)\b|\bestimaci[oó]n se basa (solo |s[oó]lo |[uú]nicamente )?en la latitud\b/,
+  },
+];
+
+export function checkTranscriptNow(text: string): { id: string; match: string }[] {
+  const t = normalise(text);
+  return [
+    ...KNOWN_FALSE_CLAIMS,
+    ...LIVE_SLIP_CLAIMS,
+    ...SPANISH_CLAIMS,
+    ...ACC3_CLAIMS,
+    ...ACC4_CLAIMS,
+    ...ACC5_CLAIMS,
+    ...VPUB_CLAIMS,
+  ]
+    .filter(({ id }) => !RETIRED_BY_VPUB.has(id))
+    .flatMap(({ id, pattern }) => {
+      const m = pattern.exec(t);
+      return m ? [{ id, match: m[0] }] : [];
+    });
+}
+

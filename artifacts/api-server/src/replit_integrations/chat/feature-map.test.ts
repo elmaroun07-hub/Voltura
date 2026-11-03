@@ -74,9 +74,9 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/routes/routes.ts",
     symbol: "https://nominatim.openstreetmap.org/search",
   },
-  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over 2019-2023: twelve monthly values, not hourly data. Temperature affects only the modelled household consumption, not the solar generation. NASA POWER can fail in two different ways, and they end differently. Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page. Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error. Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.": {
+  "Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over 2019-2023: twelve monthly values, not hourly data. Temperature affects only the modelled household consumption, not the solar generation. If NASA POWER cannot be used (it does not answer, answers with an error status, sends an answer Voltura cannot read, or leaves one or more months without a value), there is no estimate and no result: the calculation stops with an error.": {
     file: "artifacts/api-server/src/routes/routes.ts",
-    symbol: "export function fallbackIrradiance(",
+    symbol: 'code: "nasa_unavailable"',
   },
   "Simulates a full year hour by hour (8,760 hours): solar generation, household consumption spread from the annual kWh the user enters over a typical residential profile, and battery charge and discharge.": {
     file: "artifacts/api-server/src/routes/routes.ts",

@@ -148,29 +148,25 @@ function pdfLines(bytes: Buffer): string[] {
 
 describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () => {
   it.each(["http-500", "malformed", "non-numeric", "request-failed"] as const)(
-    "E1 nasa: the latitude estimate runs when NASA cannot be used (%s), and is labelled",
+    "E1 nasa: NASA unusable (%s) is no estimate and no result - a typed 503 (VPUB)",
     async (mode) => {
-      expect(fact("nasa")).toContain(
-        // H-ASST-ACC3: reworded as Case 1; the behaviour pinned below is unchanged.
-        "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page.",
-      );
+      expect(fact("nasa")).toContain("If NASA POWER cannot be used (it does not answer, answers with an error status, sends an answer Voltura cannot read, or leaves one or more months without a value), there is no estimate and no result: the calculation stops with an error.");
       nasaMode = mode;
       const r = await withServer((b) => post(b, "/api/calculate", calcBody()));
-      expect(r.status).toBe(200);
-      expect(r.body.irradianceSource).toBe("fallback-lat");
-      expect(r.body.resolution.irradianceSource).toBe("fallback-lat");
+      expect(r.status).toBe(503);
+      expect(r.body.code).toBe("nasa_unavailable");
+      expect(r.body.irradianceSource).toBeUndefined();
+      expect(r.body.resolution.irradianceSource).toBe("not-reached");
     },
   );
+
 
   it.each([
     ["fill", "nasa_fill_value"],
     ["partial", "nasa_partial_coverage"],
   ] as const)("E1 nasa: NASA marking months as no data (%s) is no estimate and no result", async (mode, code) => {
-    expect(fact("nasa")).toContain(
-      "Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error.",
-    );
-    expect(fact("nasa")).toContain("Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.");
-    // Words the model read as either case (H-ASST-ACC2 E1, H-ASST-ACC3 N1).
+    expect(fact("nasa")).toContain("If NASA POWER cannot be used (it does not answer, answers with an error status, sends an answer Voltura cannot read, or leaves one or more months without a value), there is no estimate and no result: the calculation stops with an error.");
+    // Words the model read as a different case (H-ASST-ACC2 E1, H-ASST-ACC3 N1).
     expect(fact("nasa")).not.toMatch(/missing|unavailable/i);
     nasaMode = mode;
     const r = await withServer((b) => post(b, "/api/calculate", calcBody()));
