@@ -944,12 +944,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         [t("pdf.roofAngle"), t("unit.degrees", { n: num(calc.roofAngle) })],
       ];
 
+      // #6 R2: user text (the location) has no short length. The value gets a
+      // column of its own to the right of the label, wraps inside it, and the row
+      // grows to hold it, so it never runs into the next row; and it is capped at
+      // a few lines with an ellipsis, so it can never reach the page bottom and
+      // let PDFKit start a page that `y` knows nothing of (N1's mechanism).
+      const VALUE_X = 230;
+      const valueW = doc.page.width - 70 - VALUE_X;
+      const MAX_VALUE_LINES = 10;
       summaryRows.forEach(([label, value], i) => {
-        ensureRoom(22);
-        if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 22).fill("#f9fafb");
+        doc.fontSize(10).font("Helvetica-Bold");
+        const textH = Math.min(doc.heightOfString(value, { width: valueW }), doc.currentLineHeight() * MAX_VALUE_LINES);
+        const rowH = Math.max(22, Math.ceil(textH) + 10);
+        ensureRoom(rowH);
+        if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, rowH).fill("#f9fafb");
         doc.fillColor("#6b7280").fontSize(10).font("Helvetica").text(label, 58, y + 6);
-        doc.fillColor("#111827").font("Helvetica-Bold").text(value, 0, y + 6, { align: "right", width: doc.page.width - 70 });
-        y += 22;
+        doc.fillColor("#111827").font("Helvetica-Bold").text(value, VALUE_X, y + 6, {
+          align: "right",
+          width: valueW,
+          height: Math.ceil(textH),
+          ellipsis: true,
+        });
+        y += rowH;
       });
 
       y += 10;

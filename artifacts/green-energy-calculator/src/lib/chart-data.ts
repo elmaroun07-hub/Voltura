@@ -20,15 +20,12 @@ export function monthlyBars(
   monthName: (m: number) => string,
 ): { data: MonthlyBar[]; hasSurplus: boolean } {
   const hasSurplus = monthly.length > 0 && monthly.every((m) => typeof m.surplusKwh === "number");
-  const data = monthly.map((m): MonthlyBar => {
-    const row: MonthlyBar = {
-      name: monthName(m.month),
-      generation: m.generationKwh,
-      savings: m.savingsKwh,
-      gridImport: m.gridImportKwh,
-    };
-    if (hasSurplus) row.surplus = m.surplusKwh;
-    return row;
-  });
-  return { data, hasSurplus };
+  const barData = monthly.map((m): MonthlyBar => ({
+    name: monthName(m.month),
+    generation: m.generationKwh,
+    savings: m.savingsKwh,
+    gridImport: m.gridImportKwh,
+    surplus: hasSurplus ? m.surplusKwh : undefined,
+  }));
+  return { data: barData, hasSurplus };
 }

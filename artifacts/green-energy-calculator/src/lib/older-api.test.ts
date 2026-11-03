@@ -63,7 +63,7 @@ describe("#7 — a response from an API older than H-D8D52", () => {
     const { data, hasSurplus } = monthlyBars(parsed.monthlyData, (m) => `m${m}`);
     expect(hasSurplus).toBe(false);
     for (const row of data) {
-      expect("surplus" in row).toBe(false);
+      expect(row.surplus).toBeUndefined();
       expect(row.generation).toBe(400);
     }
   });

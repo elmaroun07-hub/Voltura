@@ -232,10 +232,12 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(fact("monthly-chart")).toContain('a monthly chart with four series: Generation, Savings, Grid Import and "Surplus not used"');
     expect(fact("monthly-chart")).toContain("The monthly chart has no battery series.");
     const display = source("artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx");
-    const block = display.slice(display.indexOf("const barData"), display.indexOf("}));", display.indexOf("const barData")));
+    // #7: the rows are built in lib/chart-data.ts, the series drawn in ResultsDisplay.
+    const chartData = source("artifacts/green-energy-calculator/src/lib/chart-data.ts");
+    const block = chartData.slice(chartData.indexOf("const barData"), chartData.indexOf("}));", chartData.indexOf("const barData")));
     // H2b: four data series (plus the month label), each drawn as a <Bar>
     // named from the catalog; the catalog's English names are the fact's words.
-    expect([...block.matchAll(/^\s+("?[A-Za-z ]+"?):\s*(?:m\.|month\()/gm)].map((m) => m[1].replace(/"/g, ""))).toEqual([
+    expect([...block.matchAll(/^\s+("?[A-Za-z ]+"?):\s*(?:m\.|monthName\(|hasSurplus)/gm)].map((m) => m[1].replace(/"/g, ""))).toEqual([
       "name", "generation", "savings", "gridImport", "surplus",
     ]);
     expect(block).not.toMatch(/battery/i);

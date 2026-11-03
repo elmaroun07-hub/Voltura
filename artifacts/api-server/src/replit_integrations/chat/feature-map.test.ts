@@ -88,8 +88,9 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
   "Shows the annual energy saved in kWh - the consumption covered by solar or the battery - and a monthly chart with four series: Generation, Savings, Grid Import and \"Surplus not used\" (solar energy neither the home nor the battery could take, which Voltura puts no value on). The monthly chart has no battery series.": {
     // H2b: the series labels moved to the catalog; the chart's surplus series
     // is this dataKey, labelled "series.surplus" ("Surplus not used" in English).
-    file: "artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx",
-    symbol: 'surplus: m.surplusKwh',
+    // #7: the rows are built in lib/chart-data.ts; ResultsDisplay draws the series.
+    file: "artifacts/green-energy-calculator/src/lib/chart-data.ts",
+    symbol: 'surplus: hasSurplus ? m.surplusKwh : undefined',
   },
   "Shows the annual energy mix: Direct Solar, From Battery and Grid Import, as shares of consumption.": {
     // H2b: the slice label is the catalog's "mix.battery" ("From Battery" in English).
