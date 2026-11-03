@@ -168,12 +168,41 @@ function readPdf(bytes: Buffer): PdfRead {
   const pageTree = dictOf(ref(dictOf(ref(trailer, "Root")), "Pages"));
   const count = Number(/\/Count (\d+)/.exec(pageTree)![1]);
   const kids = [.../\/Kids \[([^\]]*)\]/.exec(pageTree)![1].matchAll(/(\d+) 0 R/g)].map((m) => Number(m[1]));
-  const placed = kids.map((kid) =>
-    [...streamOf(ref(dictOf(kid), "Contents")).matchAll(/(?:^|\n)BT\n([\s\S]*?)\nET(?=\n|$)/g)].map((m) => {
+  // An embedded TrueType font (#5) draws glyph ids, not characters; its
+  // /ToUnicode CMap is what a viewer's text layer reads them through.
+  const cmapOf = (fontObj: number): Map<number, string> | null => {
+    const font = dictOf(fontObj);
+    if (!/\/ToUnicode \d+ 0 R/.test(font)) return null;
+    const cmap = streamOf(ref(font, "ToUnicode"));
+    const map = new Map<number, string>();
+    const u = (hex: string) => String.fromCharCode(...(hex.match(/.{4}/g) ?? []).map((h) => parseInt(h, 16)));
+    for (const sec of cmap.matchAll(/beginbfchar([\s\S]*?)endbfchar/g))
+      for (const [, src, dst] of sec[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) map.set(parseInt(src, 16), u(dst));
+    for (const sec of cmap.matchAll(/beginbfrange([\s\S]*?)endbfrange/g))
+      // PDFKit writes the array form: <lo> <hi> [<dst> <dst> ...]; the single-destination form is read too.
+      for (const [, lo, hi, list, single] of sec[1].matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*(?:\[([^\]]*)\]|<([0-9a-fA-F]+)>)/g)) {
+        const dsts = list ? [...list.matchAll(/<([0-9a-fA-F]+)>/g)].map((d) => d[1]) : [];
+        for (let c = parseInt(lo, 16); c <= parseInt(hi, 16); c++)
+          map.set(c, u(list ? dsts[c - parseInt(lo, 16)]! : (parseInt(single!, 16) + c - parseInt(lo, 16)).toString(16).padStart(4, "0")));
+      }
+    return map;
+  };
+  const decodeEmbedded = (block: string, cmap: Map<number, string>) =>
+    [...block.matchAll(/<([0-9a-fA-F]*)>/g)]
+      .map(([, hex]) => (hex.match(/.{4}/g) ?? []).map((g) => cmap.get(parseInt(g, 16)) ?? "�").join(""))
+      .join("");
+
+  const placed = kids.map((kid) => {
+    const page = dictOf(kid);
+    const resources = dictOf(ref(page, "Resources"));
+    const fonts = new Map<string, Map<number, string> | null>();
+    for (const [, name, obj] of /\/Font <<([\s\S]*?)>>/.exec(resources)![1].matchAll(/\/(F\d+) (\d+) 0 R/g)) fonts.set(name, cmapOf(Number(obj)));
+    return [...streamOf(ref(page, "Contents")).matchAll(/(?:^|\n)BT\n([\s\S]*?)\nET(?=\n|$)/g)].map((m) => {
       const at = /1 0 0 1 (-?[\d.]+) (-?[\d.]+) Tm/.exec(m[1]);
-      return { text: decodeBlock(m[1]), x: Number(at?.[1]), y: Number(at?.[2]) };
-    }),
-  );
+      const cmap = fonts.get(/\/(F\d+) [\d.]+ Tf/.exec(m[1])?.[1] ?? "") ?? null;
+      return { text: cmap ? decodeEmbedded(m[1], cmap) : decodeBlock(m[1]), x: Number(at?.[1]), y: Number(at?.[2]) };
+    });
+  });
   const pages = placed.map((page) => page.map((b) => b.text));
   expect(pages).toHaveLength(count);
   return { count, pages, placed };
@@ -443,18 +472,25 @@ describe("H-D8D52 T7 — an old row says 'Not recorded', never 0", () => {
 
 // ── L-local — user text outside WinAnsi: record only ─────────────────────────
 
-describe("H-PDF L-local — a location outside WinAnsi (record only, not fixed here)", () => {
-  it("still renders the whole report on 2 pages; what the location prints is logged for the ruling", async () => {
+describe("#5 L-local — a location outside WinAnsi prints as typed", () => {
+  it.each(["Łódź, Poland", "Brno, Česko", "İstanbul, Türkiye", "București, România", "Αθήνα, Ελλάδα"])(
+    "%s round-trips through the PDF text layer, and the report still renders on 2 pages",
+    async (location) => {
+      const { base, close } = await serve();
+      try {
+        const pdf = await getPdf(base, seed({ location }));
+        expect(pdf.count).toBe(2);
+        expect(valueOf(pdf, "Location")).toBe(location);
+      } finally {
+        await close();
+      }
+    },
+  );
+
+  it("a WinAnsi name (Málaga) still prints as typed", async () => {
     const { base, close } = await serve();
     try {
-      const location = "Łódź, Poland";
-      const pdf = await getPdf(base, seed({ location }));
-      expect(pdf.count).toBe(2);
-      const printed = valueOf(pdf, "Location");
-      const shown = [...printed]
-        .map((ch) => (WINANSI.has(ch.codePointAt(0)!) ? ch : `\\x${ch.codePointAt(0)!.toString(16).padStart(2, "0")}`))
-        .join("");
-      console.log(`L-local: location ${JSON.stringify(location)} prints as ${JSON.stringify(shown)}`);
+      expect(valueOf(await getPdf(base, seed({})), "Location")).toBe(FUENGIROLA);
     } finally {
       await close();
     }

@@ -8,6 +8,9 @@ import { pool } from "../db";
 import { createScreeningRouter } from "./screening";
 import { getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { findUpward } from "../lib/emissions/registry";
 import rateLimit from "express-rate-limit";
 import { clientKey } from "../lib/client-key";
 import {
@@ -829,6 +832,13 @@ const calculateLimiter = rateLimit({
   message: (req: { get(name: string): string | undefined }) => ({ message: serverT(requestLocale(req))("error.calcRateLimited") }),
 });
 
+let notoBold: string | null = null;
+/** data/fonts/NotoSans-Bold.ttf, found the way the registries are: by walking up from this module. */
+function notoSansBoldPath(): string {
+  notoBold ??= findUpward(dirname(fileURLToPath(import.meta.url)), "data/fonts/NotoSans-Bold.ttf");
+  return notoBold;
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerChatRoutes(app);
 
@@ -882,6 +892,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
 
       const doc = new PDFDocument({ margin: 50 });
+      // #5 L-local: the standard Helvetica is WinAnsi, so a name outside it
+      // (Łódź, București, Αθήνα) printed as control characters. The summary
+      // values, where the user's location is drawn, use an embedded Noto Sans
+      // Bold (SIL OFL, data/fonts/OFL.txt); PDFKit subsets it per document.
+      doc.registerFont("NotoSans-Bold", notoSansBoldPath());
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename=energy-report-${id}.pdf`);
       doc.pipe(res);
@@ -953,13 +968,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const valueW = doc.page.width - 70 - VALUE_X;
       const MAX_VALUE_LINES = 10;
       summaryRows.forEach(([label, value], i) => {
-        doc.fontSize(10).font("Helvetica-Bold");
+        doc.fontSize(10).font("NotoSans-Bold");
         const textH = Math.min(doc.heightOfString(value, { width: valueW }), doc.currentLineHeight() * MAX_VALUE_LINES);
-        const rowH = Math.max(22, Math.ceil(textH) + 10);
+        // One line keeps the 22 pt row; each further line adds its height.
+        const lineH = doc.currentLineHeight();
+        const rowH = Math.ceil(22 + (Math.round(textH / lineH) - 1) * lineH);
         ensureRoom(rowH);
         if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, rowH).fill("#f9fafb");
         doc.fillColor("#6b7280").fontSize(10).font("Helvetica").text(label, 58, y + 6);
-        doc.fillColor("#111827").font("Helvetica-Bold").text(value, VALUE_X, y + 6, {
+        doc.fillColor("#111827").font("NotoSans-Bold").text(value, VALUE_X, y + 6, {
           align: "right",
           width: valueW,
           height: Math.ceil(textH),
