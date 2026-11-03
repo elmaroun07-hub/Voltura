@@ -48,15 +48,10 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
     text:
       `Takes monthly solar irradiance and temperature for that point from NASA POWER, averaged over ${NASA_FACT.start}-${NASA_FACT.end}: twelve ${NASA_FACT.resolution} values, not hourly data. ` +
       "Temperature affects only the modelled household consumption, not the solar generation. " +
-      // H-ASST-ACC3 (N1, N2): ACC2 split the two NASA failures into separate
-      // sentences; live, the model still swapped them ("if NASA data are
-      // unavailable, the calculation stops"). Now two numbered cases, each with
-      // its own trigger and outcome, and a closing sentence that says which
-      // case does what. No "unavailable", no "missing": both read as either case.
-      "NASA POWER can fail in two different ways, and they end differently. " +
-      "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page. " +
-      "Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error. " +
-      "Only Case 1 gives a latitude estimate; only Case 2 stops the calculation.",
+      // VPUB, 3 Nov 2026 ("NASA unavailable"): the latitude estimate is gone,
+      // so the two cases ACC3 numbered now end the same way and are one
+      // sentence. Every failure is named, so none reads as an estimate.
+      "If NASA POWER cannot be used (it does not answer, answers with an error status, sends an answer Voltura cannot read, or leaves one or more months without a value), there is no estimate and no result: the calculation stops with an error.",
   },
   {
     id: "simulation",
@@ -188,10 +183,7 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
     text:
       `Toma de NASA POWER la irradiancia solar y la temperatura mensuales de ese punto, promediadas en ${NASA_FACT.start}-${NASA_FACT.end}: doce valores ${RESOLUTION_ES[NASA_FACT.resolution]}, no datos horarios. ` +
       "La temperatura solo afecta al consumo doméstico modelizado, no a la generación solar. " +
-      "NASA POWER puede fallar de dos maneras distintas, y terminan de forma distinta. " +
-      "Caso 1 - NASA no contesta, contesta con un estado de error o envía una respuesta que Voltura no puede leer: Voltura estima la irradiancia y la temperatura a partir de la latitud, e identifica el resultado como esa estimación en la respuesta de la API y en la página. " +
-      "Caso 2 - NASA contesta, pero uno o más meses no tienen valor o se omiten: no hay estimación ni resultado, y el cálculo se detiene con un error. " +
-      "Solo el caso 1 da una estimación por latitud; solo el caso 2 detiene el cálculo.",
+      "Si NASA POWER no se puede usar (no contesta, contesta con un estado de error, envía una respuesta que Voltura no puede leer o deja uno o más meses sin valor), no hay estimación ni resultado: el cálculo se detiene con un error.",
   },
   {
     id: "simulation",

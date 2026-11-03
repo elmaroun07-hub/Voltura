@@ -44,7 +44,7 @@ vi.mock("../storage", () => ({
   chatStorage: {},
 }));
 
-const { registerRoutes, fallbackIrradiance, panelEfficiencyFactor, geocodeCache, NOMINATIM_USER_AGENT } = await import("./routes");
+const { registerRoutes, panelEfficiencyFactor, geocodeCache, NOMINATIM_USER_AGENT } = await import("./routes");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -222,14 +222,12 @@ describe("A3.4 provenance", () => {
   });
 });
 
-describe("A3.5 fallback honesty", () => {
-  // These two pin the NON-FINITE case: the key is present and the value is
-  // garbage. They used to produce it by deleting the key, which reached the
-  // same NaN because the old code could not tell an absent key from a bad
-  // value. H1.8 separates them - an absent key is partial coverage and is now
-  // a hard error, tested below - so the mechanism here is now an actual
-  // non-finite value, which is what the test always claimed to be about.
-  it("one non-finite month fails the whole read and says fallback-lat", async () => {
+describe("A3.5 NASA unusable -> no figure (VPUB: was the latitude estimate)", () => {
+  // These pin the NON-FINITE case: the key is present and the value is
+  // garbage. Until 3 Nov 2026 it fell back to an irradiance estimated from the
+  // latitude, labelled fallback-lat. The operator ruled "NASA unavailable":
+  // it is now a typed 503 and no result, like the data defects.
+  it("one non-finite month: 503 nasa_unavailable, no result, no invented month", async () => {
     nasaTransform = (nasa) => {
       nasa.properties.parameter.ALLSKY_SFC_SW_DWN["202207"] = null;
       return nasa;
@@ -237,18 +235,20 @@ describe("A3.5 fallback honesty", () => {
     const { base, close } = await serve();
     const r = await calculate(base, FUENGIROLA);
 
-    expect(r.status).toBe(200);
-    expect(r.body.resolution.irradianceSource).toBe("fallback-lat");
-    expect(r.body.resolution.irradiancePeriod).toBeNull();
-    // No partial-NASA state: not 11 real months plus one invented one.
-    expect(r.body.resolution.irradianceMonthly).toHaveLength(12);
-    expect(r.body.resolution.irradianceMonthly[0]).not.toBeCloseTo(2.6544, 4);
-    // The fallback still runs on the real geocoded latitude.
+    expect(r.status).toBe(503);
+    expect(r.body.code).toBe("nasa_unavailable");
+    expect(r.body.message).toBe(
+      "NASA POWER did not answer or sent an answer that cannot be read, so there is no irradiance for this place and nothing is calculated. Please try again in a few minutes.",
+    );
+    expect(r.body.savingsKwh).toBeUndefined();
+    expect(r.body.resolution.irradianceSource).toBe("not-reached");
+    expect(r.body.resolution.irradianceMonthly).toEqual([]);
+    // The place was found: the record says where, so the failure is legible.
     expect(r.body.resolution.lat).toBeCloseTo(36.5388, 4);
     await close();
   });
 
-  it("a non-finite temperature month fails the read too", async () => {
+  it("a non-finite temperature month is the same 503", async () => {
     nasaTransform = (nasa) => {
       nasa.properties.parameter.T2M["202203"] = "";
       return nasa;
@@ -256,7 +256,28 @@ describe("A3.5 fallback honesty", () => {
     const { base, close } = await serve();
     const r = await calculate(base, FUENGIROLA);
 
-    expect(r.body.resolution.irradianceSource).toBe("fallback-lat");
+    expect(r.status).toBe(503);
+    expect(r.body.code).toBe("nasa_unavailable");
+    await close();
+  });
+
+  it("NASA not answering at all is the same 503", async () => {
+    vi.stubGlobal("fetch", async (input: any, init?: any) => {
+      const url = String(input);
+      if (url.startsWith("http://127.0.0.1")) return realFetch(input, init);
+      if (url.includes("nominatim.openstreetmap.org")) {
+        const q = decodeURIComponent(new URL(url).searchParams.get("q") ?? "");
+        return json(fixtures[q] ? fixtures[q].nominatim : []);
+      }
+      if (url.includes("power.larc.nasa.gov")) throw new TypeError("fetch failed");
+      throw new Error(`unexpected outbound request in test: ${url}`);
+    });
+    const { base, close } = await serve();
+    const r = await calculate(base, FUENGIROLA);
+
+    expect(r.status).toBe(503);
+    expect(r.body.code).toBe("nasa_unavailable");
+    expect(r.body.resolution.nasaHttpStatus).toBeDefined();
     await close();
   });
 });
@@ -312,8 +333,7 @@ describe("A3.6 — the -999 fill value is rejected, never consumed", () => {
     const { base, close } = await serve();
     const r = await calculate(base, FUENGIROLA);
 
-    expect(r.body.resolution.irradianceSource).not.toBe("fallback-lat");
-    expect(r.body.resolution.irradianceSource).not.toBe("nasa-live");
+    expect(r.body.resolution.irradianceSource).toBe("not-reached");
     await close();
   });
 });
@@ -356,14 +376,6 @@ describe("A3.7 — partial coverage is an error, not a shorter mean", () => {
     await close();
   });
 
-  it("fallbackIrradiance throws on a non-finite latitude rather than defaulting to 45", async () => {
-    expect(() => fallbackIrradiance(Number.NaN)).toThrow(/non-finite latitude/);
-    expect(() => fallbackIrradiance(undefined as unknown as number)).toThrow(/non-finite latitude/);
-    // Latitude 0 is a real place. The old `lat || 45` moved the equator to 45N.
-    expect(() => fallbackIrradiance(0)).not.toThrow();
-    expect(fallbackIrradiance(0).irradiance).toHaveLength(12);
-    expect(fallbackIrradiance(0).irradiance).not.toEqual(fallbackIrradiance(45).irradiance);
-  });
 });
 
 describe("A3.5b unresolvable location", () => {

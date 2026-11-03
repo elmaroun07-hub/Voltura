@@ -50,6 +50,7 @@ export const serverCatalog = defineCatalog(
     "error.nasaPartial":
       "NASA POWER cubrió {present} de {expected} meses para {parameter} en {years} año(s){missing}. Una media sobre menos años de los solicitados falsearía el periodo.",
     "error.nasaPartialMissing": " (faltan {list})",
+    "error.nasaUnavailable": "NASA POWER no ha respondido o ha enviado una respuesta que no se puede leer, así que no hay irradiancia para este lugar y no se calcula nada. Inténtelo de nuevo en unos minutos.",
     "error.rateLimited": "Demasiadas solicitudes de optimización. Inténtelo de nuevo más tarde.",
     "error.calcRateLimited": "Demasiados cálculos. Inténtelo de nuevo más tarde.",
     "error.readRateLimited": "Demasiadas solicitudes. Inténtelo de nuevo más tarde.",
@@ -202,6 +203,7 @@ export const serverCatalog = defineCatalog(
     "error.nasaPartial":
       "NASA POWER covered {present} of {expected} months for {parameter} over {years} year(s){missing}. A mean over fewer years than requested would misstate the period.",
     "error.nasaPartialMissing": " (missing {list})",
+    "error.nasaUnavailable": "NASA POWER did not answer or sent an answer that cannot be read, so there is no irradiance for this place and nothing is calculated. Please try again in a few minutes.",
     "error.rateLimited": "Too many optimization requests. Please try again later.",
     "error.calcRateLimited": "Too many calculations. Please try again later.",
     "error.readRateLimited": "Too many requests. Please try again later.",

@@ -47,6 +47,10 @@ vi.mock("../storage", () => ({
 
 const { registerRoutes } = await import("./routes");
 
+const NASA_ANSWER = JSON.parse(readFileSync(new URL("./calculate.fixtures.json", import.meta.url), "utf8"))[
+  "Fuengirola, Málaga, Spain"
+].nasa;
+
 beforeEach(() => {
   nominatim = {
     "Little Italy, Cairo, Egypt": recorded(1),
@@ -63,7 +67,12 @@ beforeEach(() => {
       const q = new URL(url).searchParams.get("q") ?? "";
       return new Response(JSON.stringify(nominatim[q] ?? []), { status: 200, headers: { "content-type": "application/json" } });
     }
-    if (url.includes("power.larc.nasa.gov")) return new Response("{}", { status: 404 });
+    // VPUB: a NASA failure is now a 503 with no result, so this suite serves a
+    // real recorded NASA answer (Fuengirola's, 22 Aug 2026) for every point.
+    // Its irradiance is irrelevant here: these tests are about the carbon factor.
+    if (url.includes("power.larc.nasa.gov")) {
+      return new Response(JSON.stringify(NASA_ANSWER), { status: 200, headers: { "content-type": "application/json" } });
+    }
     throw new Error(`unexpected outbound request in test: ${url}`);
   });
 });

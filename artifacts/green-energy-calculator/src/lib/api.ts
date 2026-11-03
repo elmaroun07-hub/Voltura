@@ -158,7 +158,7 @@ const resolutionSchema = z.object({
   geocodeStatus: z.enum(["resolved", "failed"]),
   lat: z.number().nullable(),
   lon: z.number().nullable(),
-  irradianceSource: z.enum(["nasa-live", "fallback-lat", "not-reached"]),
+  irradianceSource: z.enum(["nasa-live", "not-reached"]),
   irradiancePeriod: z
     .object({ start: z.number(), end: z.number() })
     .nullable(),

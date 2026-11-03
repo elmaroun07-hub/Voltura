@@ -172,7 +172,7 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     ["fill", "nasa_fill_value"],
     ["partial", "nasa_partial_coverage"],
   ] as const)("nasa: missing data (%s) is no result - a typed 422", async (mode, code) => {
-    expect(fact("nasa")).toContain("Case 2 - NASA answers, but one or more months have no value or are left out: there is no estimate and no result, and the calculation stops with an error.");
+    expect(fact("nasa")).toContain("If NASA POWER cannot be used (it does not answer, answers with an error status, sends an answer Voltura cannot read, or leaves one or more months without a value), there is no estimate and no result: the calculation stops with an error.");
     nasaMode = mode;
     const r = await calculate({});
     expect(r.status).toBe(422);
@@ -180,21 +180,19 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(r.body.savingsKwh).toBeUndefined();
   });
 
-  it.each(["http-500", "malformed"] as const)("nasa: no usable answer (%s) -> the labelled latitude estimate", async (mode) => {
-    expect(fact("nasa")).toContain(
-      "Case 1 - NASA does not answer, answers with an error status, or sends an answer Voltura cannot read: Voltura estimates irradiance and temperature from the latitude, and labels the result as that estimate in the API response and on the page.",
-    );
+  it.each(["http-500", "malformed"] as const)("nasa: no usable answer (%s) is no result either - a typed 503 (VPUB)", async (mode) => {
+    expect(fact("nasa")).toContain("If NASA POWER cannot be used (it does not answer, answers with an error status, sends an answer Voltura cannot read, or leaves one or more months without a value), there is no estimate and no result: the calculation stops with an error.");
     nasaMode = mode;
     const r = await calculate({});
-    expect(r.status).toBe(200);
-    expect(r.body.irradianceSource).toBe("fallback-lat");
-    expect(r.body.resolution.irradianceSource).toBe("fallback-lat");
-    // H2b: the label is a catalog entry now; the English entry is the words the fact quotes.
-    expect(source("artifacts/green-energy-calculator/src/lib/provenance.ts")).toContain(
-      'case "fallback-lat":\n      return t("irradiance.fallback");',
-    );
-    expect(source(WEB_CATALOG)).toContain('"irradiance.fallback": "Estimated from latitude — NASA data unavailable",');
+    expect(r.status).toBe(503);
+    expect(r.body.code).toBe("nasa_unavailable");
+    expect(r.body.savingsKwh).toBeUndefined();
+    expect(r.body.resolution.irradianceSource).toBe("not-reached");
+    // The latitude estimate and its label are gone from the code and the catalog.
+    expect(source("artifacts/api-server/src/routes/routes.ts")).not.toContain("fallbackIrradiance");
+    expect(source(WEB_CATALOG)).not.toContain("irradiance.fallback");
   });
+
 
   it("simulation: 8,760 hours, consumption scaled to the annual kWh entered", () => {
     expect(fact("simulation")).toContain("(8,760 hours)");

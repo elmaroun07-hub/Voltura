@@ -33,7 +33,9 @@ export function useCalculate() {
         // problem in a different costume.
         // The API writes that message in the language sessionFetch asked for
         // (Accept-Language), so it is the person's text, not a developer's.
-        if (res.status === 400 || res.status === 422) {
+        // 503 is NASA POWER unavailable (VPUB): the server's sentence says why
+        // there is no result and to try again, so it reaches the toast too.
+        if (res.status === 400 || res.status === 422 || res.status === 503) {
           const error = await res.json();
           throw new UserMessage(typeof error?.message === "string" && error.message ? error.message : tNow()("error.validation"));
         }

@@ -119,7 +119,7 @@ const SCOPE: Record<
       "Any other question - general solar or battery advice, other products or services, or any other subject - gets exactly this answer and nothing else:",
     // H-ASST-ACC4 (C15): the whole carbon entry, list included.
     verbatim:
-      "When an answer says what happens when NASA POWER fails, copy the Case 1 and Case 2 sentences from the list word for word. When an answer mentions carbon factors, or which countries get a CO2 result, copy the whole carbon entry from the list word for word, the list of countries included.",
+      "When an answer says what happens when NASA POWER fails, copy the sentence that begins \"If NASA POWER cannot be used\" from the list word for word. When an answer mentions carbon factors, or which countries get a CO2 result, copy the whole carbon entry from the list word for word, the list of countries included.",
     // H-ASST-ACC4 (over-refusal, 106/107/110).
     inScope:
       "A question asking whether Voltura does, computes, shows, offers or claims something is always a question about what Voltura does: answer it, even when the answer is no. It never gets the out-of-scope answer below.",
@@ -132,7 +132,7 @@ const SCOPE: Record<
     scope:
       "Cualquier otra pregunta - consejos generales sobre energía solar o baterías, otros productos o servicios, o cualquier otro tema - recibe exactamente esta respuesta y nada más:",
     verbatim:
-      "Cuando una respuesta diga qué pasa cuando NASA POWER falla, copie palabra por palabra las frases del caso 1 y del caso 2 de la lista. Cuando una respuesta mencione factores de carbono, o qué países obtienen un resultado de CO2, copie palabra por palabra la entrada de carbono completa de la lista, incluida la lista de países.",
+      "Cuando una respuesta diga qué pasa cuando NASA POWER falla, copie palabra por palabra la frase de la lista que empieza por \"Si NASA POWER no se puede usar\". Cuando una respuesta mencione factores de carbono, o qué países obtienen un resultado de CO2, copie palabra por palabra la entrada de carbono completa de la lista, incluida la lista de países.",
     inScope:
       "Una pregunta sobre si Voltura hace, calcula, muestra, ofrece o afirma algo es siempre una pregunta sobre lo que hace Voltura: respóndala, aunque la respuesta sea no. Nunca recibe la respuesta de fuera de ámbito de más abajo.",
     lawInScope: "Esa pregunta trata de Voltura, así que nunca recibe la respuesta de fuera de ámbito.",

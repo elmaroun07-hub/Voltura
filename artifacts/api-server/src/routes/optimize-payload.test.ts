@@ -85,17 +85,6 @@ describe("renderOptimizeFacts — what the model is shown", () => {
     // G7: `nasa-live` is a machine enum and never reaches prose, not even the
     // model's copy of it.
     expect(FACTS_TEXT).not.toContain("nasa-live");
-    expect(FACTS_TEXT).not.toContain("fallback-lat");
-  });
-
-  it("says so when the figure came from the latitude estimate", () => {
-    const text = renderOptimizeFacts({
-      ...facts(),
-      irradianceSource: "fallback-lat",
-      irradiancePeriod: null,
-    });
-    expect(text).toContain("estimated from latitude");
-    expect(text).not.toContain("NASA POWER satellite measurement");
   });
 
   it("throws rather than claiming NASA data with no period", () => {

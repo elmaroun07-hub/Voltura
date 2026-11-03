@@ -130,7 +130,6 @@ export const catalog = defineCatalog(
 
     // ── Irradiance provenance (G7: the one enum-to-words map) ─────────────
     "irradiance.nasa": "Datos satelitales de NASA POWER, media {span}",
-    "irradiance.fallback": "Estimada por latitud: datos de la NASA no disponibles",
 
     // ── History ───────────────────────────────────────────────────────────
     "history.title": "Historial de cálculos",
@@ -424,7 +423,6 @@ export const catalog = defineCatalog(
     "results.downloadPdf": "Download Full PDF Report",
 
     "irradiance.nasa": "NASA POWER satellite data, {span} mean",
-    "irradiance.fallback": "Estimated from latitude — NASA data unavailable",
 
     "history.title": "Calculation History",
     "history.subtitle": "Review your past energy estimates across different scenarios and download PDF reports.",
