@@ -8,8 +8,12 @@ import { pool } from "../db";
 import { createScreeningRouter } from "./screening";
 import { getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { findUpward } from "../lib/emissions/registry";
 import rateLimit from "express-rate-limit";
 import { clientKey } from "../lib/client-key";
+import { isSessionId } from "../lib/session-id";
 import {
   parseOptimizePayload,
   renderOptimizeFacts,
@@ -732,7 +736,14 @@ export function simulate8760(
       }
     }
   }
-  const consumptionScale = annualKwh / (totalPredicted || 1);
+  // VPUB-SEC (G5): `|| 1` turned a zero or NaN total into 1, which would scale
+  // the whole consumption profile to the annual kWh in one hour's share. The
+  // profile is positive by construction, so a non-positive total is a bug:
+  // refuse it rather than substitute a number.
+  if (!(totalPredicted > 0)) {
+    throw new Error(`predicted consumption total must be positive, got ${totalPredicted}`);
+  }
+  const consumptionScale = annualKwh / totalPredicted;
 
   for (let m = 0; m < 12; m++) {
     const dailyIrr = irradianceMonthly[m];
@@ -829,6 +840,30 @@ const calculateLimiter = rateLimit({
   message: (req: { get(name: string): string | undefined }) => ({ message: serverT(requestLocale(req))("error.calcRateLimited") }),
 });
 
+let notoBold: string | null = null;
+/** data/fonts/NotoSans-Bold.ttf, found the way the registries are: by walking up from this module. */
+function notoSansBoldPath(): string {
+  notoBold ??= findUpward(dirname(fileURLToPath(import.meta.url)), "data/fonts/NotoSans-Bold.ttf");
+  return notoBold;
+}
+
+/**
+ * VPUB-SEC: GET /api/history and the PDF had no limit. History is one database
+ * read per request and the PDF renders a document, so a script could load the
+ * database or the CPU without end. A reader opens history and a few PDFs;
+ * sixty in a quarter hour is far above that.
+ */
+export const READS_PER_WINDOW = 60;
+
+const readLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: READS_PER_WINDOW,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: clientKey,
+  message: (req: { get(name: string): string | undefined }) => ({ message: serverT(requestLocale(req))("error.readRateLimited") }),
+});
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerChatRoutes(app);
 
@@ -842,7 +877,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // walked every calculation ever made and rendered location, usage, PV size,
   // battery, tariff and roof angle for each. No id was needed at all - not a
   // replay of someone's session, an enumeration oracle.
-  app.get("/api/calculate/:id/pdf", async (req, res) => {
+  app.get("/api/calculate/:id/pdf", readLimiter, async (req, res) => {
     // 2b.4: the report is written in the language the request asked for
     // (Accept-Language, which the web app sets from the reader's choice);
     // Spanish when it asked for nothing.
@@ -856,9 +891,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // reject before any lookup: 400 says the request was malformed, and says
       // nothing about whether the row exists.
       const sessionId = req.get("x-session-id");
-      if (!sessionId) { res.status(400).json({ message: t("error.sessionHeader") }); return; }
+      if (!isSessionId(sessionId)) { res.status(400).json({ message: t("error.sessionHeader") }); return; }
 
-      const id = parseInt(req.params.id);
+      // Issue #9 (N4), second site: "undefined" parsed to NaN and reached the integer
+      // id column as a 500. Anything but a plain positive integer that fits the
+      // column is answered like an unknown id.
+      const rawId = String(req.params.id);
+      if (!/^[1-9][0-9]{0,8}$/.test(rawId)) { res.status(404).json({ message: t("error.calcNotFound") }); return; }
+      const id = Number(rawId);
       // Scoped lookup. "Not yours" and "does not exist" collapse to the same
       // undefined inside the query, so the 404 below cannot confirm a row
       // exists. A 403 here would have re-opened exactly the oracle this closes.
@@ -881,7 +921,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         throw new Error(`calculations.panelOrientation holds an unknown value: ${String(calc.panelOrientation)}`);
       }
 
-      const doc = new PDFDocument({ margin: 50 });
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      // #5 L-local: the standard Helvetica is WinAnsi, so a name outside it
+      // (Łódź, București, Αθήνα) printed as control characters. The summary
+      // values, where the user's location is drawn, use an embedded Noto Sans
+      // Bold (SIL OFL, data/fonts/OFL.txt); PDFKit subsets it per document.
+      doc.registerFont("NotoSans-Bold", notoSansBoldPath());
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename=energy-report-${id}.pdf`);
       doc.pipe(res);
@@ -944,12 +989,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         [t("pdf.roofAngle"), t("unit.degrees", { n: num(calc.roofAngle) })],
       ];
 
+      // #6 R2: user text (the location) has no short length. The value gets a
+      // column of its own to the right of the label, wraps inside it, and the row
+      // grows to hold it, so it never runs into the next row; and it is capped at
+      // a few lines with an ellipsis, so it can never reach the page bottom and
+      // let PDFKit start a page that `y` knows nothing of (N1's mechanism).
+      const VALUE_X = 230;
+      const valueW = doc.page.width - 70 - VALUE_X;
+      const MAX_VALUE_LINES = 10;
       summaryRows.forEach(([label, value], i) => {
-        ensureRoom(22);
-        if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, 22).fill("#f9fafb");
+        doc.fontSize(10).font("NotoSans-Bold");
+        const textH = Math.min(doc.heightOfString(value, { width: valueW }), doc.currentLineHeight() * MAX_VALUE_LINES);
+        // One line keeps the 22 pt row; each further line adds its height.
+        const lineH = doc.currentLineHeight();
+        const rowH = Math.ceil(22 + (Math.round(textH / lineH) - 1) * lineH);
+        ensureRoom(rowH);
+        if (i % 2 === 0) doc.rect(50, y, doc.page.width - 100, rowH).fill("#f9fafb");
         doc.fillColor("#6b7280").fontSize(10).font("Helvetica").text(label, 58, y + 6);
-        doc.fillColor("#111827").font("Helvetica-Bold").text(value, 0, y + 6, { align: "right", width: doc.page.width - 70 });
-        y += 22;
+        doc.fillColor("#111827").font("NotoSans-Bold").text(value, VALUE_X, y + 6, {
+          align: "right",
+          width: valueW,
+          height: Math.ceil(textH),
+          ellipsis: true,
+        });
+        y += rowH;
       });
 
       y += 10;
@@ -1096,10 +1159,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
       }
 
-      // Footer - below the last block, or at the top of a page of its own
-      y += 30;
-      ensureRoom(22);
-      doc.rect(50, y, doc.page.width - 100, 1).fill("#e5e7eb");
+      // Footer - #4: A4, and the footer is pinned inside the bottom margin of the
+      // LAST page, below the content area every block is kept inside by
+      // ensureRoom. Flowed after the table it fell onto a page of its own as soon
+      // as the table ended near the bottom (Dec ends at 764 of 791.89 on A4); here
+      // it cannot add a page, and it always shares one with the last month.
+      const footerTop = doc.page.height - doc.page.margins.bottom + 12;
+      doc.rect(50, footerTop, doc.page.width - 100, 1).fill("#e5e7eb");
+      // PDFKit starts a page for any text below the bottom margin: lift the margin for this one draw.
+      const bottomMargin = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
       doc.fillColor("#9ca3af").fontSize(9).font("Helvetica")
         // No irradiance claim here, in either direction. This footer renders a
         // persisted calculations row, and that row carries no provenance - no
@@ -1108,7 +1177,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // verify would read as a verified fact on the artefact most likely to
         // be forwarded onward. Silence is the honest option until the row can
         // carry the fact.
-        .text(t("pdf.footer"), 50, y + 10, { align: "center" });
+        .text(t("pdf.footer"), 50, footerTop + 10, { align: "center" });
+      doc.page.margins.bottom = bottomMargin;
 
       doc.end();
     } catch (err) {
@@ -1127,7 +1197,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Header only: never defaulted, never generated server-side, never taken
       // from the body. Absent means reject, before any work is done.
       const sessionId = req.get("x-session-id");
-      if (!sessionId) {
+      if (!isSessionId(sessionId)) {
         return res.status(400).json({ message: t("error.sessionHeader") });
       }
 
@@ -1244,13 +1314,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const saving = describeSaving(money, locale);
       let recommendation = "";
       if (solarPct >= 100) {
-        recommendation =
-          money.annualSavings !== null && money.currency !== null
-            ? t("rec.fullWithExport", {
-                w: watts(input.pvWattage),
-                value: formatMoney(locale, money.annualSavings * 0.1, money.currency),
-              })
-            : t("rec.full", { w: watts(input.pvWattage), saving });
+        // #8 D12: one sentence at and above 100 %. The surplus is recorded as
+        // "Surplus not used"; it is not valued here.
+        recommendation = t("rec.full", { w: watts(input.pvWattage), saving });
       } else if (solarPct >= 70) {
         recommendation = t("rec.good", { pct: solarPct, saving });
       } else {
@@ -1321,9 +1387,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.get(api.calculations.history.path, async (req, res) => {
+  app.get(api.calculations.history.path, readLimiter, async (req, res) => {
     const sessionId = req.get("x-session-id");
-    if (!sessionId) {
+    if (!isSessionId(sessionId)) {
       return res.status(400).json({ message: serverT(requestLocale(req))("error.sessionHeader") });
     }
 

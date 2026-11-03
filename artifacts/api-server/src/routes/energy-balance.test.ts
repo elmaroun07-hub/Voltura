@@ -202,7 +202,7 @@ const FUENGIROLA = "Fuengirola, Málaga, Spain";
 
 describe("H-D8D52 — the mix is measured (D8)", () => {
   it("T5 at the Optimizer's sizing (3,391 W / 4.1 kWh / 5,000 kWh), From Battery > 0, and every slice is a recorded share", async () => {
-    const { status, body } = await calculate({ location: FUENGIROLA, energyUsage: 5000, pvWattage: 3391, batteryCapacity: 4.1 });
+    const { status, body } = await calculate({ location: FUENGIROLA, energyUsage: 5000, pvWattage: 3391, batteryCapacity: 4 });
     expect(status).toBe(200);
     expect(body.breakdown.battery).toBeGreaterThan(0);
     const sum = (f: string) => body.monthlyData.reduce((a: number, m: any) => a + m[f], 0);
@@ -218,13 +218,15 @@ describe("H-D8D52 — the mix is measured (D8)", () => {
 // Captured from the unmodified engine at fc04551 (the code of production ff44a9c),
 // through this same route and fixture. A pin, not failing-first evidence: it
 // passes before and after. If any figure moves, dispatch changed (F-d) — stop.
+// #9 N4: the two Optimizer-sizing pins were captured at 4.1 kWh, which the API now
+// refuses (whole kWh only); they are re-captured at 4 kWh from the same, unchanged engine.
 const PINS: { name: string; body: Record<string, unknown>; regime: ">=" | "<"; pin: Record<string, unknown> }[] = [
-  { name: "Optimizer sizing, €6,000", regime: "<", body: { location: FUENGIROLA, energyUsage: 5000, pvWattage: 3391, batteryCapacity: 4.1, installationCost: 6000 },
-    pin: { savingsKwh: 3476, co2Reduction: 299, annualSavings: 927.85, currency: "EUR", paybackYears: 6.2, lifetimeSavings: 27894, generationKwh: 4808.8 } },
+  { name: "Optimizer sizing, €6,000", regime: "<", body: { location: FUENGIROLA, energyUsage: 5000, pvWattage: 3391, batteryCapacity: 4, installationCost: 6000 },
+    pin: { savingsKwh: 3467, co2Reduction: 299, annualSavings: 925.24, currency: "EUR", paybackYears: 6.2, lifetimeSavings: 27816, generationKwh: 4808.8 } },
   { name: "small system, €4,000", regime: "<", body: { location: FUENGIROLA, energyUsage: 5000, pvWattage: 1500, batteryCapacity: 5, installationCost: 4000 },
     pin: { savingsKwh: 2080, co2Reduction: 179, annualSavings: 555.21, currency: "EUR", paybackYears: 6.9, lifetimeSavings: 16691, generationKwh: 2127.1 } },
-  { name: "never paid back, €200,000", regime: "<", body: { location: FUENGIROLA, energyUsage: 5000, pvWattage: 3391, batteryCapacity: 4.1, installationCost: 200000 },
-    pin: { savingsKwh: 3476, co2Reduction: 299, annualSavings: 927.85, currency: "EUR", paybackYears: null, lifetimeSavings: 27894, generationKwh: 4808.8 } },
+  { name: "never paid back, €200,000", regime: "<", body: { location: FUENGIROLA, energyUsage: 5000, pvWattage: 3391, batteryCapacity: 4, installationCost: 200000 },
+    pin: { savingsKwh: 3467, co2Reduction: 299, annualSavings: 925.24, currency: "EUR", paybackYears: null, lifetimeSavings: 27816, generationKwh: 4808.8 } },
   { name: "large system, generation above usage, €12,000", regime: ">=", body: { location: FUENGIROLA, energyUsage: 5000, pvWattage: 6000, batteryCapacity: 10, installationCost: 12000 },
     pin: { savingsKwh: 4471, co2Reduction: 385, annualSavings: 1193.2, currency: "EUR", paybackYears: 9.4, lifetimeSavings: 35871, generationKwh: 8508.7 } },
   { name: "no battery, €5,000", regime: "<", body: { location: FUENGIROLA, energyUsage: 5000, pvWattage: 3391, batteryCapacity: 0, installationCost: 5000 },

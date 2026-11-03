@@ -544,3 +544,63 @@ describe("H2b — Spanish by default (2b.1), on the calculate route", () => {
     }
   });
 });
+
+// ── #8 / D12 — the ≥100 % sentence does not value the surplus ─────────────────
+
+describe("#8 D12 — at ≥100 % coverage the recommendation values no export", () => {
+  // Small usage, large array: coverage is well past 100 %.
+  const OVERSIZED = { energyUsage: 1000, pvWattage: 8000 };
+
+  it.each([
+    ["en", "en", /^Excellent! Your 8000W system covers all your usage \(.+\)\. The surplus it generates is not counted as a saving\.$/],
+    ["es", "es", /^¡Excelente! Su sistema de 8\.?000 W cubre todo su consumo \(.+\)\. El excedente que genera no se cuenta como ahorro\.$/],
+  ] as const)("%s: never the old 10 %% export value; the only money is the sourced annual saving; says the surplus is not counted", async (_n, lang, shape) => {
+    const { base, close } = await serve();
+    try {
+      const r = await calculateIn(base, FUENGIROLA, lang, OVERSIZED);
+      expect(r.status).toBe(200);
+      const rec: string = r.body.recommendation;
+      expect(rec).toMatch(shape);
+
+      // Priced: Spain has a sourced tariff, so the saving is a money figure.
+      const annual: number = r.body.money.annualSavings;
+      expect(annual).toBeGreaterThan(0);
+
+      const amounts = rec.match(/\d[\d.,   ]*\d?\s?(?:€|EUR|£|GBP)|(?:€|EUR|£|GBP)\s?\d[\d.,]*/g) ?? [];
+      const digits = (s: string) => Number(s.replace(/[^\d.,]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", "."));
+      // Exactly one money figure, and it is the annual saving, not 10 % of it.
+      expect(amounts).toHaveLength(1);
+      expect(Math.abs(digits(amounts[0]!) - annual)).toBeLessThan(0.51);
+      expect(Math.abs(digits(amounts[0]!) - annual * 0.1)).toBeGreaterThan(0.5);
+      expect(rec).not.toMatch(/export/i);
+    } finally {
+      await close();
+    }
+  });
+});
+
+// ── #9 N4 — a fractional battery is a typed 400, not a 500 after the calculation ─
+
+describe("#9 N4 — batteryCapacity is a whole number of kWh", () => {
+  it.each([0.5, 4.5, 9.5])("%s kWh answers a typed 400 naming the field, not a 500", async (kwh) => {
+    const { base, close } = await serve();
+    try {
+      const r = await calculateIn(base, FUENGIROLA, "en", { batteryCapacity: kwh });
+      expect(r.status).toBe(400);
+      expect(r.body.field).toBe("batteryCapacity");
+      expect(typeof r.body.message).toBe("string");
+    } finally {
+      await close();
+    }
+  });
+
+  it("a whole number still calculates", async () => {
+    const { base, close } = await serve();
+    try {
+      const r = await calculateIn(base, FUENGIROLA, "en", { batteryCapacity: 4 });
+      expect(r.status).toBe(200);
+    } finally {
+      await close();
+    }
+  });
+});
