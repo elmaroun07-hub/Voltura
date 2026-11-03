@@ -17,7 +17,11 @@ vi.mock("../storage", () => ({
   storage: {
     createCalculation: async (calc: any) => ({ id: 1, ...calc }),
     getHistory: async () => [],
-    getCalculationById: async () => undefined,
+    // Throws like Postgres 22P02 would if a non-integer id reached the query.
+    getCalculationById: async (id: number) => {
+      if (!Number.isInteger(id)) throw new Error(`invalid input syntax for type integer: "${id}"`);
+      return undefined;
+    },
   },
   chatStorage: {},
 }));
@@ -109,6 +113,27 @@ describe("VPUB-SEC — GET /api/history is rate-limited per client", () => {
       expect(over.status).toBe(429);
       expect(((await over.json()) as any).message).toMatch(/Demasiadas solicitudes/);
       expect((await get(base, "/api/history", "198.51.100.51", UUID)).status).toBe(200);
+    } finally {
+      await close();
+    }
+  });
+});
+
+describe("Issue #9 (N4) — a value the database cannot hold is a 400/404, never a 500", () => {
+  it("a half-kWh battery is refused with 400 before any work; an id that is not a number is a 404", async () => {
+    const { base, close } = await serve();
+    try {
+      const res = await realFetch(`${base}/api/calculate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "CF-Connecting-IP": "198.51.100.60", "X-Session-Id": UUID, "Accept-Language": "en" },
+        body: JSON.stringify({ location: "Fuengirola, Málaga, Spain", energyUsage: 5000, pvWattage: 4000, batteryCapacity: 4.5 }),
+      });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as any).field).toBe("batteryCapacity");
+      expect(outbound).toEqual([]);
+      for (const bad of ["undefined", "1.5", "-1", "99999999999"]) {
+        expect((await get(base, `/api/calculate/${bad}/pdf`, "198.51.100.61", UUID)).status).toBe(404);
+      }
     } finally {
       await close();
     }

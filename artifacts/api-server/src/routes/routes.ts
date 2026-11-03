@@ -893,7 +893,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const sessionId = req.get("x-session-id");
       if (!isSessionId(sessionId)) { res.status(400).json({ message: t("error.sessionHeader") }); return; }
 
-      const id = parseInt(String(req.params.id));
+      // Issue #9 (N4), second site: "undefined" parsed to NaN and reached the integer
+      // id column as a 500. Anything but a plain positive integer that fits the
+      // column is answered like an unknown id.
+      const rawId = String(req.params.id);
+      if (!/^[1-9][0-9]{0,8}$/.test(rawId)) { res.status(404).json({ message: t("error.calcNotFound") }); return; }
+      const id = Number(rawId);
       // Scoped lookup. "Not yours" and "does not exist" collapse to the same
       // undefined inside the query, so the 404 below cannot confirm a row
       // exists. A 403 here would have re-opened exactly the oracle this closes.
