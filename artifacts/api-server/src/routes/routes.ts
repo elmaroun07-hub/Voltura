@@ -891,7 +891,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         throw new Error(`calculations.panelOrientation holds an unknown value: ${String(calc.panelOrientation)}`);
       }
 
-      const doc = new PDFDocument({ margin: 50 });
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
       // #5 L-local: the standard Helvetica is WinAnsi, so a name outside it
       // (Łódź, București, Αθήνα) printed as control characters. The summary
       // values, where the user's location is drawn, use an embedded Noto Sans
@@ -1129,10 +1129,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
       }
 
-      // Footer - below the last block, or at the top of a page of its own
-      y += 30;
-      ensureRoom(22);
-      doc.rect(50, y, doc.page.width - 100, 1).fill("#e5e7eb");
+      // Footer - #4: A4, and the footer is pinned inside the bottom margin of the
+      // LAST page, below the content area every block is kept inside by
+      // ensureRoom. Flowed after the table it fell onto a page of its own as soon
+      // as the table ended near the bottom (Dec ends at 764 of 791.89 on A4); here
+      // it cannot add a page, and it always shares one with the last month.
+      const footerTop = doc.page.height - doc.page.margins.bottom + 12;
+      doc.rect(50, footerTop, doc.page.width - 100, 1).fill("#e5e7eb");
+      // PDFKit starts a page for any text below the bottom margin: lift the margin for this one draw.
+      const bottomMargin = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
       doc.fillColor("#9ca3af").fontSize(9).font("Helvetica")
         // No irradiance claim here, in either direction. This footer renders a
         // persisted calculations row, and that row carries no provenance - no
@@ -1141,7 +1147,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // verify would read as a verified fact on the artefact most likely to
         // be forwarded onward. Silence is the honest option until the row can
         // carry the fact.
-        .text(t("pdf.footer"), 50, y + 10, { align: "center" });
+        .text(t("pdf.footer"), 50, footerTop + 10, { align: "center" });
+      doc.page.margins.bottom = bottomMargin;
 
       doc.end();
     } catch (err) {
