@@ -220,6 +220,11 @@ export function createScreeningRouter(pool: Pool, opts: { now?: () => number } =
         res.status(404).json({ code: "building_not_found", message: t("error.screeningBuildingNotFound", { ref }) });
         return;
       }
+      // VPUB audit: a single-dwelling building is scored but not published one by one.
+      if ("notPublished" in trace) {
+        res.status(404).json({ code: "building_not_published", message: t("error.screeningBuildingNotPublished", { ref }) });
+        return;
+      }
       res.json(trace);
     }),
   );

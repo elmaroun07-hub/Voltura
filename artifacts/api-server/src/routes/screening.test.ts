@@ -35,6 +35,7 @@ vi.mock("@workspace/screening/db", async () => {
     },
     buildingTrace: async (_db: unknown, ine: string, ref: string) => {
       guard(ine);
+      if (ref === "2642199UG4924S") return { runId: "run-1", notPublished: true };
       return ref === "2642106UG4924S" ? { runId: "run-1", row: { ref }, sources: [] } : null;
     },
     portfolioSummary: async (_db: unknown, ine: string) => {
@@ -116,6 +117,20 @@ describe("H3.9 screening routes", () => {
     expect(await res.json()).toMatchObject({ code: "building_not_found" });
     const ok = await get("/api/screening/14021/buildings/2642106UG4924S");
     expect(ok.status).toBe(200);
+  });
+
+  it("VPUB: a single-family house is a 404 of its own, with no score or inputs, in the reader's language", async () => {
+    const es = await get("/api/screening/14021/buildings/2642199UG4924S");
+    expect(es.status).toBe(404);
+    expect(await es.json()).toEqual({
+      code: "building_not_published",
+      message: "El edificio 2642199UG4924S es una vivienda unifamiliar: se puntúa, pero no se publica una a una para proteger la privacidad de quien vive en ella.",
+    });
+    const en = await get("/api/screening/14021/buildings/2642199UG4924S", "en");
+    expect(await en.json()).toEqual({
+      code: "building_not_published",
+      message: "Building 2642199UG4924S is a single-family house: it is scored, but not published one by one, to protect the privacy of the household.",
+    });
   });
 
   it("exports CSV: BOM, Spanish headers by default, CRLF, empty cells for absent values, the run in a header", async () => {

@@ -31,7 +31,11 @@ export default function ScreeningBuilding() {
     return (
       <Shell>
         <Card><CardContent className="py-12 text-center text-muted-foreground">
-          {trace.error instanceof NotLoaded ? t("building.notFound") : t("screening.loadError")}
+          {trace.error instanceof NotLoaded
+            ? trace.error.message === "building_not_published"
+              ? t("building.notPublished")
+              : t("building.notFound")
+            : t("screening.loadError")}
         </CardContent></Card>
       </Shell>
     );

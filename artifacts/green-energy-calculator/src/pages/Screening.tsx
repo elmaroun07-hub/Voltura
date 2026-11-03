@@ -137,6 +137,7 @@ export default function Screening() {
             <Card className="border-none shadow-lg overflow-hidden">
               <CardHeader className="bg-muted/30 space-y-4">
                 <CardDescription>{t("screening.rankNote")}</CardDescription>
+                <CardDescription data-testid="single-hidden-note">{t("screening.singleHidden")}</CardDescription>
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">{t("screening.filter.age")}</div>

@@ -60,6 +60,21 @@ export interface Municipality {
 
 const UNDEFINED_TABLE = "42P01";
 
+/**
+ * VPUB audit, 3 Nov 2026 (operator ruling "Hide single houses"): a building
+ * with one dwelling is scored, ranked and counted in the summary, but it is
+ * not published one by one. A score on a single-family house, by cadastral
+ * reference, may be personal data about the household that lives there; until
+ * a data-protection opinion says otherwise, the list, the building trace and
+ * the CSV export show only buildings with at least this many dwellings. Ranks
+ * are not renumbered: a published building keeps the rank it was scored at.
+ */
+export const PUBLISHED_MIN_DWELLINGS = 2;
+
+export function isPublished(dwellings: number): boolean {
+  return dwellings >= PUBLISHED_MIN_DWELLINGS;
+}
+
 async function guarded<T>(ine: string, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
@@ -121,7 +136,7 @@ SELECT i.rank_high, i.ref, b.dwellings, b.year_end, b.floors_above_max, c.zone, 
   JOIN h3_buildings b USING (ref)
   JOIN h3_building_climate c USING (ref)
   LEFT JOIN h3_building_section s USING (ref)
- WHERE i.run_id = $1`;
+ WHERE i.run_id = $1 AND b.dwellings >= ${PUBLISHED_MIN_DWELLINGS}`;
 
 function toRow(x: Record<string, unknown>): PortfolioRow {
   const c = x.completeness as { certificateCoverage: number; certificateCapped: boolean; censusSection: boolean };
@@ -160,7 +175,17 @@ export async function listBuildings(
   });
 }
 
-/** Every input behind one building's score, with the sources it was read from. */
+/** The building exists in the run but is not published one by one (PUBLISHED_MIN_DWELLINGS). */
+export interface NotPublished {
+  readonly runId: string;
+  readonly notPublished: true;
+}
+
+/**
+ * Every input behind one building's score, with the sources it was read from.
+ * null: no such building in the run. NotPublished: a single-dwelling building,
+ * whose inputs and score are not returned.
+ */
 export async function buildingTrace(db: Db, ine: string, ref: string) {
   return guarded(ine, async () => {
     const run = await latestRun(db, ine);
@@ -189,6 +214,7 @@ export async function buildingTrace(db: Db, ine: string, ref: string) {
     );
     if (r.rows.length === 0) return null;
     const x = r.rows[0];
+    if (!isPublished(Number(x.dwellings))) return { runId: run.id, notPublished: true } as NotPublished;
     const sourceIds = [x.catastro_source, x.dem_source_id, x.indicators_source_id, x.boundary_source_id, x.epc_source].filter(
       (v): v is string => typeof v === "string",
     );
@@ -257,7 +283,7 @@ export async function portfolioSummary(db: Db, ine: string): Promise<PortfolioSu
   });
 }
 
-/** Every scored building, ranked, for the CSV export. */
+/** Every published scored building (PUBLISHED_MIN_DWELLINGS), ranked, for the CSV export. */
 export async function exportRows(db: Db, ine: string): Promise<{ runId: string; rows: PortfolioRow[] }> {
   return guarded(ine, async () => {
     const run = await latestRun(db, ine);
