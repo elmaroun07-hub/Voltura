@@ -556,11 +556,26 @@ compliance-relevant decision in the repository, and it is a decision to say less
 `green-energy-calculator/src` tree for "disclaimer", "estimate only", "not
 financial", "AI-assisted", "AI-generated" or "consult" returns **zero matches**.
 There is no audit log, no model documentation, no human-oversight control, no
-confidence interval, no out-of-distribution guard, and no AI disclosure beyond the
-words "AI Optimizer" in a nav item. Request logging (`pino-http`) records method,
-path and status code only — not prompts, not completions, not model versions. The
+confidence interval, no out-of-distribution guard, and ~~no AI disclosure beyond the
+words "AI Optimizer" in a nav item~~. Request logging (`pino-http`) records method,
+path and status code only — not prompts, not completions, not model versions. ~~The
 chat system prompt tells the model that *"Voltura is an EU AI Act-compliant
-energy-intelligence platform"*; nothing in that application implements it.
+energy-intelligence platform"*; nothing in that application implements it.~~
+
+**CORRECTED 3 Nov 2026 (VPUB):**
+- **The Assistant now discloses that it is an AI** (EU AI Act Article 50(1)). It is
+  named "AI Assistant" / "Asistente de IA" in the nav and heading, and a notice sits
+  above the messages (`green-energy-calculator/src/i18n/catalog.ts:288` es, `:565`
+  en; shown by `components/chat/ChatInterface.tsx:54`). Asked whether it is an AI,
+  it says so; checked live on `020cbcf` (conversation 279).
+- **The compliance claim is gone from the system prompt.** Asked about the EU AI
+  Act, the Assistant gives one fixed sentence: Voltura makes no claim about whether
+  it meets any law, regulation or standard (`api-server/src/i18n.ts:173` es, `:312`
+  en; wired at `replit_integrations/chat/routes.ts:73-74`).
+  `replit_integrations/chat/system-prompt.test.ts` fails if a compliance,
+  certification or AI Act claim returns to the prompt.
+- Still not built: machine-readable marking of AI-generated text (Article 50(2),
+  due 2 Dec 2026 for systems on the market before 2 Aug 2026).
 
 ### Risk classification
 
