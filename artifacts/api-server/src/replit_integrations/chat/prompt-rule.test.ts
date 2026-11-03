@@ -211,7 +211,7 @@ describe.each(LANGS)("H-ASST-ACC — the prompt is built from the facts, and kee
     const { messages } = await send(lang);
     expect(messages).toHaveLength(1 + STORED.length);
     expect(messages.slice(1)).toEqual(STORED);
-    expect(FACTS_BY_LOCALE.en.find((f) => f.id === "assistant")!.text).toMatch(/Energy Assistant/);
-    expect(FACTS_BY_LOCALE.es.find((f) => f.id === "assistant")!.text).toMatch(/Asistente energético/);
+    expect(FACTS_BY_LOCALE.en.find((f) => f.id === "assistant")!.text).toMatch(/AI Assistant/);
+    expect(FACTS_BY_LOCALE.es.find((f) => f.id === "assistant")!.text).toMatch(/Asistente de IA/);
   });
 });

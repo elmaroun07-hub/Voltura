@@ -135,7 +135,7 @@ export const VOLTURA_FACTS: { id: string; text: string }[] = [
   {
     id: "assistant",
     // H-ASST-ACC3 (operator ruling, 8 Oct 2026): questions outside Voltura's jobs are not answered.
-    text: "This Energy Assistant, which answers only questions about what Voltura does.",
+    text: "This AI Assistant, which answers only questions about what Voltura does.",
   },
 ];
 
@@ -257,7 +257,7 @@ export const VOLTURA_FACTS_ES: { id: string; text: string }[] = [
   },
   {
     id: "assistant",
-    text: "Este Asistente energético, que solo responde preguntas sobre lo que hace Voltura.",
+    text: "Este Asistente de IA, que solo responde preguntas sobre lo que hace Voltura.",
   },
 ];
 

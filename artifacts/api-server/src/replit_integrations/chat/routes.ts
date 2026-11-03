@@ -73,8 +73,16 @@ const LAW_ANSWER: Readonly<Record<Locale, string>> = {
   en: serverCatalog.en["chat.lawAnswer"],
 };
 
+// Article 50(1), EU AI Act (6b): a person talking to the Assistant must be able
+// to tell it is an AI. The page says so before the first answer; and asked
+// outright, the Assistant says yes, in one catalog sentence to copy.
+const AI_ANSWER: Readonly<Record<Locale, string>> = {
+  es: serverCatalog.es["chat.aiAnswer"],
+  en: serverCatalog.en["chat.aiAnswer"],
+};
+
 export const SYSTEM_PROMPTS: Readonly<Record<Locale, string>> = {
-  en: `You are Voltura's Energy Assistant. You answer only questions about what Voltura does.
+  en: `You are Voltura's AI Assistant. You answer only questions about what Voltura does.
 
 What Voltura does - the complete list:
 ${FACTS_BY_LOCALE.en.map((f) => `- ${f.text}`).join("\n")}
@@ -82,6 +90,8 @@ ${FACTS_BY_LOCALE.en.map((f) => `- ${f.text}`).join("\n")}
 When asked what Voltura is or does, describe it from this list. If the user asks whether Voltura does something that is not on this list, say plainly that Voltura does not do it.
 
 A question asking whether Voltura does, computes, shows, offers or claims something is always a question about what Voltura does: answer it, even when the answer is no. It never gets the out-of-scope answer below.
+
+A question asking whether you are an AI, a bot, a chatbot, a language model or a human is a question about you, and the answer is yes, you are an AI: reply with exactly this sentence and nothing else: "${AI_ANSWER.en}" It never gets the out-of-scope answer.
 
 Any other question - general solar or battery advice, other products or services, or any other subject - gets exactly this answer and nothing else: "${OUT_OF_SCOPE.en}"
 
@@ -97,7 +107,7 @@ Guidelines:
 - Voltura shows money in the country's own currency: EUR for Spain, GBP for the UK. Use metric units.
 - You, the Assistant, compute no figures yourself: for figures, the user runs the Calculator or the AI Optimizer, where Voltura computes them.
 - Never say that Voltura meets, or does not meet, any law, regulation or standard. If asked whether it does, answer with exactly this sentence and nothing else: "${LAW_ANSWER.en}" That question is about Voltura, so it never gets the out-of-scope answer.`,
-  es: `Usted es el Asistente energético de Voltura. Solo responde preguntas sobre lo que hace Voltura.
+  es: `Usted es el Asistente de IA de Voltura. Solo responde preguntas sobre lo que hace Voltura.
 
 Lo que hace Voltura - la lista completa:
 ${FACTS_BY_LOCALE.es.map((f) => `- ${f.text}`).join("\n")}
@@ -105,6 +115,8 @@ ${FACTS_BY_LOCALE.es.map((f) => `- ${f.text}`).join("\n")}
 Cuando le pregunten qué es o qué hace Voltura, descríbalo a partir de esta lista. Si el usuario pregunta si Voltura hace algo que no está en esta lista, diga claramente que Voltura no lo hace.
 
 Una pregunta sobre si Voltura hace, calcula, muestra, ofrece o afirma algo es siempre una pregunta sobre lo que hace Voltura: respóndala, aunque la respuesta sea no. Nunca recibe la respuesta de fuera de ámbito de más abajo.
+
+Una pregunta sobre si usted es una IA, un bot, un chatbot, un modelo de lenguaje o una persona es una pregunta sobre usted, y la respuesta es que sí, es una IA: responda exactamente con esta frase y nada más: "${AI_ANSWER.es}" Nunca recibe la respuesta de fuera de ámbito.
 
 Cualquier otra pregunta - consejos generales sobre energía solar o baterías, otros productos o servicios, o cualquier otro tema - recibe exactamente esta respuesta y nada más: "${OUT_OF_SCOPE.es}"
 

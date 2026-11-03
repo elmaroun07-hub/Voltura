@@ -52,9 +52,9 @@ const CLAIM_WORDS = /compli|certif|conform|AI Act|cumpl|Ley de IA|Reglamento de 
 describe("Assistant system prompt — no conformance claim (B1 / D19)", () => {
   // 2b.5: the prompt is chosen by the request's language; no header is Spanish.
   it.each([
-    ["no Accept-Language (Spanish)", undefined, /^Usted es el Asistente energético de Voltura/],
-    ["Accept-Language: es", "es", /^Usted es el Asistente energético de Voltura/],
-    ["Accept-Language: en", "en", /^You are Voltura's Energy Assistant/],
+    ["no Accept-Language (Spanish)", undefined, /^Usted es el Asistente de IA de Voltura/],
+    ["Accept-Language: es", "es", /^Usted es el Asistente de IA de Voltura/],
+    ["Accept-Language: en", "en", /^You are Voltura's AI Assistant/],
   ] as const)("%s: sends a system prompt with no compliance, certification or AI Act claim", async (_label, lang, opening) => {
     sent = undefined;
     const app = express();

@@ -120,7 +120,7 @@ const FEATURE_MAP: Record<string, { file: string; symbol: string }> = {
     file: "artifacts/api-server/src/lib/sizing.ts",
     symbol: "export function sizePvAndBattery(",
   },
-  "This Energy Assistant, which answers only questions about what Voltura does.": {
+  "This AI Assistant, which answers only questions about what Voltura does.": {
     file: "artifacts/api-server/src/replit_integrations/chat/routes.ts",
     symbol: "export function registerChatRoutes(",
   },

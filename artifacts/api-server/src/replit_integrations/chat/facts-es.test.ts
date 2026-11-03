@@ -100,7 +100,7 @@ const LABELS: [key: string, english: string, spanish: string, id: string][] = [
   ["mix.battery", "From Battery", "Desde la batería", "energy-mix"],
   ["mix.grid", "Grid Import", "Importación de red", "energy-mix"],
   ["nav.optimizer", "AI Optimizer", "Optimizador IA", "optimizer"],
-  ["nav.assistant", "Energy Assistant", "Asistente energético", "assistant"],
+  ["nav.assistant", "AI Assistant", "Asistente de IA", "assistant"],
 ];
 
 describe("2b.5 — the Spanish facts say what the English facts say", () => {
