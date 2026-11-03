@@ -50,6 +50,10 @@ export function ChatInterface() {
         </div>
       </div>
 
+      <p role="note" data-testid="ai-notice" className="px-4 py-2 text-xs text-muted-foreground bg-muted/40 border-b">
+        {t("chat.aiNotice")}
+      </p>
+
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {messages.length === 0 && (
