@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Leaf, TrendingUp, Sun, Download, Banknote, Satellite, AlertTriangle, CalendarCheck } from "lucide-react";
+import { monthlyBars } from "@/lib/chart-data";
 
 interface ResultsDisplayProps {
   results: CalculationResponse | null;
@@ -58,13 +59,9 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
   // valued - the engine sells nothing.
   // The month label comes from the month NUMBER in the reader's language, not
   // from the English name the server sends alongside it (H2b).
-  const barData = results.monthlyData.map((m) => ({
-    name: month(m.month),
-    generation: m.generationKwh,
-    savings: m.savingsKwh,
-    gridImport: m.gridImportKwh,
-    surplus: m.surplusKwh,
-  }));
+  // #7: against an API older than H-D8D52 the flows are absent, and the surplus
+  // series is then not drawn (never drawn as 0).
+  const { data: barData, hasSurplus } = monthlyBars(results.monthlyData, month);
 
   const trees = Math.round(results.co2Reduction / 20);
   const { money } = results;
@@ -150,7 +147,7 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
                 <Bar dataKey="generation" name={t("series.generation")} fill="#10b981" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="savings" name={t("series.savings")} fill="#f59e0b" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="gridImport" name={t("series.gridImport")} fill="#e5e7eb" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="surplus" name={t("series.surplus")} fill="#94a3b8" radius={[3, 3, 0, 0]} />
+                {hasSurplus && <Bar dataKey="surplus" name={t("series.surplus")} fill="#94a3b8" radius={[3, 3, 0, 0]} />}
               </BarChart>
             </ResponsiveContainer>
           </div>

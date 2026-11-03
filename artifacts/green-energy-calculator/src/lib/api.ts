@@ -94,11 +94,13 @@ const monthlyEntrySchema = z.object({
   savingsKwh: z.number(),
   gridImportKwh: z.number(),
   co2Kg: z.number(),
-  // The flows the engine records (H-D8D52), each rounded to 0.1 kWh.
-  pvDirectKwh: z.number(),
-  batteryChargeKwh: z.number(),
-  batteryDischargeKwh: z.number(),
-  surplusKwh: z.number(),
+  // The flows the engine records (H-D8D52), each rounded to 0.1 kWh. Optional on
+  // this side only (#7): Render deploys the web and the API independently, and a
+  // page can reach an API from before H-D8D52. The server schema keeps them required.
+  pvDirectKwh: z.number().optional(),
+  batteryChargeKwh: z.number().optional(),
+  batteryDischargeKwh: z.number().optional(),
+  surplusKwh: z.number().optional(),
 });
 
 export type MonthlyEntry = z.infer<typeof monthlyEntrySchema>;
