@@ -84,9 +84,8 @@ export const serverCatalog = defineCatalog(
       "El perfil solar produce las 24 horas, así que no hay carga nocturna que pueda cubrir una batería.",
 
     // ── Recommendation ────────────────────────────────────────────────────
-    "rec.fullWithExport":
-      "¡Excelente! Su sistema de {w} W cubre todo su consumo y genera un excedente con un valor de {value} en posible exportación a la red.",
-    "rec.full": "¡Excelente! Su sistema de {w} W cubre todo su consumo y genera excedente ({saving}).",
+    // #8 D12: the surplus is not valued (the engine exports and sells nothing).
+    "rec.full": "¡Excelente! Su sistema de {w} W cubre todo su consumo ({saving}). El excedente que genera no se cuenta como ahorro.",
     "rec.good":
       "¡Buen resultado! Su sistema cubre el {pct} % de su energía, {saving}. Una batería algo mayor podría acercarle al 100 %.",
     "rec.low":
@@ -231,9 +230,7 @@ export const serverCatalog = defineCatalog(
     "sizing.badAssumption": "{name} must be a ratio greater than 0 and at most 1; received {value}.",
     "sizing.noDarkHours": "The solar profile produces in all 24 hours, so there is no night load a battery could carry.",
 
-    "rec.fullWithExport":
-      "Excellent! Your {w}W system fully covers your usage and generates surplus energy worth {value} in potential grid export.",
-    "rec.full": "Excellent! Your {w}W system fully covers your usage and generates surplus energy ({saving}).",
+    "rec.full": "Excellent! Your {w}W system covers all your usage ({saving}). The surplus it generates is not counted as a saving.",
     "rec.good":
       "Great result! Your system covers {pct}% of your energy, {saving}. A slightly larger battery could push you closer to 100%.",
     "rec.low":

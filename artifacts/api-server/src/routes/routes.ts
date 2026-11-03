@@ -1244,13 +1244,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const saving = describeSaving(money, locale);
       let recommendation = "";
       if (solarPct >= 100) {
-        recommendation =
-          money.annualSavings !== null && money.currency !== null
-            ? t("rec.fullWithExport", {
-                w: watts(input.pvWattage),
-                value: formatMoney(locale, money.annualSavings * 0.1, money.currency),
-              })
-            : t("rec.full", { w: watts(input.pvWattage), saving });
+        // #8 D12: one sentence at and above 100 %. The surplus is recorded as
+        // "Surplus not used"; it is not valued here.
+        recommendation = t("rec.full", { w: watts(input.pvWattage), saving });
       } else if (solarPct >= 70) {
         recommendation = t("rec.good", { pct: solarPct, saving });
       } else {
