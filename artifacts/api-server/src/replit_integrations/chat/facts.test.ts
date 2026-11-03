@@ -397,10 +397,10 @@ describe("H-ASST-ACC TF1 — each fact, pinned to the code", () => {
     expect(qc).toContain("sessionId = crypto.randomUUID();");
     expect(qc).toContain("localStorage.setItem(SESSION_ID_KEY, sessionId);");
     await withServer(async (base) => {
-      const res = await realFetch(`${base}/api/history`, { headers: { "X-Session-Id": "browser-a" } });
+      const res = await realFetch(`${base}/api/history`, { headers: { "X-Session-Id": "b0b0b0b0-0000-4000-8000-b0b0b0b0b0b0" } });
       expect(res.status).toBe(200);
     });
-    expect(history.asked).toEqual(["browser-a"]);
+    expect(history.asked).toEqual(["b0b0b0b0-0000-4000-8000-b0b0b0b0b0b0"]);
   });
 
   it("optimizer: a fixed standard profile, a formula at 100 % annual parity, the AI writes prose", () => {

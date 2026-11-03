@@ -368,11 +368,12 @@ describe("H-PDF P.2 — static text is WinAnsi-encodable", () => {
     const find = (n: ts.Node): void => {
       if (
         ts.isCallExpression(n) &&
-        n.arguments.length === 2 &&
+        n.arguments.length >= 2 &&
         ts.isStringLiteral(n.arguments[0]) &&
         n.arguments[0].text === "/api/calculate/:id/pdf"
       ) {
-        handler = n.arguments[1];
+        // VPUB-SEC put a rate limiter before the handler: the handler is the last argument.
+        handler = n.arguments[n.arguments.length - 1];
         return;
       }
       ts.forEachChild(n, find);

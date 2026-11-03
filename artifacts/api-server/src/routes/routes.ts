@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { findUpward } from "../lib/emissions/registry";
 import rateLimit from "express-rate-limit";
 import { clientKey } from "../lib/client-key";
+import { isSessionId } from "../lib/session-id";
 import {
   parseOptimizePayload,
   renderOptimizeFacts,
@@ -839,6 +840,23 @@ function notoSansBoldPath(): string {
   return notoBold;
 }
 
+/**
+ * VPUB-SEC: GET /api/history and the PDF had no limit. History is one database
+ * read per request and the PDF renders a document, so a script could load the
+ * database or the CPU without end. A reader opens history and a few PDFs;
+ * sixty in a quarter hour is far above that.
+ */
+export const READS_PER_WINDOW = 60;
+
+const readLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: READS_PER_WINDOW,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: clientKey,
+  message: (req: { get(name: string): string | undefined }) => ({ message: serverT(requestLocale(req))("error.readRateLimited") }),
+});
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   registerChatRoutes(app);
 
@@ -852,7 +870,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // walked every calculation ever made and rendered location, usage, PV size,
   // battery, tariff and roof angle for each. No id was needed at all - not a
   // replay of someone's session, an enumeration oracle.
-  app.get("/api/calculate/:id/pdf", async (req, res) => {
+  app.get("/api/calculate/:id/pdf", readLimiter, async (req, res) => {
     // 2b.4: the report is written in the language the request asked for
     // (Accept-Language, which the web app sets from the reader's choice);
     // Spanish when it asked for nothing.
@@ -866,9 +884,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // reject before any lookup: 400 says the request was malformed, and says
       // nothing about whether the row exists.
       const sessionId = req.get("x-session-id");
-      if (!sessionId) { res.status(400).json({ message: t("error.sessionHeader") }); return; }
+      if (!isSessionId(sessionId)) { res.status(400).json({ message: t("error.sessionHeader") }); return; }
 
-      const id = parseInt(req.params.id);
+      const id = parseInt(String(req.params.id));
       // Scoped lookup. "Not yours" and "does not exist" collapse to the same
       // undefined inside the query, so the 404 below cannot confirm a row
       // exists. A 403 here would have re-opened exactly the oracle this closes.
@@ -1167,7 +1185,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Header only: never defaulted, never generated server-side, never taken
       // from the body. Absent means reject, before any work is done.
       const sessionId = req.get("x-session-id");
-      if (!sessionId) {
+      if (!isSessionId(sessionId)) {
         return res.status(400).json({ message: t("error.sessionHeader") });
       }
 
@@ -1357,9 +1375,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.get(api.calculations.history.path, async (req, res) => {
+  app.get(api.calculations.history.path, readLimiter, async (req, res) => {
     const sessionId = req.get("x-session-id");
-    if (!sessionId) {
+    if (!isSessionId(sessionId)) {
       return res.status(400).json({ message: serverT(requestLocale(req))("error.sessionHeader") });
     }
 

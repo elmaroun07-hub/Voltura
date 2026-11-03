@@ -190,7 +190,7 @@ describe("H-ASST-ACC2 TF5 — the five rewritten facts, pinned to the code", () 
       expect(made.status).toBe(200);
       expect(store.rows.get(made.body.id)).toMatchObject({ sessionId: SESSION, savingsKwh: made.body.savingsKwh });
       const mine = await (await realFetch(`${b}/api/history`, { headers: { "X-Session-Id": SESSION } })).json();
-      const fresh = await (await realFetch(`${b}/api/history`, { headers: { "X-Session-Id": "a-new-browser" } })).json();
+      const fresh = await (await realFetch(`${b}/api/history`, { headers: { "X-Session-Id": "a0a0a0a0-0000-4000-8000-a0a0a0a0a0a0" } })).json();
       expect((mine as any[]).map((r) => r.id)).toEqual([made.body.id]);
       expect(fresh).toEqual([]);
     });

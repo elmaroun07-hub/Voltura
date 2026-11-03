@@ -4,6 +4,7 @@ import { z } from "zod/v3";
 import { chatStorage } from "./storage";
 import { getLlmClient, llmModel } from "../../lib/llm";
 import { clientKey } from "../../lib/client-key";
+import { isSessionId } from "../../lib/session-id";
 import { FACTS_BY_LOCALE } from "./facts";
 import { requestLocale, serverCatalog, serverT, type Locale } from "../../i18n";
 
@@ -151,7 +152,7 @@ export const CHAT_TEMPERATURE = 0.2;
  */
 function requireSessionId(req: Request, res: Response): string | null {
   const sessionId = req.get("x-session-id");
-  if (!sessionId) {
+  if (!isSessionId(sessionId)) {
     res.status(400).json({ error: serverT(requestLocale(req))("error.sessionHeader") });
     return null;
   }
