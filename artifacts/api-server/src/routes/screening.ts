@@ -6,9 +6,14 @@
  *   GET /api/screening/:ine/buildings/:ref
  *   GET /api/screening/:ine/summary
  *   GET /api/screening/:ine/export.csv
+ *   GET /api/screening/agency            (which agency an access key belongs to)
  *
- * The data is public (Catastro, IGN, INE, the Junta's register) and holds no
- * personal record — no address, no name — so these routes take no session.
+ * The inputs are public (Catastro, IGN, INE, the Junta's register) and hold no
+ * name or address, so these routes take no session. Single-family houses are
+ * scored but not published one by one (VPUB audit). An `X-Agency-Key` header
+ * holding a key the maintainer issued to an agency (lib/agency-keys.ts) lifts
+ * that rule for the list, the building trace and the export; every request
+ * made with a key is logged, and a bad key is refused, never ignored.
  *
  * A municipality with nothing loaded answers 404 with code
  * `screening_not_loaded`, in the reader's language. It never answers an empty
@@ -22,6 +27,7 @@ import rateLimit from "express-rate-limit";
 import pLimit from "p-limit";
 import type { Pool } from "pg";
 import { clientKey } from "../lib/client-key";
+import { logAgencyKeyUse, verifyAgencyKey, type Agency } from "../lib/agency-keys";
 import {
   AGE_FILTERS,
   ScreeningNotLoaded,
@@ -33,6 +39,7 @@ import {
   type AgeFilter,
   type ListFilters,
   type PortfolioRow,
+  type ReadScope,
 } from "@workspace/screening/db";
 import { requestLocale, serverT, type ServerTranslate } from "../i18n";
 import { logger } from "../lib/logger";
@@ -131,9 +138,26 @@ export const SCREENING_CACHE_MS = 5 * 60 * 1000;
 
 class ScreeningBusy extends Error {}
 
-export function createScreeningRouter(pool: Pool, opts: { now?: () => number } = {}): IRouter {
+/** The key store, injectable so the route tests need no database. */
+export interface AgencyKeyStore {
+  verify(key: string): Promise<Agency | null>;
+  log(keyId: number, method: string, path: string): Promise<void>;
+}
+
+function scopeOf(res: Response): ReadScope {
+  return res.locals.scope === "agency" ? "agency" : "public";
+}
+
+export function createScreeningRouter(
+  pool: Pool,
+  opts: { now?: () => number; agencyKeys?: AgencyKeyStore } = {},
+): IRouter {
   const router: IRouter = Router();
   const now = opts.now ?? Date.now;
+  const agencyKeys: AgencyKeyStore = opts.agencyKeys ?? {
+    verify: (key) => verifyAgencyKey(pool, key),
+    log: (keyId, method, path) => logAgencyKeyUse(pool, keyId, method, path),
+  };
   // H-D17: keyed by clientKey, which does not depend on Render's unpublished
   // proxy hop count. Proven per client on this route live, 23 Oct 2026.
   const exportLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: clientKey });
@@ -148,6 +172,36 @@ export function createScreeningRouter(pool: Pool, opts: { now?: () => number } =
       message: (req: Request) => ({ code: "rate_limited", message: serverT(requestLocale(req))("error.screeningRateLimited") }),
     }),
   );
+
+  // Agency access key. After the rate limiter, so a key cannot be guessed at
+  // speed (a key is 32 random bytes anyway). No header: the public scope. A
+  // header that is not a valid, unrevoked key: 401, never the public view
+  // silently, so an agency knows at once its key has stopped working. A valid
+  // key's use is logged BEFORE the data is sent; if the log cannot be written,
+  // the request is refused, so no agency read goes unrecorded.
+  router.use("/api/screening", async (req: Request, res: Response, next) => {
+    res.setHeader("Vary", "X-Agency-Key, Accept-Language");
+    res.locals.scope = "public";
+    const raw = req.get("x-agency-key");
+    if (raw === undefined) return next();
+    const t = serverT(requestLocale(req));
+    try {
+      const agency = await agencyKeys.verify(raw.trim());
+      if (!agency) {
+        res.status(401).json({ code: "agency_key_invalid", message: t("error.agencyKeyInvalid") });
+        return;
+      }
+      await agencyKeys.log(agency.keyId, req.method, req.originalUrl.split("?")[0]);
+      res.locals.scope = "agency";
+      res.locals.agency = agency;
+      // Never cached by a shared cache: these answers hold what the public cannot see.
+      res.setHeader("Cache-Control", "private, no-store");
+      next();
+    } catch (err) {
+      logger.error({ err }, "agency key check failed");
+      res.status(500).json({ code: "internal", message: t("error.internal") });
+    }
+  });
 
   const gate = pLimit(SCREENING_CONCURRENCY);
   const cache = new Map<string, { at: number; value: Promise<unknown> }>();
@@ -191,6 +245,18 @@ export function createScreeningRouter(pool: Pool, opts: { now?: () => number } =
     };
 
   router.get(
+    "/api/screening/agency",
+    handle(async (_req, res, t) => {
+      const agency = res.locals.agency as Agency | undefined;
+      if (!agency) {
+        res.status(401).json({ code: "agency_key_missing", message: t("error.agencyKeyMissing") });
+        return;
+      }
+      res.json({ agency: agency.agencyName });
+    }),
+  );
+
+  router.get(
     "/api/screening/municipalities",
     handle(async (_req, res) => {
       res.json({ municipalities: await cached("municipalities", () => listMunicipalities(pool)) });
@@ -205,7 +271,7 @@ export function createScreeningRouter(pool: Pool, opts: { now?: () => number } =
       const offset = intParam(req.query.offset, "offset", 0, Number.MAX_SAFE_INTEGER);
       if (limit === 0) throw new BadParam("limit");
       const ine = routeParam(req, "ine");
-      res.json(await gated(() => listBuildings(pool, ine, filters, { limit, offset })));
+      res.json(await gated(() => listBuildings(pool, ine, filters, { limit, offset }, scopeOf(res))));
     }),
   );
 
@@ -215,7 +281,7 @@ export function createScreeningRouter(pool: Pool, opts: { now?: () => number } =
       const ref = routeParam(req, "ref");
       if (!REF.test(ref)) throw new BadParam("ref");
       const ine = routeParam(req, "ine");
-      const trace = await gated(() => buildingTrace(pool, ine, ref));
+      const trace = await gated(() => buildingTrace(pool, ine, ref, scopeOf(res)));
       if (!trace) {
         res.status(404).json({ code: "building_not_found", message: t("error.screeningBuildingNotFound", { ref }) });
         return;
@@ -242,9 +308,10 @@ export function createScreeningRouter(pool: Pool, opts: { now?: () => number } =
     exportLimiter,
     handle(async (req, res, t) => {
       const ine = routeParam(req, "ine");
-      const { runId, rows } = await gated(() => exportRows(pool, ine));
+      const scope = scopeOf(res);
+      const { runId, rows } = await gated(() => exportRows(pool, ine, scope));
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="cribado-${ine}.csv"`);
+      res.setHeader("Content-Disposition", `attachment; filename="cribado-${ine}${scope === "agency" ? "-completo" : ""}.csv"`);
       res.setHeader("X-Screening-Run", runId);
       res.send(toCsv(rows, t));
     }),

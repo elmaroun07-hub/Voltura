@@ -79,12 +79,12 @@ describe("H3.9 screening routes", () => {
   it("passes filters and paging through to the read", async () => {
     const res = await get("/api/screening/14021/buildings?age=pre-1980&certificate=without&district=01&limit=20&offset=40");
     expect(res.status).toBe(200);
-    expect(calls.list[0]).toEqual(["14021", { age: "pre-1980", certificate: "without", district: "01" }, { limit: 20, offset: 40 }]);
+    expect(calls.list[0]).toEqual(["14021", { age: "pre-1980", certificate: "without", district: "01" }, { limit: 20, offset: 40 }, "public"]);
   });
 
   it("defaults to the first 50", async () => {
     await get("/api/screening/14021/buildings");
-    expect(calls.list[0]).toEqual(["14021", {}, { limit: 50, offset: 0 }]);
+    expect(calls.list[0]).toEqual(["14021", {}, { limit: 50, offset: 0 }, "public"]);
   });
 
   it.each([

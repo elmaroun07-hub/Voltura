@@ -75,6 +75,15 @@ export function isPublished(dwellings: number): boolean {
   return dwellings >= PUBLISHED_MIN_DWELLINGS;
 }
 
+/**
+ * Who is reading. "public": the PUBLISHED_MIN_DWELLINGS rule above applies.
+ * "agency": a caller holding an access key the maintainer issued to a named
+ * agency (operator ruling 3 Nov 2026); it sees every scored building,
+ * single-dwelling ones included. The API decides the scope; these reads only
+ * apply it, and default to "public".
+ */
+export type ReadScope = "public" | "agency";
+
 async function guarded<T>(ine: string, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
@@ -129,14 +138,18 @@ function filterSql(f: ListFilters, params: unknown[]): string {
   return where.length ? `AND ${where.join(" AND ")}` : "";
 }
 
-const ROW_SELECT = `
+const ROW_SELECT_ALL = `
 SELECT i.rank_high, i.ref, b.dwellings, b.year_end, b.floors_above_max, c.zone, s.cusec,
        i.index_low, i.index_mid, i.index_high, i.completeness
   FROM h3_index i
   JOIN h3_buildings b USING (ref)
   JOIN h3_building_climate c USING (ref)
   LEFT JOIN h3_building_section s USING (ref)
- WHERE i.run_id = $1 AND b.dwellings >= ${PUBLISHED_MIN_DWELLINGS}`;
+ WHERE i.run_id = $1`;
+
+function rowSelect(scope: ReadScope): string {
+  return scope === "agency" ? ROW_SELECT_ALL : `${ROW_SELECT_ALL} AND b.dwellings >= ${PUBLISHED_MIN_DWELLINGS}`;
+}
 
 function toRow(x: Record<string, unknown>): PortfolioRow {
   const c = x.completeness as { certificateCoverage: number; certificateCapped: boolean; censusSection: boolean };
@@ -160,15 +173,17 @@ export async function listBuildings(
   ine: string,
   filters: ListFilters,
   page: { limit: number; offset: number },
+  scope: ReadScope = "public",
 ): Promise<{ runId: string; total: number; rows: PortfolioRow[] }> {
   return guarded(ine, async () => {
     const run = await latestRun(db, ine);
     const params: unknown[] = [run.id];
     const where = filterSql(filters, params);
-    const total = await db.query(`SELECT count(*)::int AS n FROM (${ROW_SELECT} ${where}) x`, params);
+    const select = rowSelect(scope);
+    const total = await db.query(`SELECT count(*)::int AS n FROM (${select} ${where}) x`, params);
     params.push(page.limit, page.offset);
     const r = await db.query(
-      `${ROW_SELECT} ${where} ORDER BY i.rank_high LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      `${select} ${where} ORDER BY i.rank_high LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params,
     );
     return { runId: run.id, total: total.rows[0].n, rows: r.rows.map(toRow) };
@@ -186,7 +201,7 @@ export interface NotPublished {
  * null: no such building in the run. NotPublished: a single-dwelling building,
  * whose inputs and score are not returned.
  */
-export async function buildingTrace(db: Db, ine: string, ref: string) {
+export async function buildingTrace(db: Db, ine: string, ref: string, scope: ReadScope = "public") {
   return guarded(ine, async () => {
     const run = await latestRun(db, ine);
     const r = await db.query(
@@ -214,7 +229,7 @@ export async function buildingTrace(db: Db, ine: string, ref: string) {
     );
     if (r.rows.length === 0) return null;
     const x = r.rows[0];
-    if (!isPublished(Number(x.dwellings))) return { runId: run.id, notPublished: true } as NotPublished;
+    if (scope === "public" && !isPublished(Number(x.dwellings))) return { runId: run.id, notPublished: true } as NotPublished;
     const sourceIds = [x.catastro_source, x.dem_source_id, x.indicators_source_id, x.boundary_source_id, x.epc_source].filter(
       (v): v is string => typeof v === "string",
     );
@@ -283,11 +298,11 @@ export async function portfolioSummary(db: Db, ine: string): Promise<PortfolioSu
   });
 }
 
-/** Every published scored building (PUBLISHED_MIN_DWELLINGS), ranked, for the CSV export. */
-export async function exportRows(db: Db, ine: string): Promise<{ runId: string; rows: PortfolioRow[] }> {
+/** Every scored building the scope may see (PUBLISHED_MIN_DWELLINGS for the public), ranked, for the CSV export. */
+export async function exportRows(db: Db, ine: string, scope: ReadScope = "public"): Promise<{ runId: string; rows: PortfolioRow[] }> {
   return guarded(ine, async () => {
     const run = await latestRun(db, ine);
-    const r = await db.query(`${ROW_SELECT} ORDER BY i.rank_high`, [run.id]);
+    const r = await db.query(`${rowSelect(scope)} ORDER BY i.rank_high`, [run.id]);
     return { runId: run.id, rows: r.rows.map(toRow) };
   });
 }

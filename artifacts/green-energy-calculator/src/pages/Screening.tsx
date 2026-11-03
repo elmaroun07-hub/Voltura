@@ -5,11 +5,16 @@ import { Shell } from "@/components/layout/Shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
+  AgencyKeyInvalid,
   NotLoaded,
   PAGE_SIZE,
+  getAgencyKey,
+  setAgencyKey,
+  useAgency,
   downloadScreeningCsv,
   useMunicipalities,
   useScreeningList,
@@ -54,6 +59,63 @@ function certificateText(i18n: I18n, r: PortfolioRow): string {
   return r.certificateCapped ? `${pct} · ${i18n.t("screening.capped")}` : pct;
 }
 
+/** Paste, check and remove an agency access key. */
+function AgencyAccess({ agencyKey, onChange, invalid }: { agencyKey: string | null; onChange: (k: string | null) => void; invalid: boolean }) {
+  const { t } = useI18n();
+  const agency = useAgency(agencyKey);
+  const [draft, setDraft] = useState("");
+  const remove = () => {
+    setAgencyKey(null);
+    onChange(null);
+  };
+  const bad = invalid || agency.error instanceof AgencyKeyInvalid;
+  return (
+    <Card data-testid="agency-access">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{t("screening.agency.title")}</CardTitle>
+        {!agencyKey && <CardDescription>{t("screening.agency.help")}</CardDescription>}
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        {!agencyKey ? (
+          <form
+            className="flex flex-wrap gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const k = draft.trim();
+              if (!k) return;
+              setAgencyKey(k);
+              setDraft("");
+              onChange(k);
+            }}
+          >
+            <Input
+              type="password"
+              autoComplete="off"
+              className="w-80"
+              placeholder={t("screening.agency.placeholder")}
+              aria-label={t("screening.agency.title")}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <Button type="submit" variant="outline">{t("screening.agency.use")}</Button>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <span data-testid="agency-status" className={bad ? "text-destructive" : ""}>
+              {bad
+                ? t("screening.agency.invalid")
+                : agency.data
+                  ? t("screening.agency.active", { agency: agency.data.agency })
+                  : t("screening.agency.checking")}
+            </span>
+            <Button type="button" variant="outline" size="sm" onClick={remove}>{t("screening.agency.remove")}</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Screening() {
   const i18n = useI18n();
   const { t, num } = i18n;
@@ -63,8 +125,12 @@ export default function Screening() {
   const ine = chosen ?? municipalities.data?.municipalities[0]?.ine;
   const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(0);
+  const [agencyKey, setAgencyKeyState] = useState<string | null>(() => getAgencyKey());
   const summary = useScreeningSummary(ine);
   const list = useScreeningList(ine, filters, page);
+  const agencyInvalid = list.error instanceof AgencyKeyInvalid;
+  const agency = useAgency(agencyKey);
+  const agencyActive = Boolean(agencyKey && agency.data && !agencyInvalid);
 
   const setFilter = <K extends keyof Filters>(key: K, value: string) => {
     setFilters((f) => ({ ...f, [key]: value === ALL ? undefined : value }));
@@ -86,6 +152,15 @@ export default function Screening() {
           <p className="text-muted-foreground max-w-3xl">{t("screening.subtitle")}</p>
         </div>
 
+        <AgencyAccess
+          agencyKey={agencyKey}
+          invalid={agencyInvalid}
+          onChange={(k) => {
+            setAgencyKeyState(k);
+            setPage(0);
+          }}
+        />
+
         {municipalities.isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -95,6 +170,10 @@ export default function Screening() {
             <CardContent className="py-12 text-center text-muted-foreground" data-testid="screening-not-loaded">
               {t("screening.notLoaded")}
             </CardContent>
+          </Card>
+        ) : agencyInvalid ? (
+          <Card>
+            <CardContent className="py-12 text-center text-destructive" data-testid="agency-invalid">{t("screening.agency.invalidBody")}</CardContent>
           </Card>
         ) : municipalities.error || summary.error || list.error ? (
           <Card>
@@ -138,7 +217,9 @@ export default function Screening() {
             <Card className="border-none shadow-lg overflow-hidden">
               <CardHeader className="bg-muted/30 space-y-4">
                 <CardDescription>{t("screening.rankNote")}</CardDescription>
-                <CardDescription data-testid="single-hidden-note">{t("screening.singleHidden")}</CardDescription>
+                <CardDescription data-testid="single-hidden-note">
+                  {agencyActive ? t("screening.agency.allShown") : t("screening.singleHidden")}
+                </CardDescription>
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">{t("screening.filter.age")}</div>

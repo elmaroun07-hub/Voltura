@@ -32,7 +32,8 @@ muestra un número suelto.
   en el resumen, pero no se publican uno a uno: la lista, la ficha de edificio y el CSV muestran
   solo edificios con dos o más viviendas. Es una medida provisional de protección de datos,
   hasta tener una opinión jurídica sobre si la puntuación de una vivienda unifamiliar es un dato
-  personal. El puesto de cada edificio no cambia.
+  personal. El puesto de cada edificio no cambia. Una agencia con una clave de acceso emitida por
+  Voltura ve todos los edificios puntuados; cada uso de la clave queda registrado.
 
 ## 3. Fuentes
 
