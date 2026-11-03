@@ -736,7 +736,14 @@ export function simulate8760(
       }
     }
   }
-  const consumptionScale = annualKwh / (totalPredicted || 1);
+  // VPUB-SEC (G5): `|| 1` turned a zero or NaN total into 1, which would scale
+  // the whole consumption profile to the annual kWh in one hour's share. The
+  // profile is positive by construction, so a non-positive total is a bug:
+  // refuse it rather than substitute a number.
+  if (!(totalPredicted > 0)) {
+    throw new Error(`predicted consumption total must be positive, got ${totalPredicted}`);
+  }
+  const consumptionScale = annualKwh / totalPredicted;
 
   for (let m = 0; m < 12; m++) {
     const dailyIrr = irradianceMonthly[m];
