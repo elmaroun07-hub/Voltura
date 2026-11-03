@@ -42,7 +42,8 @@ vi.mock("../storage", () => ({
   chatStorage: {},
 }));
 
-vi.mock("../lib/llm", () => ({
+vi.mock("../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/llm")>()),
   llmModel: () => "test-model",
   llmApiKey: () => "test-key",
   llmBaseUrl: () => "https://example.invalid/v1",

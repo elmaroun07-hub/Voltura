@@ -32,7 +32,8 @@ vi.mock("./storage", () => ({
 
 let sent: { messages: { role: string; content: string }[]; temperature?: number } | undefined;
 
-vi.mock("../../lib/llm", () => ({
+vi.mock("../../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/llm")>()),
   llmModel: () => "stub-model",
   getLlmClient: () => ({
     chat: {

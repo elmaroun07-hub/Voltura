@@ -260,7 +260,7 @@ export const catalog = defineCatalog(
       "Dimensionado para que la generación de un año iguale el consumo de un año ({pct} % de {usage} kWh/año, unos {daily} kWh/día). Es paridad energética anual, no autonomía aislada de la red: la generación y la demanda siguen produciéndose en horas distintas.",
     "opt.howAssumptions":
       "Supone un rendimiento global del sistema del {pr} %, un rendimiento de ida y vuelta de la batería del {rte} % y una profundidad de descarga útil del {dod} %. La batería cubre las {dark} horas diarias en las que el sistema no produce nada.",
-    "opt.analysis": "Análisis:",
+    "opt.analysis": "Análisis (lo escribe un modelo de IA; las cifras las calcula el código):",
     "opt.empty": "Ejecute la optimización para ver el sistema recomendado",
 
     // ── Toasts and errors the person reads ────────────────────────────────
@@ -544,7 +544,7 @@ export const catalog = defineCatalog(
       "Sized so a year of generation equals a year of consumption ({pct}% of {usage} kWh/year, about {daily} kWh/day). This is annual energy parity, not off-grid autonomy: generation and demand still fall at different hours.",
     "opt.howAssumptions":
       "Assumes a {pr}% system performance ratio, {rte}% battery round-trip efficiency and {dod}% usable depth of discharge. The battery carries the {dark} hours a day the array produces nothing.",
-    "opt.analysis": "Analysis:",
+    "opt.analysis": "Analysis (written by an AI model; the code computes the figures):",
     "opt.empty": "Run optimization to see the recommended system",
 
     "toast.calcDoneTitle": "Calculation Complete",

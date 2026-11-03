@@ -25,7 +25,8 @@ vi.mock("../storage", () => ({
   },
   chatStorage: {},
 }));
-vi.mock("../lib/llm", () => ({
+vi.mock("../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/llm")>()),
   llmModel: () => "stub-model",
   getLlmClient: () => {
     throw new Error("no model call is expected in this file");

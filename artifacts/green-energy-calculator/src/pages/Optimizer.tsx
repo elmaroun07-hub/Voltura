@@ -217,7 +217,7 @@ export default function Optimizer() {
 
                   <div className="bg-white/50 p-4 rounded-xl text-sm leading-relaxed">
                     <p className="font-medium mb-1">{t("opt.analysis")}</p>
-                    <p data-testid="text-optimizer-explanation" className="whitespace-pre-line">
+                    <p data-testid="text-optimizer-explanation" data-ai-disclosure="machine-generated" className="whitespace-pre-line">
                       {result.explanation}
                     </p>
                   </div>

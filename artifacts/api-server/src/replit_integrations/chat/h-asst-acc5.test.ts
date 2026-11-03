@@ -10,7 +10,8 @@ import path from "node:path";
  * guideline names the Assistant; the checker learns both.
  */
 vi.mock("./storage", () => ({ chatStorage: {} }));
-vi.mock("../../lib/llm", () => ({ llmModel: () => "stub-model", getLlmClient: () => ({}) }));
+vi.mock("../../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/llm")>()), llmModel: () => "stub-model", getLlmClient: () => ({}) }));
 
 const { SYSTEM_PROMPTS } = await import("./routes");
 const { serverCatalog } = await import("../../i18n");

@@ -79,7 +79,10 @@ export function ChatInterface() {
                 {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
               
-              <div className={cn(
+              <div
+                // Article 50(2): the Assistant's text is marked as AI-generated in the page itself too.
+                data-ai-disclosure={msg.role === "assistant" ? "machine-generated" : undefined}
+                className={cn(
                 "p-3 rounded-2xl text-sm leading-relaxed",
                 msg.role === "user" 
                   ? "bg-primary text-primary-foreground rounded-tr-sm" 

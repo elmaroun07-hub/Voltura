@@ -1,5 +1,9 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import {
+  LLM_MAX_RETRIES,
+  LLM_TIMEOUT_MS,
+  aiDisclosure,
+  aiDisclosureHeader,
   getLlmClient,
   llmApiKey,
   llmBaseUrl,
@@ -137,5 +141,40 @@ describe("llm config — the key, and the MISTRAL_API_KEY fallback", () => {
   it("memoises the client, so one config serves the whole process", () => {
     process.env.LLM_API_KEY = "test-key";
     expect(getLlmClient()).toBe(getLlmClient());
+  });
+});
+
+describe("VPUB audit - the client has a bounded timeout and retry count", () => {
+  it("is built with 30 s and 1 retry, not the SDK's 10 minutes and 2 retries", () => {
+    process.env.LLM_API_KEY = "test-key";
+    expect(LLM_TIMEOUT_MS).toBe(30_000);
+    expect(LLM_MAX_RETRIES).toBe(1);
+    // Asserted on the constructed client, as the base URL test is.
+    expect(getLlmClient().timeout).toBe(30_000);
+    expect(getLlmClient().maxRetries).toBe(1);
+  });
+});
+
+describe("Article 50(2) - the AI-Disclosure mark", () => {
+  it("names mode, model and provider host, in RFC 9651 Dictionary syntax", () => {
+    process.env.LLM_MODEL = "openai/gpt-oss-120b";
+    process.env.LLM_BASE_URL = "https://api.groq.com/openai/v1";
+    expect(aiDisclosureHeader()).toBe('mode=machine-generated, model="openai/gpt-oss-120b", provider="api.groq.com"');
+    expect(aiDisclosure(["explanation"])).toEqual({
+      mode: "machine-generated",
+      model: "openai/gpt-oss-120b",
+      provider: "api.groq.com",
+      fields: ["explanation"],
+    });
+  });
+
+  it("escapes quotes and backslashes and drops non-ASCII, so the header always parses", () => {
+    process.env.LLM_MODEL = 'a"b\\c-é';
+    expect(aiDisclosureHeader()).toContain('model="a\\"b\\\\c-"');
+  });
+
+  it("names an unparseable base URL as such instead of guessing a provider", () => {
+    process.env.LLM_BASE_URL = "not a url";
+    expect(aiDisclosure().provider).toBe("unparseable-base-url");
   });
 });

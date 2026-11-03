@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 // Importing the routes module would open the database; neither is used here.
 vi.mock("./storage", () => ({ chatStorage: {} }));
-vi.mock("../../lib/llm", () => ({ llmModel: () => "stub-model", getLlmClient: () => ({}) }));
+vi.mock("../../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/llm")>()), llmModel: () => "stub-model", getLlmClient: () => ({}) }));
 
 const { MESSAGES_PER_WINDOW, SYSTEM_PROMPTS } = await import("./routes");
 const { FACTS_BY_LOCALE } = await import("./facts");

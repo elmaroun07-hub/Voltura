@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from "vitest";
  * as the exact reply, as the law and out-of-scope answers are.
  */
 vi.mock("./storage", () => ({ chatStorage: {} }));
-vi.mock("../../lib/llm", () => ({ llmModel: () => "stub-model", getLlmClient: () => ({}) }));
+vi.mock("../../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/llm")>()), llmModel: () => "stub-model", getLlmClient: () => ({}) }));
 
 const { SYSTEM_PROMPTS } = await import("./routes");
 const { serverCatalog } = await import("../../i18n");

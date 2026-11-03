@@ -60,6 +60,18 @@ export function llmModel(): string {
   return env("LLM_MODEL") ?? DEFAULT_MODEL;
 }
 
+/**
+ * VPUB audit, 3 Nov 2026. The client used to be built with no timeout or retry
+ * setting, so the openai SDK's defaults applied: 10 minutes per attempt and 2
+ * retries (openai 6.35.0, client.js: DEFAULT_TIMEOUT = 600000,
+ * maxRetries ?? 2). A stalled provider could hold a request for half an hour.
+ * The timeout covers the wait for the response headers; a stream that has
+ * started is not cut. One retry is kept for a transient fault; more would only
+ * spend the free quota faster on a 429.
+ */
+export const LLM_TIMEOUT_MS = 30_000;
+export const LLM_MAX_RETRIES = 1;
+
 let _client: OpenAI | null = null;
 
 /**
@@ -80,8 +92,60 @@ export function getLlmClient(): OpenAI {
     );
   }
 
-  _client = new OpenAI({ apiKey, baseURL: llmBaseUrl() });
+  _client = new OpenAI({ apiKey, baseURL: llmBaseUrl(), timeout: LLM_TIMEOUT_MS, maxRetries: LLM_MAX_RETRIES });
   return _client;
+}
+
+/**
+ * EU AI Act Article 50(2): the text the language model writes is marked, in a
+ * machine-readable form, as artificially generated. Three layers, all naming
+ * the same mode, model and provider:
+ *
+ *   1. the HTTP response header `AI-Disclosure`, in the syntax of the IETF
+ *      Internet-Draft draft-abaris-aicdh (an RFC 9651 Dictionary). The draft is
+ *      not a standard; it is used because no standard exists yet;
+ *   2. an `aiDisclosure` object in the JSON or the stream's final event;
+ *   3. a `data-ai-disclosure` attribute on the element the web app renders the
+ *      text into.
+ *
+ * Not done, and why: a watermark in the text itself would have to be applied
+ * when the model samples its tokens, and the model runs at the provider.
+ * The numbers the Optimizer shows are computed by the code, not the model, so
+ * only its `explanation` field is marked.
+ */
+export const AI_DISCLOSURE_MODE = "machine-generated";
+
+export interface AiDisclosure {
+  readonly mode: typeof AI_DISCLOSURE_MODE;
+  readonly model: string;
+  readonly provider: string;
+  /** The response fields the model wrote, when only some of them are. */
+  readonly fields?: readonly string[];
+}
+
+/** The provider's host, from LLM_BASE_URL. An unparseable URL is named as such, not guessed. */
+export function llmProviderHost(): string {
+  try {
+    return new URL(llmBaseUrl()).host;
+  } catch {
+    return "unparseable-base-url";
+  }
+}
+
+export function aiDisclosure(fields?: readonly string[]): AiDisclosure {
+  return { mode: AI_DISCLOSURE_MODE, model: llmModel(), provider: llmProviderHost(), ...(fields ? { fields } : {}) };
+}
+
+/** An RFC 9651 sf-string: printable ASCII only, with backslash and quote escaped. */
+function sfString(value: string): string {
+  const printable = value.replace(/[^\x20-\x7e]/g, "");
+  return `"${printable.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/** The `AI-Disclosure` header value, e.g. `mode=machine-generated, model="m", provider="h"`. */
+export function aiDisclosureHeader(): string {
+  const d = aiDisclosure();
+  return `mode=${d.mode}, model=${sfString(d.model)}, provider=${sfString(d.provider)}`;
 }
 
 /**

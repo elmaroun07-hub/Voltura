@@ -6,7 +6,8 @@ import { z } from "zod/v4";
 import { registerChatRoutes } from "../replit_integrations/chat";
 import { pool } from "../db";
 import { createScreeningRouter } from "./screening";
-import { getLlmClient, llmModel } from "../lib/llm";
+import OpenAI from "openai";
+import { aiDisclosure, aiDisclosureHeader, getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,6 +78,27 @@ function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
   const tiltDelta = Math.abs(roofAngle - 35);
   const tiltFactor = 1 - 0.003 * tiltDelta;
   return Math.max(0.4, oFactor * tiltFactor);
+}
+
+/**
+ * VPUB audit, 3 Nov 2026: an AI provider fault used to reach the user as the
+ * same generic 500 as a bug in this handler, so a spent quota, a timeout and a
+ * missing key could only be told apart in the logs. They are now a typed 503,
+ * with the provider's Retry-After passed through when it sends one. Anything
+ * else stays a 500 `internal`. The code never guesses: an error it does not
+ * recognise is not called a provider fault.
+ */
+export function aiUpstreamFault(
+  err: unknown,
+): { code: "ai_rate_limited" | "ai_timeout" | "ai_unreachable" | "ai_not_configured"; retryAfter?: string } | null {
+  if (err instanceof OpenAI.RateLimitError) {
+    const retryAfter = err.headers?.get("retry-after") ?? undefined;
+    return { code: "ai_rate_limited", ...(retryAfter ? { retryAfter } : {}) };
+  }
+  if (err instanceof OpenAI.APIConnectionTimeoutError) return { code: "ai_timeout" };
+  if (err instanceof OpenAI.APIConnectionError) return { code: "ai_unreachable" };
+  if (err instanceof Error && err.message.startsWith("No LLM API key configured")) return { code: "ai_not_configured" };
+  return null;
 }
 
 // Geocode location string to lat/lon via Nominatim
@@ -1498,6 +1520,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
 
+      // Article 50(2): the model wrote `explanation` and nothing else (lib/llm.ts).
+      res.setHeader("AI-Disclosure", aiDisclosureHeader());
       return res.json({
         // G6: both figures come from the sizing function, and the response
         // carries the inputs they were computed from so the tab can show them.
@@ -1506,6 +1530,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         explanation: result.explanation,
         sizing: sized.sizing,
         resolution: resolved.resolution,
+        aiDisclosure: aiDisclosure(["explanation"]),
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -1513,7 +1538,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(400).json({ message: locale === "en" ? err.issues[0].message : t("error.invalidField", { field }), field });
       }
       console.error("Optimization error:", err);
-      return res.status(500).json({ message: t("error.optimizeFailed") });
+      const upstream = aiUpstreamFault(err);
+      if (upstream) {
+        if (upstream.retryAfter) res.setHeader("Retry-After", upstream.retryAfter);
+        return res.status(503).json({ message: t("error.aiUnavailable"), code: upstream.code });
+      }
+      return res.status(500).json({ message: t("error.optimizeFailed"), code: "internal" });
     }
   });
 

@@ -18,7 +18,8 @@ vi.mock("./storage", () => ({
   },
 }));
 
-vi.mock("../../lib/llm", () => ({
+vi.mock("../../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/llm")>()),
   llmModel: () => "stub-model",
   getLlmClient: () => ({
     chat: {
