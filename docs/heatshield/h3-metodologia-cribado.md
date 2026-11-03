@@ -28,6 +28,11 @@ muestra un número suelto.
   344 residenciales sin viviendas registradas.
 - La puntuación describe la **vivienda de última planta** del edificio: la que está bajo la
   cubierta y tiene las fachadas expuestas del edificio. Es la que más se calienta en verano.
+- **Publicación (desde el 3 nov 2026):** los edificios de una sola vivienda se puntúan y cuentan
+  en el resumen, pero no se publican uno a uno: la lista, la ficha de edificio y el CSV muestran
+  solo edificios con dos o más viviendas. Es una medida provisional de protección de datos,
+  hasta tener una opinión jurídica sobre si la puntuación de una vivienda unifamiliar es un dato
+  personal. El puesto de cada edificio no cambia.
 
 ## 3. Fuentes
 
@@ -214,10 +219,11 @@ v2 corrige eso (apartado 4.7). El criterio de orden no cambia.
 
 ## 5 bis. Córdoba, método `h3-index-v2`
 
-**Pendiente de la carga en producción.** Mientras no se carga, las cifras de abajo proceden de una
-**simulación de solo lectura del 21 oct 2026** sobre la base de producción. La simulación
-reprodujo exactamente el orden del cálculo v1 en vigor (0 diferencias de puesto) antes de aplicar
-el método v2. Tras la carga, esta tabla se sustituye por el cálculo real y su identificador.
+**Cargado en producción el 21 oct 2026**, ejecución `h3-index-v2-14021-2026-10-21T22:28:58.722Z`.
+Las cifras de abajo proceden de la **simulación de solo lectura del 21 oct 2026** sobre la base de
+producción. La simulación reprodujo exactamente el orden del cálculo v1 en vigor (0 diferencias de
+puesto) antes de aplicar el método v2. Comprobado el 3 nov 2026: los valores de k por época y las
+30.586 entradas coinciden con los guardados en la ejecución cargada (`h3_index_runs.refs`).
 
 | Referencia | Simulación v2 |
 |---|---|

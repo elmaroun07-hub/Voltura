@@ -44,6 +44,8 @@ let modelReply: (userMessage: string) => string = () =>
   JSON.stringify({ explanation: "Sized from the figures provided." });
 let lastUserMessage = "";
 let modelCalls = 0;
+/** When set, the provider call throws this instead of answering. */
+let modelError: unknown = null;
 
 vi.mock("../db", () => ({ db: {}, pool: {} }));
 vi.mock("../storage", () => ({
@@ -55,7 +57,8 @@ vi.mock("../storage", () => ({
   chatStorage: {},
 }));
 
-vi.mock("../lib/llm", () => ({
+vi.mock("../lib/llm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/llm")>()),
   llmModel: () => "test-model",
   llmApiKey: () => "test-key",
   llmBaseUrl: () => "https://example.invalid/v1",
@@ -65,6 +68,7 @@ vi.mock("../lib/llm", () => ({
       completions: {
         create: async (req: any) => {
           modelCalls++;
+          if (modelError) throw modelError;
           lastUserMessage = String(req.messages[req.messages.length - 1].content);
           return { choices: [{ message: { content: modelReply(lastUserMessage) } }] };
         },
@@ -154,7 +158,7 @@ async function optimize(base: string, body: Record<string, unknown>) {
     },
     body: JSON.stringify(body),
   });
-  return { status: res.status, body: (await res.json()) as any };
+  return { status: res.status, headers: res.headers, body: (await res.json()) as any };
 }
 
 function optimizeBody(over: Record<string, unknown> = {}) {
@@ -413,5 +417,50 @@ describe("the paid route stays rate limited", () => {
     expect(rateLimitOptions).toContainEqual(
       expect.objectContaining({ windowMs: 15 * 60 * 1000, limit: 10 }),
     );
+  });
+});
+
+describe("VPUB audit - Article 50(2) marking and typed AI provider faults", () => {
+  afterEach(() => {
+    modelError = null;
+  });
+
+  it("marks the explanation, and only it, as AI-generated", async () => {
+    const { base, close } = await serve();
+    const r = await optimize(base, optimizeBody());
+    expect(r.status).toBe(200);
+    expect(r.headers.get("ai-disclosure")).toMatch(/^mode=machine-generated, model="[^"]+", provider="[^"]+"$/);
+    expect(r.body.aiDisclosure).toMatchObject({ mode: "machine-generated", fields: ["explanation"] });
+    await close();
+  });
+
+  it("a provider 429 is a 503 ai_rate_limited, passing Retry-After through", async () => {
+    const { default: OpenAI } = await import("openai");
+    modelError = new OpenAI.RateLimitError(429, undefined, "rate limited", new Headers({ "retry-after": "7" }));
+    const { base, close } = await serve();
+    const r = await optimize(base, optimizeBody());
+    expect(r.status).toBe(503);
+    expect(r.body).toEqual({ code: "ai_rate_limited", message: "The AI service is unavailable right now. Please try again in a few minutes." });
+    expect(r.headers.get("retry-after")).toBe("7");
+    await close();
+  });
+
+  it("a provider timeout is a 503 ai_timeout", async () => {
+    const { default: OpenAI } = await import("openai");
+    modelError = new OpenAI.APIConnectionTimeoutError();
+    const { base, close } = await serve();
+    const r = await optimize(base, optimizeBody());
+    expect(r.status).toBe(503);
+    expect(r.body.code).toBe("ai_timeout");
+    await close();
+  });
+
+  it("an error it does not recognise stays a 500 internal, never called a provider fault", async () => {
+    modelError = new Error("something else broke");
+    const { base, close } = await serve();
+    const r = await optimize(base, optimizeBody());
+    expect(r.status).toBe(500);
+    expect(r.body.code).toBe("internal");
+    await close();
   });
 });

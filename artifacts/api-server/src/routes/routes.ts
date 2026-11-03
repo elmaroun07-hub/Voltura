@@ -6,7 +6,8 @@ import { z } from "zod/v4";
 import { registerChatRoutes } from "../replit_integrations/chat";
 import { pool } from "../db";
 import { createScreeningRouter } from "./screening";
-import { getLlmClient, llmModel } from "../lib/llm";
+import OpenAI from "openai";
+import { aiDisclosure, aiDisclosureHeader, getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +38,33 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
 
 // Typical residential monthly weight (normalised, sum=1)
+/**
+ * MODELLING ASSUMPTIONS, NOT SOURCED (VPUB audit, 3 Nov 2026).
+ *
+ * The calculator's inputs that a user can check have named sources: NASA POWER
+ * irradiance and temperature, and the carbon and tariff figures in
+ * data/sources/. The constants below are the model's own shape assumptions.
+ * No study or dataset is behind their values, and the results page says so
+ * (calc "results.assumptions"):
+ *
+ *   MONTHLY_CONSUMPTION_WEIGHTS   how annual consumption spreads over months
+ *   SOLAR_HOURLY_PROFILE          a Gaussian day, centred at 12:00, width 3.5 h,
+ *                                 zero before 06:00 and after 20:00
+ *   CONSUMPTION_HOURLY_PROFILE    how a day's consumption spreads over hours
+ *   modelHourlyConsumption        seasonal amplitude 0.25, heating term 0.012/degC
+ *                                 below 25 degC, cooling term 0.010/degC above
+ *                                 28 degC, lighting cut 0.08 in daylight
+ *   panelEfficiencyFactor         facing the equator 1.0, east and west 0.87,
+ *                                 facing the pole 0.70; tilt loss 0.003 per
+ *                                 degree from 35 degrees, floor 0.4
+ *   SYSTEM_EFFICIENCY             0.78 (losses from panel to socket)
+ *   fallbackIrradiance            used only when NASA POWER does not answer, and
+ *                                 labelled "estimated from latitude" in the
+ *                                 response and on the page
+ *
+ * The household's annual kWh is the user's own: the consumption shape is
+ * rescaled to it (consumptionScale in simulate8760).
+ */
 const MONTHLY_CONSUMPTION_WEIGHTS = [
   0.103, 0.094, 0.091, 0.082, 0.076, 0.072,
   0.074, 0.076, 0.079, 0.086, 0.093, 0.094,
@@ -60,8 +88,9 @@ const CONSUMPTION_HOURLY_PROFILE = [
   0.082, 0.072, 0.058, 0.048, 0.040, 0.034,
 ];
 
-// ML consumption prediction: [month,hour,irradiance,temp] → kWh
-function mlPredictConsumption(month: number, hour: number, irradiance: number, temp: number): number {
+// Hourly consumption shape: [month,hour,irradiance,temp] -> relative kWh. A hand-set
+// formula, not a trained model (it was named mlPredictConsumption); see the assumptions above.
+function modelHourlyConsumption(month: number, hour: number, irradiance: number, temp: number): number {
   const seasonFactor = 1 + 0.25 * Math.cos((month * Math.PI) / 6);
   const hourFactor = CONSUMPTION_HOURLY_PROFILE[hour] * 24;
   const tempEffect = 1 + 0.012 * Math.max(0, 25 - temp) + 0.010 * Math.max(0, temp - 28);
@@ -69,24 +98,100 @@ function mlPredictConsumption(month: number, hour: number, irradiance: number, t
   return 0.5 * seasonFactor * hourFactor * tempEffect * (1 - lightingReduction);
 }
 
-// Tilt + orientation efficiency multiplier
-function panelEfficiencyFactor(roofAngle: number, orientation: string): number {
-  const orientationFactor: Record<string, number> = { south: 1.0, east: 0.87, west: 0.87, north: 0.70 };
-  const oFactor = orientationFactor[orientation] ?? 1.0;
+// Tilt + orientation efficiency multiplier.
+// VPUB audit: the best direction is the one facing the equator. It was "south"
+// everywhere, so south of the equator a north-facing roof lost 30 % and a
+// south-facing one, facing the pole, lost nothing. An unknown orientation now
+// throws instead of counting as the best one (it was `?? 1.0`); the zod schema
+// already restricts it to the four values, so this cannot fire from a request.
+export function panelEfficiencyFactor(roofAngle: number, orientation: string, lat: number): number {
+  if (!Number.isFinite(lat)) throw new Error(`panelEfficiencyFactor received a non-finite latitude: ${lat}`);
+  const southern = lat < 0;
+  const orientationFactor: Record<string, number> = southern
+    ? { north: 1.0, east: 0.87, west: 0.87, south: 0.70 }
+    : { south: 1.0, east: 0.87, west: 0.87, north: 0.70 };
+  const oFactor = orientationFactor[orientation];
+  if (oFactor === undefined) throw new Error(`panelEfficiencyFactor received an unknown orientation: ${orientation}`);
   // Optimal tilt ≈ 35°; penalty for deviation
   const tiltDelta = Math.abs(roofAngle - 35);
   const tiltFactor = 1 - 0.003 * tiltDelta;
   return Math.max(0.4, oFactor * tiltFactor);
 }
 
-// Geocode location string to lat/lon via Nominatim
-async function geocode(
-  location: string,
-): Promise<{ lat: number; lon: number; country: string; countryCode: string; regionCode: string } | null> {
+/**
+ * VPUB audit, 3 Nov 2026: an AI provider fault used to reach the user as the
+ * same generic 500 as a bug in this handler, so a spent quota, a timeout and a
+ * missing key could only be told apart in the logs. They are now a typed 503,
+ * with the provider's Retry-After passed through when it sends one. Anything
+ * else stays a 500 `internal`. The code never guesses: an error it does not
+ * recognise is not called a provider fault.
+ */
+export function aiUpstreamFault(
+  err: unknown,
+): { code: "ai_rate_limited" | "ai_timeout" | "ai_unreachable" | "ai_not_configured"; retryAfter?: string } | null {
+  if (err instanceof OpenAI.RateLimitError) {
+    const retryAfter = err.headers?.get("retry-after") ?? undefined;
+    return { code: "ai_rate_limited", ...(retryAfter ? { retryAfter } : {}) };
+  }
+  if (err instanceof OpenAI.APIConnectionTimeoutError) return { code: "ai_timeout" };
+  if (err instanceof OpenAI.APIConnectionError) return { code: "ai_unreachable" };
+  if (err instanceof Error && err.message.startsWith("No LLM API key configured")) return { code: "ai_not_configured" };
+  return null;
+}
+
+type Geocoded = { lat: number; lon: number; country: string; countryCode: string; regionCode: string };
+
+/**
+ * VPUB audit, 3 Nov 2026: the Nominatim usage policy asks an application to
+ * identify itself in the User-Agent and to cache results; clients that send
+ * the same query repeatedly may be blocked. The User-Agent named the old
+ * product (GreenEnergyCalculator/1.0) and nothing was cached.
+ *
+ * Only a found place is cached. A failure or "not found" is asked again next
+ * time, so a passing Nominatim outage is never remembered as a fact. In-memory
+ * and per process: a restart empties it, which costs one lookup per place.
+ */
+export const NOMINATIM_USER_AGENT = "Voltura/1.0 (+https://github.com/elmaroun07-hub/Voltura)";
+export const GEOCODE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+export const GEOCODE_CACHE_MAX = 500;
+export const geocodeCache = {
+  // Off under vitest, where suites change Nominatim's fixture for the same
+  // place between tests; the cache's own test turns it on.
+  enabled: !process.env.VITEST,
+  entries: new Map<string, { at: number; value: Geocoded }>(),
+  clear(): void {
+    this.entries.clear();
+  },
+};
+
+function geocodeKey(location: string): string {
+  return location.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+// Geocode location string to lat/lon via Nominatim, through the cache above.
+async function geocode(location: string): Promise<Geocoded | null> {
+  if (!geocodeCache.enabled) return geocodeUncached(location);
+  const key = geocodeKey(location);
+  const hit = geocodeCache.entries.get(key);
+  if (hit && Date.now() - hit.at < GEOCODE_CACHE_TTL_MS) return hit.value;
+  const value = await geocodeUncached(location);
+  if (value) {
+    geocodeCache.entries.delete(key);
+    geocodeCache.entries.set(key, { at: Date.now(), value });
+    // A Map keeps insertion order, so the first key is the oldest.
+    if (geocodeCache.entries.size > GEOCODE_CACHE_MAX) {
+      const oldest = geocodeCache.entries.keys().next().value;
+      if (oldest !== undefined) geocodeCache.entries.delete(oldest);
+    }
+  }
+  return value;
+}
+
+async function geocodeUncached(location: string): Promise<Geocoded | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1&accept-language=en`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "GreenEnergyCalculator/1.0" },
+      headers: { "User-Agent": NOMINATIM_USER_AGENT },
       signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) return null;
@@ -732,7 +837,7 @@ export function simulate8760(
     for (let d = 0; d < DAYS_IN_MONTH[m]; d++) {
       for (let h = 0; h < 24; h++) {
         const irrH = irradianceMonthly[m] * SOLAR_HOURLY_PROFILE[h];
-        totalPredicted += mlPredictConsumption(m, h, irrH, temperatureMonthly[m]);
+        totalPredicted += modelHourlyConsumption(m, h, irrH, temperatureMonthly[m]);
       }
     }
   }
@@ -755,7 +860,7 @@ export function simulate8760(
       for (let h = 0; h < 24; h++) {
         const irrH = dailyIrr * SOLAR_HOURLY_PROFILE[h];
         const genH = (pvWattage / 1000) * irrH * systemEfficiency * panelFactor;
-        const consH = mlPredictConsumption(m, h, irrH, temp) * consumptionScale;
+        const consH = modelHourlyConsumption(m, h, irrH, temp) * consumptionScale;
 
         mGen += genH;
         mCons += consH;
@@ -1252,8 +1357,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       const carbonIntensity = carbonIntensityKgPerKwh(resolution.carbonSource);
 
-      const panelFactor = panelEfficiencyFactor(input.roofAngle, input.panelOrientation);
-      const SYSTEM_EFFICIENCY = 0.78;
+      const panelFactor = panelEfficiencyFactor(input.roofAngle, input.panelOrientation, resolution.lat);
+      const SYSTEM_EFFICIENCY = 0.78; // an assumption, see MODELLING ASSUMPTIONS at the top of this file
 
       // 8760-hour simulation
       const sim = simulate8760(
@@ -1498,6 +1603,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
 
+      // Article 50(2): the model wrote `explanation` and nothing else (lib/llm.ts).
+      res.setHeader("AI-Disclosure", aiDisclosureHeader());
       return res.json({
         // G6: both figures come from the sizing function, and the response
         // carries the inputs they were computed from so the tab can show them.
@@ -1506,6 +1613,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         explanation: result.explanation,
         sizing: sized.sizing,
         resolution: resolved.resolution,
+        aiDisclosure: aiDisclosure(["explanation"]),
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -1513,7 +1621,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(400).json({ message: locale === "en" ? err.issues[0].message : t("error.invalidField", { field }), field });
       }
       console.error("Optimization error:", err);
-      return res.status(500).json({ message: t("error.optimizeFailed") });
+      const upstream = aiUpstreamFault(err);
+      if (upstream) {
+        if (upstream.retryAfter) res.setHeader("Retry-After", upstream.retryAfter);
+        return res.status(503).json({ message: t("error.aiUnavailable"), code: upstream.code });
+      }
+      return res.status(500).json({ message: t("error.optimizeFailed"), code: "internal" });
     }
   });
 

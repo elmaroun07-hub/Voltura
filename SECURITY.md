@@ -37,7 +37,7 @@ I read every report. I'm one person, so please allow a few days for a reply.
 
 ## What Voltura stores
 
-Voltura has no user accounts, passwords or payment data. It stores the calculations people run (a place name or coordinates and energy inputs) and Assistant conversations, linked to a signed browser session id.
+Voltura has no user accounts, passwords or payment data. It stores the calculations people run (a place name or coordinates and energy inputs) and Assistant conversations, linked to a random browser session id: a version 4 UUID kept in the browser's local storage. The id is not signed. Anyone who has it can read that browser's calculations and conversations, so it works like a password. The privacy notice is at https://voltura-web.onrender.com/privacy.html.
 
 ## What is already in place
 

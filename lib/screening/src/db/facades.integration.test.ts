@@ -400,6 +400,25 @@ describe("H3.2 — façades inferred from the block's geometry", () => {
     await expect(listBuildings(pool, "41091", {}, { limit: 5, offset: 0 })).rejects.toBeInstanceOf(ScreeningNotLoaded);
   });
 
+  it("VPUB — a single-dwelling building is scored and counted, but not published one by one", async () => {
+    const ref = "2642101UG4924S"; // 10 dwellings in the fixture
+    const before = await listBuildings(pool, "14021", {}, { limit: 50, offset: 0 });
+    expect(before.rows.map((r) => r.ref)).toContain(ref);
+    await pool.query("UPDATE h3_buildings SET dwellings = 1 WHERE ref = $1", [ref]);
+    try {
+      const after = await listBuildings(pool, "14021", {}, { limit: 50, offset: 0 });
+      expect(after.total).toBe(before.total - 1);
+      expect(after.rows.map((r) => r.ref)).not.toContain(ref);
+      // Ranks are not renumbered: the others keep the rank they were scored at.
+      expect(after.rows.map((r) => r.rank)).toEqual(before.rows.filter((r) => r.ref !== ref).map((r) => r.rank));
+      expect(await buildingTrace(pool, "14021", ref)).toEqual({ runId: before.runId, notPublished: true });
+      expect((await exportRows(pool, "14021")).rows.map((r) => r.ref)).not.toContain(ref);
+      expect((await portfolioSummary(pool, "14021")).scored).toBe(before.total);
+    } finally {
+      await pool.query("UPDATE h3_buildings SET dwellings = 10 WHERE ref = $1", [ref]);
+    }
+  });
+
   it("H3.9 — a database without the h3_ tables answers 'not loaded', never an empty ranking", async () => {
     await pool.query("CREATE SCHEMA IF NOT EXISTS h3_empty_test");
     const empty = new pg.Pool({ connectionString: url, options: "-c search_path=h3_empty_test" });

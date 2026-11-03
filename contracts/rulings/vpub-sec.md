@@ -53,3 +53,26 @@ municipality's residential median (1.0 = typical).
 - No constant is chosen by hand. If VHM ≤ 0, or no building in a band has two entries, `k` is
   undefined and the run is refused (P2), never filled with a value. Each run records `k`, EPV, VHM,
   buildings and entries per band.
+
+## EU AI Act classification (added 3 Nov 2026, VPUB audit)
+
+An assessment written by the provider, not a legal opinion. Texts read on 3 Nov 2026 at
+artificialintelligenceact.eu (Article 3, Article 6, Annex III).
+
+1. **Article 3(1).** An AI system "infers, from the input it receives, how to generate outputs".
+   The index above is a closed-form formula with hand-set weights and data-measured credibility
+   values, with no trained model and no ML library. Assessment: most likely not an AI system.
+   The Assistant and the Optimizer's prose are AI systems (a language model writes them).
+2. **Annex III, point 5(a)** covers systems used by or for public authorities to evaluate the
+   eligibility of natural persons for public assistance, or to grant or revoke it. The index ranks
+   buildings for a technical visit; it evaluates no person and grants nothing. Not met.
+3. **Annex III, point 2** covers safety components in the supply of heating or electricity.
+   Voltura controls nothing. Not met. Points 5(b) and 5(c) (credit, life and health insurance):
+   not met.
+4. **Article 6(3), last sentence:** an Annex III system that profiles natural persons is always
+   high-risk. The People factor uses census-section shares, not individuals. Single-dwelling
+   buildings are not published one by one (3 Nov 2026), pending a data-protection opinion.
+5. **Article 6(4)** (document the assessment, register under Article 49(2)) applies only to
+   systems listed in Annex III, so it is not triggered. This section is kept anyway.
+6. **Re-assess** if the intended purpose moves toward allocating aid to households, or if a
+   trained model enters `lib/screening`.

@@ -72,7 +72,9 @@ async function getJson<T>(path: ApiPath, schema: z.ZodType<T>): Promise<T> {
   const res = await sessionFetch(path);
   if (res.status === 404) {
     const body = await res.json().catch(() => null);
-    if (body?.code === "screening_not_loaded" || body?.code === "building_not_found") throw new NotLoaded(body.code);
+    if (body?.code === "screening_not_loaded" || body?.code === "building_not_found" || body?.code === "building_not_published") {
+      throw new NotLoaded(body.code);
+    }
   }
   if (!res.ok) throw new UserMessage(tNow()("screening.loadError"));
   return schema.parse(await res.json());

@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod/v3";
 import { chatStorage } from "./storage";
-import { getLlmClient, llmModel } from "../../lib/llm";
+import { AI_DISCLOSURE_MODE, aiDisclosure, aiDisclosureHeader, getLlmClient, llmModel } from "../../lib/llm";
 import { clientKey } from "../../lib/client-key";
 import { isSessionId } from "../../lib/session-id";
 import { FACTS_BY_LOCALE } from "./facts";
@@ -240,7 +240,13 @@ export function registerChatRoutes(app: Express): void {
         return notFound(req, res);
       }
       const messages = await chatStorage.getMessagesByConversation(id);
-      return res.json({ ...conversation, messages });
+      // Article 50(2): stored Assistant answers carry the machine-readable mark
+      // too. No model is named: it is not recorded per message, and the one set
+      // now may not be the one that wrote an older answer.
+      return res.json({
+        ...conversation,
+        messages: messages.map((m) => (m.role === "assistant" ? { ...m, aiDisclosure: { mode: AI_DISCLOSURE_MODE } } : m)),
+      });
     } catch (error) {
       console.error("Error fetching conversation:", error);
       return res.status(500).json({ error: serverT(requestLocale(req))("chat.getFailed") });
@@ -318,6 +324,8 @@ export function registerChatRoutes(app: Express): void {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
+      // Article 50(2): the streamed text is marked as AI-generated (lib/llm.ts).
+      res.setHeader("AI-Disclosure", aiDisclosureHeader());
 
       // Stream the completion from the configured provider
       const stream = await getLlmClient().chat.completions.create({
@@ -341,7 +349,7 @@ export function registerChatRoutes(app: Express): void {
       // Save assistant message
       await chatStorage.createMessage(conversationId, "assistant", fullResponse);
 
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, aiDisclosure: aiDisclosure() })}\n\n`);
       return res.end();
     } catch (error) {
       console.error("Error sending message:", error);

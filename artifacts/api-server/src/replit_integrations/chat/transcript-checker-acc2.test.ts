@@ -20,7 +20,7 @@ const ids = (text: string) => checkTranscript(text).map((f) => f.id);
 describe("H-ASST-ACC2 TF6 — the checker flags E1-E3, P1, P2", () => {
   it("the fixture is the 22 recorded lines: E1 x8, E2 x9, E3 x3, P1 x1, P2 x1", () => {
     const count: Record<string, number> = {};
-    for (const l of failing) count[l.id] = (count[l.id] ?? 0) + 1;
+    for (const l of failing) count[l.id] = (count[l.id] ?? 0) + 1; // G5-ok: a counter
     expect(count).toEqual({ E1: 8, E2: 9, E3: 3, P1: 1, P2: 1 });
   });
 
