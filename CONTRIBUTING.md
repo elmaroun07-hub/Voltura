@@ -18,7 +18,7 @@ A missing input is reported as missing, never replaced by a plausible number. A 
    ```
 
 3. Add or update tests for what you change. A test that names a live host (NASA POWER, Nominatim) must stub `fetch`.
-4. Keep the screening's wording: it is a screening index, never a grade, a rating or a compliance result.
+4. Keep the screening's wording: it is a screening index, never a grade, a rating or a pass-or-fail verdict.
 
 ## Reporting problems
 

@@ -87,7 +87,7 @@ export async function ingestMunicipality(db: Db, job: MunicipalityIngest): Promi
   if (!/^\d{5}$/.test(job.ineMunicipality)) {
     throw new Error(`INE municipality code must be 5 digits, got ${JSON.stringify(job.ineMunicipality)}`);
   }
-  const batchSize = job.batchSize ?? 500;
+  const batchSize = job.batchSize ?? 500; // G5-ok: a batch size, not a data value
 
   // Parts first: floors are only published on parts.
   const parts = new Map<string, PartSummary>();

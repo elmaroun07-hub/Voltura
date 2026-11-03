@@ -64,7 +64,7 @@ A smaller, self-contained copy of the core code, which runs with no database, ne
 
 Live demo. No agency uses it yet. I'm looking for a first partner in Andalusia: housing agencies, municipalities and energy-poverty researchers. Contact: elmaroun07@gmail.com
 
-The screening says where a technical visit should look first. It is not a grade, a compliance result or a decision about any household. The calculator's figures are estimates, not energy, financial or legal advice.
+The screening says where a technical visit should look first. It is not a grade, a pass-or-fail verdict or a decision about any household. The calculator's figures are estimates, not energy, financial or legal advice.
 
 Single-family houses are scored but not published one by one: the public list, building pages and CSV export show buildings with two or more dwellings. Privacy notice: https://voltura-web.onrender.com/privacy.html
 

@@ -96,6 +96,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="h-full overflow-y-auto">
           <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12">
             {children}
+            {/* VPUB audit: data credits and the privacy notice, on every page. */}
+            <footer data-testid="site-footer" className="mt-12 pt-6 border-t text-xs text-muted-foreground space-y-1">
+              <p>
+                {t("footer.credits")}{" "}
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline">
+                  {t("footer.osm")}
+                </a>
+              </p>
+              <p>
+                <a href="/privacy.html" className="underline">{t("footer.privacy")}</a>
+                {" · "}
+                <a href="https://github.com/elmaroun07-hub/Voltura#data-sources-and-licences" target="_blank" rel="noreferrer" className="underline">
+                  {t("footer.sources")}
+                </a>
+              </p>
+            </footer>
           </div>
         </div>
       </main>

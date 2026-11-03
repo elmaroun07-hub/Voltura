@@ -126,8 +126,9 @@ export default function Screening() {
                 <Card><CardHeader className="pb-2"><CardDescription>{t("screening.card.dwellings")}</CardDescription>
                   <CardTitle className="text-2xl">{num(summary.data.dwellings)}</CardTitle></CardHeader></Card>
                 <Card><CardHeader className="pb-2"><CardDescription>{t("screening.card.firstDecile")}</CardDescription>
-                  <CardTitle className="text-2xl">{num(summary.data.deciles[0]?.dwellings ?? 0)}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{t("screening.card.firstDecileBody", { buildings: num(summary.data.deciles[0]?.buildings ?? 0) })}</p></CardHeader></Card>
+                  {/* No deciles means nothing was scored, so 0 is the true count. */}
+                  <CardTitle className="text-2xl">{num(summary.data.deciles[0]?.dwellings ?? 0 /* G5-ok */)}</CardTitle>
+                  <p className="text-xs text-muted-foreground">{t("screening.card.firstDecileBody", { buildings: num(summary.data.deciles[0]?.buildings ?? 0 /* G5-ok */) })}</p></CardHeader></Card>
                 <Card className="border-orange-300"><CardHeader className="pb-2"><CardDescription>{t("screening.card.gap")}</CardDescription>
                   <CardTitle className="text-2xl" data-testid="summary-gap">{num(summary.data.gap.dwellings)}</CardTitle>
                   <p className="text-xs text-muted-foreground">{t("screening.card.gapBody", { buildings: num(summary.data.gap.buildings), dwellings: num(summary.data.gap.dwellings) })}</p></CardHeader></Card>

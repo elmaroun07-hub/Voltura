@@ -50,6 +50,7 @@ export default function ScreeningBuilding() {
   const index: Band = { low: Number(row.index_low), mid: Number(row.index_mid), high: Number(row.index_high) };
   const fraction = (w: number) => (Math.abs(w - 1 / 6) < 1e-9 ? "1/6" : Math.abs(w - 1 / 3) < 1e-9 ? "1/3" : two(w));
   const none = t("building.in.none");
+  const twoOrNone = (v: number | null) => (v === null ? none : two(v));
 
   const factorRows: { key: "hazard" | "exposure" | "sensitivity" | "people"; label: string }[] = [
     { key: "hazard", label: t("building.factor.hazard", { zone: String(row.zone) }) },
@@ -75,9 +76,10 @@ export default function ScreeningBuilding() {
         : t("building.in.certificatesValue", {
             n: num(Number(row.certificates)),
             units: num(Number(row.units_certified)),
-            median: two(n(row.cooling_demand_median) ?? 0),
-            min: two(n(row.cooling_demand_min) ?? 0),
-            max: two(n(row.cooling_demand_max) ?? 0),
+            // VPUB audit: a missing figure reads "not available", never 0.
+            median: twoOrNone(n(row.cooling_demand_median)),
+            min: twoOrNone(n(row.cooling_demand_min)),
+            max: twoOrNone(n(row.cooling_demand_max)),
           }),
     ],
     [
@@ -158,6 +160,10 @@ export default function ScreeningBuilding() {
                     {t("building.sourceRetrieved", { date: date(new Date(s.retrieved_at), { day: "numeric", month: "long", year: "numeric" }) })}
                     {" · "}
                     <span className="font-mono">{s.id}</span>
+                  </div>
+                  {/* VPUB audit: each source's terms, as recorded with it (h3_sources.licence). */}
+                  <div className="text-xs text-muted-foreground" data-testid="source-licence">
+                    {t("building.sourceLicence", { licence: s.licence })}
                   </div>
                 </li>
               ))}

@@ -144,13 +144,16 @@ else
   row SKIP "F2 pdf scoped"   "$PKG not found"
 fi
 
-# ══ 5. G5 — no numeric || defaults (comments excluded) ════════════════
-NUMDEF=$(grep -rnE '\|\|\s*-?[0-9]+(\.[0-9]+)?\b' \
+# ══ 5. G5 — no numeric || or ?? defaults (comments excluded) ══════════
+# VPUB audit (3 Nov 2026): `?? 0` hides a missing value as well as `|| 0`
+# does, and G5 did not look for it. A line that is a counter, a size or a
+# true zero says so with a `G5-ok` comment on the same line.
+NUMDEF=$(grep -rnE '(\|\||\?\?)\s*-?[0-9]+(\.[0-9]+)?\b' \
           --include='*.ts' --include='*.tsx' \
           --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=artifacts/greencalc . 2>/dev/null \
-        | grep -vE ':\s*(//|\*|/\*)' || true)
+        | grep -vE ':\s*(//|\*|/\*)' | grep -v 'G5-ok' || true)
 if [ -z "$NUMDEF" ]; then
-  row PASS "G5 no numeric default" "none in code"
+  row PASS "G5 no numeric default" "none in code (|| and ??)"
 else
   row FAIL "G5 no numeric default" "$(printf '%s' "$NUMDEF" | wc -l | tr -d ' ') hit(s) — OPEN AND READ each, comments are excluded already"
   printf '%s\n' "$NUMDEF" | sed 's/^/        /' >&2

@@ -127,6 +127,8 @@ export function ResultsDisplay({ results, calcId }: ResultsDisplayProps) {
         </Card>
       </div>
 
+      <p data-testid="text-assumptions" className="text-xs text-muted-foreground">{t("results.assumptions")}</p>
+
       {/* Monthly generation bar chart */}
       <Card className="p-5 shadow-md border-border/50">
         <CardHeader className="p-0 pb-4">

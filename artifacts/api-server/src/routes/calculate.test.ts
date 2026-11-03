@@ -44,7 +44,7 @@ vi.mock("../storage", () => ({
   chatStorage: {},
 }));
 
-const { registerRoutes, fallbackIrradiance } = await import("./routes");
+const { registerRoutes, fallbackIrradiance, panelEfficiencyFactor, geocodeCache, NOMINATIM_USER_AGENT } = await import("./routes");
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -602,5 +602,66 @@ describe("#9 N4 — batteryCapacity is a whole number of kWh", () => {
     } finally {
       await close();
     }
+  });
+});
+
+describe("VPUB audit - panel orientation faces the equator", () => {
+  it("north of the equator, south is best and north loses 30 %", () => {
+    expect(panelEfficiencyFactor(35, "south", 37.4)).toBeCloseTo(1.0, 10);
+    expect(panelEfficiencyFactor(35, "north", 37.4)).toBeCloseTo(0.7, 10);
+  });
+
+  it("south of the equator, north is best and south loses 30 %", () => {
+    expect(panelEfficiencyFactor(35, "north", -33.9)).toBeCloseTo(1.0, 10);
+    expect(panelEfficiencyFactor(35, "south", -33.9)).toBeCloseTo(0.7, 10);
+    expect(panelEfficiencyFactor(35, "east", -33.9)).toBe(panelEfficiencyFactor(35, "east", 37.4));
+  });
+
+  it("throws on an unknown orientation or a non-finite latitude instead of counting it as the best case", () => {
+    expect(() => panelEfficiencyFactor(35, "up", 37.4)).toThrow(/unknown orientation/);
+    expect(() => panelEfficiencyFactor(35, "south", Number.NaN)).toThrow(/non-finite latitude/);
+  });
+});
+
+describe("VPUB audit - Nominatim: identified and cached, as its usage policy asks", () => {
+  afterEach(() => {
+    geocodeCache.enabled = false;
+    geocodeCache.clear();
+  });
+
+  it("asks Nominatim once for a place it already found, and names Voltura in the User-Agent", async () => {
+    geocodeCache.enabled = true;
+    geocodeCache.clear();
+    const seen: string[] = [];
+    const stub = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: any, init?: any) => {
+      if (String(input).includes("nominatim.openstreetmap.org")) seen.push(String(init?.headers?.["User-Agent"]));
+      return stub(input, init);
+    });
+    const { base, close } = await serve();
+    const a = await calculate(base, FUENGIROLA);
+    const b = await calculate(base, `  ${FUENGIROLA.toUpperCase()}  `);
+    await close();
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(seen).toEqual([NOMINATIM_USER_AGENT]);
+    expect(NOMINATIM_USER_AGENT).toMatch(/^Voltura\//);
+  });
+
+  it("does not cache a place Nominatim did not find", async () => {
+    geocodeCache.enabled = true;
+    geocodeCache.clear();
+    let asked = 0;
+    const stub = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: any, init?: any) => {
+      if (String(input).includes("nominatim.openstreetmap.org")) asked++;
+      return stub(input, init);
+    });
+    const { base, close } = await serve();
+    await calculate(base, "Nowhere-at-all, Atlantis");
+    await calculate(base, "Nowhere-at-all, Atlantis");
+    await close();
+    expect(asked).toBe(2);
+    expect(geocodeCache.entries.size).toBe(0);
   });
 });

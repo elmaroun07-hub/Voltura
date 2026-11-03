@@ -18,7 +18,7 @@ const square = (shared: Partial<Record<0 | 90 | 180 | 270, number>> = {}): Facad
     ring: 1,
     azimuthDeg: az,
     lengthM: 10,
-    sharedM: shared[az] ?? 0,
+    sharedM: shared[az] ?? 0, // G5-ok: test fixture, no shared wall on that side
   }));
 
 describe("outwardNormalDeg — the building is on the right of a clockwise edge", () => {

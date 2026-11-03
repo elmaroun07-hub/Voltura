@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Voltura: privacidad / privacy</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1.25rem; line-height: 1.55; color: #1f2937; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; margin-top: 2rem; }
+  a { color: #047857; } hr { margin: 3rem 0; border: 0; border-top: 1px solid #d1d5db; }
+  .meta { color: #4b5563; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<p class="meta"><a href="/">Voltura</a> · <a href="#en">English below</a></p>
+
+<h1>Privacidad</h1>
+<p class="meta">Última revisión: 3 de noviembre de 2026.</p>
+
+<h2>Quién</h2>
+<p>Voltura lo construye y gestiona una sola persona: Houssain El Marouni, Tetuán (Marruecos). Contacto: <a href="mailto:elmaroun07@gmail.com">elmaroun07@gmail.com</a>.</p>
+
+<h2>Qué se guarda</h2>
+<ul>
+  <li><strong>Cálculos:</strong> el lugar que escribe (o sus coordenadas), los datos de energía que introduce y el resultado.</li>
+  <li><strong>Conversaciones con el Asistente de IA:</strong> sus mensajes y las respuestas.</li>
+</ul>
+<p>Ambos quedan vinculados a un identificador aleatorio que su navegador guarda en su almacenamiento local (<code>voltura.sessionId</code>). No hay cuentas, nombres, contraseñas ni datos de pago. Quien tenga ese identificador puede leer esos cálculos y conversaciones, así que no lo comparta. El navegador también guarda el idioma elegido. Voltura no usa cookies.</p>
+<p>El registro de peticiones del servidor anota el método, la ruta y el código de respuesta, no el contenido. La plataforma de alojamiento puede guardar sus propios registros de acceso.</p>
+
+<h2>Dónde y con quién</h2>
+<ul>
+  <li><strong>Render</strong> aloja la web, la API y la base de datos, en Fráncfort (UE).</li>
+  <li><strong>Groq</strong> (EE. UU.) recibe sus mensajes al Asistente y, del Optimizador, el lugar, sus coordenadas y las cifras calculadas, para generar el texto. No escriba datos personales en el Asistente.</li>
+  <li><strong>Nominatim (OpenStreetMap)</strong> recibe el nombre del lugar que escribe, para hallar sus coordenadas.</li>
+  <li><strong>NASA POWER</strong> recibe esas coordenadas, para devolver la irradiancia.</li>
+</ul>
+
+<h2>Cuánto tiempo</h2>
+<p>Todavía no hay borrado automático: los cálculos y las conversaciones se guardan hasta que se borran. Puede borrar una conversación desde la API (<code>DELETE /api/conversations/:id</code>) o pedir por correo que se borre todo lo vinculado a su identificador.</p>
+
+<h2>Sus derechos</h2>
+<p>Puede pedir acceso a sus datos, su corrección o su borrado escribiendo a <a href="mailto:elmaroun07@gmail.com">elmaroun07@gmail.com</a>. Indique su identificador o la fecha y el lugar del cálculo. También puede reclamar ante la autoridad de protección de datos de su país (en España, la AEPD).</p>
+
+<h2>El cribado de Córdoba</h2>
+<p>El cribado usa solo registros públicos (Catastro, certificados energéticos de la Junta de Andalucía, Censo 2021 del INE, MDT del IGN) y puntúa edificios, no personas. Las viviendas unifamiliares se puntúan pero no se publican una a una.</p>
+
+<hr>
+
+<h1 id="en">Privacy</h1>
+<p class="meta">Last reviewed: 3 November 2026.</p>
+
+<h2>Who</h2>
+<p>Voltura is built and run by one person: Houssain El Marouni, Tétouan, Morocco. Contact: <a href="mailto:elmaroun07@gmail.com">elmaroun07@gmail.com</a>.</p>
+
+<h2>What is stored</h2>
+<ul>
+  <li><strong>Calculations:</strong> the place you type (or its coordinates), the energy inputs you enter and the result.</li>
+  <li><strong>Conversations with the AI Assistant:</strong> your messages and the answers.</li>
+</ul>
+<p>Both are linked to a random id that your browser keeps in its local storage (<code>voltura.sessionId</code>). There are no accounts, names, passwords or payment data. Anyone who has that id can read those calculations and conversations, so do not share it. The browser also keeps your language choice. Voltura uses no cookies.</p>
+<p>The server's request log records the method, the path and the status code, not the content. The hosting platform may keep its own access logs.</p>
+
+<h2>Where, and who else</h2>
+<ul>
+  <li><strong>Render</strong> hosts the website, the API and the database, in Frankfurt (EU).</li>
+  <li><strong>Groq</strong> (United States) receives your messages to the Assistant and, from the Optimizer, the place, its coordinates and the computed figures, to write the text. Do not type personal data into the Assistant.</li>
+  <li><strong>Nominatim (OpenStreetMap)</strong> receives the place name you type, to find its coordinates.</li>
+  <li><strong>NASA POWER</strong> receives those coordinates, to return the irradiance.</li>
+</ul>
+
+<h2>How long</h2>
+<p>There is no automatic deletion yet: calculations and conversations are kept until they are deleted. You can delete a conversation through the API (<code>DELETE /api/conversations/:id</code>) or ask by email for everything linked to your id to be deleted.</p>
+
+<h2>Your rights</h2>
+<p>You can ask to see, correct or delete your data by writing to <a href="mailto:elmaroun07@gmail.com">elmaroun07@gmail.com</a>. Give your id, or the date and place of the calculation. You can also complain to the data-protection authority of your country (in Spain, the AEPD).</p>
+
+<h2>The Córdoba screening</h2>
+<p>The screening uses only public registers (Catastro, the Junta de Andalucía's energy certificates, INE Census 2021, IGN terrain model) and scores buildings, not people. Single-family houses are scored but not published one by one.</p>
+</body>
+</html>

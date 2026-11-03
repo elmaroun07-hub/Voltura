@@ -95,9 +95,9 @@ export async function computeIndex(db: Db, ineMunicipality: string, method: Inde
     const read = perBuilding.get(r.ref);
     if (r.entries !== null) {
       entries += r.entries;
-      entriesRead += read?.entries ?? 0;
+      entriesRead += read?.entries ?? 0; // G5-ok: no certificate read is 0 entries read
     }
-    if (hasCert) entriesWithValue += read?.values.length ?? 0;
+    if (hasCert) entriesWithValue += read?.values.length ?? 0; // G5-ok: a count
     inputs.push({
       ref: r.ref,
       dwellings: r.dwellings,

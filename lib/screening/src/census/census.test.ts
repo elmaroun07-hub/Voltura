@@ -53,7 +53,7 @@ function makeShapefile(
   const recBufs = records.map((r, i) => {
     const pts = r.parts.flat();
     const content = Buffer.alloc(44 + 4 * r.parts.length + 16 * pts.length);
-    content.writeInt32LE(opts.shapeType ?? 5, 0);
+    content.writeInt32LE(opts.shapeType ?? 5, 0); // G5-ok: test fixture, polygon shape type
     let k = 0;
     for (const [pi, part] of r.parts.entries()) {
       content.writeInt32LE(k, 44 + 4 * pi);
@@ -74,7 +74,7 @@ function makeShapefile(
   header.writeInt32BE(9994, 0);
   const total = 100 + recBufs.reduce((s, b) => s + b.length, 0);
   header.writeInt32BE(total / 2, 24);
-  header.writeInt32LE(opts.shapeType ?? 5, 32);
+  header.writeInt32LE(opts.shapeType ?? 5, 32); // G5-ok: test fixture, polygon shape type
   const shp = Buffer.concat([header, ...recBufs]);
 
   const recordLength = 1 + fields.reduce((s, f) => s + f.length, 0);

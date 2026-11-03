@@ -90,7 +90,10 @@ export default function History() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {t("unit.percentValue", { n: num(Math.round((item.batteryEfficiency ?? 0.9) * 100)) })}
+                            {/* VPUB audit: a missing efficiency reads "not recorded", never the 90 % default. */}
+                            {item.batteryEfficiency == null
+                              ? t("history.notRecorded")
+                              : t("unit.percentValue", { n: num(Math.round(item.batteryEfficiency * 100)) })}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-bold text-primary">

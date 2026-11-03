@@ -57,7 +57,7 @@ export async function computeClimate(
         street: r.exposed_m.street,
         courtyard: r.exposed_m.courtyard,
       });
-      byZone[z.zone] = (byZone[z.zone] ?? 0) + 1;
+      byZone[z.zone] = (byZone[z.zone] ?? 0) + 1; // G5-ok: a counter starts at 0
       const o = values.length;
       values.push(
         r.ref, demSourceId, altitude, ALTITUDE_BASIS, province, z.zone, z.summer,
