@@ -1,7 +1,8 @@
 # Locale strings — salvaged at H1.x, mapped at H2b
 
-`en.json`, `es.json`, `ar.json`, copied verbatim from
-`artifacts/greencalc/static/lang/` before H2 archives that directory (C2).
+`en.json`, `es.json`, `ar.json`, copied verbatim from the old Flask GreenCalc app's
+`artifacts/greencalc/static/lang/`. That directory has since been removed from
+the tree; it is preserved at tag `greencalc-final` (commit `a464bb5`).
 
 **H2b (2b.2): the matching strings were carried into `src/i18n/catalog.ts`,
 which is now the only place the app reads words from.** These files are kept

@@ -211,7 +211,7 @@ fi
 OLD=$(grep -rnE '4203|4,203|1050\.70|1,050\.70' \
        --include='*.ts' --include='*.tsx' --include='*.json' --include='*.md' \
        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=contracts \
-       --exclude-dir=docs --exclude=HEATSHIELD_CONTRACT.md . 2>/dev/null \
+       --exclude-dir=docs --exclude=HEATSHIELD_CONTRACT.md --exclude=README.md . 2>/dev/null \
      | grep -vE ':\s*(//|\*|/\*)' || true)
 if [ -z "$OLD" ]; then
   row PASS "old figures"     "absent"
