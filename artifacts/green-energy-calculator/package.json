@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "node scripts/check-i18n.mjs && vite build --config vite.config.ts",
+    "build": "node scripts/check-i18n.mjs && vite build --config vite.config.ts && node scripts/copy-404.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "node scripts/check-i18n.mjs && tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
