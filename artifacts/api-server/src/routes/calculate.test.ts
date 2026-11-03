@@ -578,3 +578,29 @@ describe("#8 D12 — at ≥100 % coverage the recommendation values no export", 
     }
   });
 });
+
+// ── #9 N4 — a fractional battery is a typed 400, not a 500 after the calculation ─
+
+describe("#9 N4 — batteryCapacity is a whole number of kWh", () => {
+  it.each([0.5, 4.5, 9.5])("%s kWh answers a typed 400 naming the field, not a 500", async (kwh) => {
+    const { base, close } = await serve();
+    try {
+      const r = await calculateIn(base, FUENGIROLA, "en", { batteryCapacity: kwh });
+      expect(r.status).toBe(400);
+      expect(r.body.field).toBe("batteryCapacity");
+      expect(typeof r.body.message).toBe("string");
+    } finally {
+      await close();
+    }
+  });
+
+  it("a whole number still calculates", async () => {
+    const { base, close } = await serve();
+    try {
+      const r = await calculateIn(base, FUENGIROLA, "en", { batteryCapacity: 4 });
+      expect(r.status).toBe(200);
+    } finally {
+      await close();
+    }
+  });
+});

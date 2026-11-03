@@ -65,7 +65,9 @@ export const calculationInputSchema = z.object({
   location: z.string().min(2, "Please enter a valid location").max(200, "Please enter a valid location"),
   energyUsage: z.number().min(100).max(100000),
   pvWattage: z.number().min(100).max(100000),
-  batteryCapacity: z.number().min(0).max(200),
+  // #9 N4: whole kWh. battery_capacity is an integer column; a fraction used to
+  // pass here and fail in the insert with a 500, after the calculation had run.
+  batteryCapacity: z.number().int().min(0).max(200),
   // Optional, and there is NO default (H-SRC-ES-UK, P0.7/P0.8). A missing tariff is
   // resolved server-side from the country registry, or the money figure is pending.
   // 0.25 used to be applied here to every country on Earth.

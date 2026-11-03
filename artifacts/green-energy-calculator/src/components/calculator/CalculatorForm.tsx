@@ -108,7 +108,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                   <FormControl>
                     <Slider
                       data-testid="slider-battery-capacity"
-                      min={0} max={50} step={0.5}
+                      min={0} max={50} step={1}
                       value={[field.value]}
                       onValueChange={(vals) => field.onChange(vals[0])}
                     />

@@ -7,7 +7,7 @@ export const calculationInputSchema = z.object({
   location: z.string().min(2).max(200),
   energyUsage: z.number().min(100).max(100000),
   pvWattage: z.number().min(100).max(100000),
-  batteryCapacity: z.number().min(0).max(200),
+  batteryCapacity: z.number().int().min(0).max(200),
   // Optional, no default: the server resolves it from the country registry or the
   // money figure is pending. Mirrors calculationInputSchema in lib/db.
   electricityTariff: z.number().min(0.01).max(5).optional().nullable(),
