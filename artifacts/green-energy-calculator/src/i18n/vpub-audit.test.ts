@@ -33,8 +33,10 @@ describe.each(["es", "en"] as const)("VPUB audit copy, %s", (lang) => {
   });
 
   it("says orientation depends on the hemisphere", () => {
-    expect(c["calc.orientation.north"]).toMatch(lang === "es" ? /sur/ : /southern/);
-    expect(c["calc.orientation.south"]).toMatch(lang === "es" ? /norte/ : /northern/);
+    // Said in the help line under the select, so the short labels fit the box.
+    expect(c["calc.orientationHelp"]).toMatch(lang === "es" ? /sur/ : /southern/);
+    expect(c["calc.orientationHelp"]).toMatch(lang === "es" ? /norte/ : /northern/);
+    expect(src("../components/calculator/CalculatorForm.tsx")).toContain('t("calc.orientationHelp")');
   });
 });
 
