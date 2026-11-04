@@ -59,19 +59,9 @@ export const catalog = defineCatalog(
     "calc.battery": "Capacidad de batería: {kwh} kWh",
     "calc.advanced": "Parámetros avanzados",
     "calc.tariff": "Tarifa eléctrica (por kWh)",
-    "calc.tariffPlaceholder": "Media nacional con fuente",
-    "calc.tariffHelp":
-    "En su moneda local. Déjelo en blanco para usar la media nacional con fuente, si la tenemos.",
-    "calc.batteryEff": "Rendimiento de ida y vuelta de la batería: {pct} %",
-    "calc.batteryEffHelp": "Li-ion típica: 90–95 %",
-    "calc.orientation": "Orientación del panel",
-    "calc.orientationPlaceholder": "Seleccione la orientación",
-    "calc.orientation.south": "Sur (la mejor en el hemisferio norte; −30 % en el sur)",
-    "calc.orientation.east": "Este (−13 %)",
-    "calc.orientation.west": "Oeste (−13 %)",
     "calc.tariffPlaceholder": "Media nacional",
     "calc.tariffHelp":
-    "En su moneda local. Déjelo en blanco para usar la media nacional con fuente, si la tenemos.",
+      "En su moneda local. Déjelo en blanco para usar la media nacional con fuente, si la tenemos.",
     "calc.batteryEff": "Rendimiento de ida y vuelta de la batería: {pct} %",
     "calc.batteryEffHelp": "Li-ion típica: 90–95 %",
     "calc.orientation": "Orientación del panel",
@@ -393,7 +383,7 @@ export const catalog = defineCatalog(
     "calc.installCost": "Installation Cost",
     "calc.installCostPlaceholder": "Sourced figure, where we have one",
     "calc.installCostHelp":
-    "In your local currency. Leave blank to use a sourced figure for your country; if there is none, the payback shows as pending.",
+      "In your local currency. Leave blank to use a sourced figure for your country; if there is none, the payback shows as pending.",
     "calc.submitting": "Fetching irradiance & simulating 8760h…",
     "calc.submit": "Calculate Savings",
 

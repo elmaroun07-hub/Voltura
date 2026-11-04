@@ -190,7 +190,7 @@ export function CalculatorForm({ onSubmit, isLoading }: CalculatorFormProps) {
                         <SelectItem value="north">{t("calc.orientation.north")}</SelectItem>
                       </SelectContent>
                     </Select>
-                      <FormDescription>{t("calc.orientationHelp")}</FormDescription>
+                    <FormDescription>{t("calc.orientationHelp")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
